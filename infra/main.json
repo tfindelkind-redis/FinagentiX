@@ -1,0 +1,1647 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "languageVersion": "2.0",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.37.4.10188",
+      "templateHash": "12173032267971178764"
+    }
+  },
+  "parameters": {
+    "environmentName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "metadata": {
+        "description": "Environment name (dev, staging, prod)"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[deployment().location]",
+      "metadata": {
+        "description": "Primary Azure region for resources"
+      }
+    },
+    "prefix": {
+      "type": "string",
+      "defaultValue": "finagentix",
+      "metadata": {
+        "description": "Resource naming prefix"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "defaultValue": {
+        "environment": "[parameters('environmentName')]",
+        "project": "FinagentiX",
+        "managedBy": "azd",
+        "owner": "Thomas Findelkind"
+      },
+      "metadata": {
+        "description": "Tags to apply to all resources"
+      }
+    },
+    "redisSku": {
+      "type": "string",
+      "defaultValue": "Enterprise_E5",
+      "allowedValues": [
+        "Enterprise_E5",
+        "Enterprise_E10",
+        "Enterprise_E20"
+      ],
+      "metadata": {
+        "description": "Redis SKU (E5 for dev, E10 for prod)"
+      }
+    },
+    "deployStage": {
+      "type": "string",
+      "defaultValue": "all",
+      "allowedValues": [
+        "all",
+        "foundation",
+        "data-platform",
+        "ai-services",
+        "data-ingestion",
+        "agent-runtime"
+      ],
+      "metadata": {
+        "description": "Deploy all stages or specific stages"
+      }
+    }
+  },
+  "variables": {
+    "resourceToken": "[toLower(uniqueString(subscription().id, parameters('environmentName'), parameters('location')))]",
+    "resourceGroupName": "[format('{0}-{1}-rg', parameters('prefix'), parameters('environmentName'))]"
+  },
+  "resources": {
+    "rg": {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2021-04-01",
+      "name": "[variables('resourceGroupName')]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]"
+    },
+    "foundation": {
+      "condition": "[or(equals(parameters('deployStage'), 'all'), equals(parameters('deployStage'), 'foundation'))]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('foundation-{0}', variables('resourceToken'))]",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "environmentName": {
+            "value": "[parameters('environmentName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceToken": {
+            "value": "[variables('resourceToken')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.37.4.10188",
+              "templateHash": "15167819989240406988"
+            }
+          },
+          "parameters": {
+            "environmentName": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Primary location for resources"
+              }
+            },
+            "resourceToken": {
+              "type": "string",
+              "metadata": {
+                "description": "Unique resource token"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags"
+              }
+            }
+          },
+          "variables": {
+            "vnetName": "[format('vnet-{0}', parameters('resourceToken'))]",
+            "addressPrefix": "10.0.0.0/16",
+            "subnets": [
+              {
+                "name": "redis-subnet",
+                "addressPrefix": "10.0.1.0/24",
+                "privateEndpointNetworkPolicies": "Disabled"
+              },
+              {
+                "name": "openai-subnet",
+                "addressPrefix": "10.0.2.0/24",
+                "privateEndpointNetworkPolicies": "Disabled"
+              },
+              {
+                "name": "storage-subnet",
+                "addressPrefix": "10.0.3.0/24",
+                "privateEndpointNetworkPolicies": "Disabled"
+              },
+              {
+                "name": "container-apps-subnet",
+                "addressPrefix": "10.0.4.0/23",
+                "delegations": [
+                  {
+                    "name": "Microsoft.App/environments",
+                    "properties": {
+                      "serviceName": "Microsoft.App/environments"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2023-05-01",
+              "name": "[variables('vnetName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "copy": [
+                  {
+                    "name": "subnets",
+                    "count": "[length(variables('subnets'))]",
+                    "input": {
+                      "name": "[variables('subnets')[copyIndex('subnets')].name]",
+                      "properties": {
+                        "addressPrefix": "[variables('subnets')[copyIndex('subnets')].addressPrefix]",
+                        "privateEndpointNetworkPolicies": "[coalesce(tryGet(variables('subnets')[copyIndex('subnets')], 'privateEndpointNetworkPolicies'), 'Enabled')]",
+                        "delegations": "[coalesce(tryGet(variables('subnets')[copyIndex('subnets')], 'delegations'), createArray())]"
+                      }
+                    }
+                  }
+                ],
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "[variables('addressPrefix')]"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkSecurityGroups",
+              "apiVersion": "2023-05-01",
+              "name": "[format('nsg-container-apps-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "securityRules": [
+                  {
+                    "name": "AllowHttpsInbound",
+                    "properties": {
+                      "priority": 100,
+                      "direction": "Inbound",
+                      "access": "Allow",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "443",
+                      "sourceAddressPrefix": "Internet",
+                      "destinationAddressPrefix": "*"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "privatelink.redisenterprise.cache.azure.net",
+              "location": "global",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "privatelink.openai.azure.com",
+              "location": "global",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "[format('privatelink.blob.{0}', environment().suffixes.storage)]",
+              "location": "global",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2020-06-01",
+              "name": "[format('{0}/{1}', 'privatelink.redisenterprise.cache.azure.net', format('{0}-redis-link', variables('vnetName')))]",
+              "location": "global",
+              "properties": {
+                "virtualNetwork": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+                },
+                "registrationEnabled": false
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.redisenterprise.cache.azure.net')]",
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2020-06-01",
+              "name": "[format('{0}/{1}', 'privatelink.openai.azure.com', format('{0}-openai-link', variables('vnetName')))]",
+              "location": "global",
+              "properties": {
+                "virtualNetwork": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+                },
+                "registrationEnabled": false
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.openai.azure.com')]",
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2020-06-01",
+              "name": "[format('{0}/{1}', format('privatelink.blob.{0}', environment().suffixes.storage), format('{0}-storage-link', variables('vnetName')))]",
+              "location": "global",
+              "properties": {
+                "virtualNetwork": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+                },
+                "registrationEnabled": false
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', format('privatelink.blob.{0}', environment().suffixes.storage))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2022-10-01",
+              "name": "[format('log-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "sku": {
+                  "name": "PerGB2018"
+                },
+                "retentionInDays": 30,
+                "features": {
+                  "enableLogAccessUsingOnlyResourcePermissions": true
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Insights/components",
+              "apiVersion": "2020-02-02",
+              "name": "[format('appi-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "kind": "web",
+              "properties": {
+                "Application_Type": "web",
+                "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}', parameters('resourceToken')))]",
+                "RetentionInDays": 30
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}', parameters('resourceToken')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "vnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+            },
+            "vnetName": {
+              "type": "string",
+              "value": "[variables('vnetName')]"
+            },
+            "redisSubnetId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), '2023-05-01').subnets[0].id]"
+            },
+            "openaiSubnetId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), '2023-05-01').subnets[1].id]"
+            },
+            "storageSubnetId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), '2023-05-01').subnets[2].id]"
+            },
+            "containerAppsSubnetId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), '2023-05-01').subnets[3].id]"
+            },
+            "privateDnsZoneIdRedis": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.redisenterprise.cache.azure.net')]"
+            },
+            "privateDnsZoneIdOpenAI": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.openai.azure.com')]"
+            },
+            "privateDnsZoneIdStorage": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/privateDnsZones', format('privatelink.blob.{0}', environment().suffixes.storage))]"
+            },
+            "logAnalyticsWorkspaceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}', parameters('resourceToken')))]"
+            },
+            "logAnalyticsWorkspaceName": {
+              "type": "string",
+              "value": "[format('log-{0}', parameters('resourceToken'))]"
+            },
+            "applicationInsightsId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Insights/components', format('appi-{0}', parameters('resourceToken')))]"
+            },
+            "applicationInsightsConnectionString": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Insights/components', format('appi-{0}', parameters('resourceToken'))), '2020-02-02').ConnectionString]"
+            },
+            "applicationInsightsInstrumentationKey": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Insights/components', format('appi-{0}', parameters('resourceToken'))), '2020-02-02').InstrumentationKey]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "rg"
+      ]
+    },
+    "dataPlatform": {
+      "condition": "[or(equals(parameters('deployStage'), 'all'), equals(parameters('deployStage'), 'data-platform'))]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('data-platform-{0}', variables('resourceToken'))]",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "environmentName": {
+            "value": "[parameters('environmentName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceToken": {
+            "value": "[variables('resourceToken')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          },
+          "redisSku": {
+            "value": "[parameters('redisSku')]"
+          },
+          "vnetId": {
+            "value": "[reference('foundation').outputs.vnetId.value]"
+          },
+          "redisSubnetId": {
+            "value": "[reference('foundation').outputs.redisSubnetId.value]"
+          },
+          "storageSubnetId": {
+            "value": "[reference('foundation').outputs.storageSubnetId.value]"
+          },
+          "privateDnsZoneIdRedis": {
+            "value": "[reference('foundation').outputs.privateDnsZoneIdRedis.value]"
+          },
+          "privateDnsZoneIdStorage": {
+            "value": "[reference('foundation').outputs.privateDnsZoneIdStorage.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "languageVersion": "2.0",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.37.4.10188",
+              "templateHash": "1904595589447296927"
+            }
+          },
+          "parameters": {
+            "environmentName": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Primary location for resources"
+              }
+            },
+            "resourceToken": {
+              "type": "string",
+              "metadata": {
+                "description": "Unique resource token"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags"
+              }
+            },
+            "redisSku": {
+              "type": "string",
+              "defaultValue": "Enterprise_E5",
+              "allowedValues": [
+                "Enterprise_E5",
+                "Enterprise_E10",
+                "Enterprise_E20"
+              ],
+              "metadata": {
+                "description": "Redis SKU"
+              }
+            },
+            "vnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "VNet ID for private endpoints"
+              }
+            },
+            "redisSubnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "Redis subnet ID"
+              }
+            },
+            "storageSubnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "Storage subnet ID"
+              }
+            },
+            "privateDnsZoneIdRedis": {
+              "type": "string",
+              "metadata": {
+                "description": "Private DNS Zone ID for Redis"
+              }
+            },
+            "privateDnsZoneIdStorage": {
+              "type": "string",
+              "metadata": {
+                "description": "Private DNS Zone ID for Storage"
+              }
+            }
+          },
+          "resources": {
+            "redisEnterprise": {
+              "type": "Microsoft.Cache/redisEnterprise",
+              "apiVersion": "2023-11-01",
+              "name": "[format('redis-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "[parameters('redisSku')]",
+                "capacity": 2
+              },
+              "properties": {
+                "minimumTlsVersion": "1.2"
+              }
+            },
+            "redisDatabase": {
+              "type": "Microsoft.Cache/redisEnterprise/databases",
+              "apiVersion": "2023-11-01",
+              "name": "[format('{0}/{1}', format('redis-{0}', parameters('resourceToken')), 'default')]",
+              "properties": {
+                "clientProtocol": "Encrypted",
+                "port": 10000,
+                "clusteringPolicy": "EnterpriseCluster",
+                "evictionPolicy": "NoEviction",
+                "modules": [
+                  {
+                    "name": "RediSearch"
+                  },
+                  {
+                    "name": "RedisJSON"
+                  },
+                  {
+                    "name": "RedisTimeSeries"
+                  },
+                  {
+                    "name": "RedisBloom"
+                  }
+                ],
+                "persistence": {
+                  "aofEnabled": true,
+                  "aofFrequency": "1s",
+                  "rdbEnabled": true,
+                  "rdbFrequency": "1h"
+                }
+              },
+              "dependsOn": [
+                "redisEnterprise"
+              ]
+            },
+            "redisPrivateEndpoint": {
+              "type": "Microsoft.Network/privateEndpoints",
+              "apiVersion": "2023-05-01",
+              "name": "[format('pe-redis-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "subnet": {
+                  "id": "[parameters('redisSubnetId')]"
+                },
+                "privateLinkServiceConnections": [
+                  {
+                    "name": "redis-connection",
+                    "properties": {
+                      "privateLinkServiceId": "[resourceId('Microsoft.Cache/redisEnterprise', format('redis-{0}', parameters('resourceToken')))]",
+                      "groupIds": [
+                        "redisEnterprise"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "redisEnterprise"
+              ]
+            },
+            "redisDnsZoneGroup": {
+              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', format('pe-redis-{0}', parameters('resourceToken')), 'redis-dns-zone-group')]",
+              "properties": {
+                "privateDnsZoneConfigs": [
+                  {
+                    "name": "config1",
+                    "properties": {
+                      "privateDnsZoneId": "[parameters('privateDnsZoneIdRedis')]"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "redisPrivateEndpoint"
+              ]
+            },
+            "storageAccount": {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-01-01",
+              "name": "[format('st{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "kind": "StorageV2",
+              "properties": {
+                "accessTier": "Hot",
+                "minimumTlsVersion": "TLS1_2",
+                "supportsHttpsTrafficOnly": true,
+                "allowBlobPublicAccess": false,
+                "networkAcls": {
+                  "defaultAction": "Deny",
+                  "bypass": "AzureServices"
+                }
+              }
+            },
+            "blobServices": {
+              "type": "Microsoft.Storage/storageAccounts/blobServices",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}', format('st{0}', parameters('resourceToken')), 'default')]",
+              "properties": {
+                "deleteRetentionPolicy": {
+                  "enabled": true,
+                  "days": 7
+                }
+              },
+              "dependsOn": [
+                "storageAccount"
+              ]
+            },
+            "secFilingsContainer": {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', format('st{0}', parameters('resourceToken')), 'default', 'sec-filings')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "blobServices"
+              ]
+            },
+            "newsArticlesContainer": {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', format('st{0}', parameters('resourceToken')), 'default', 'news-articles')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "blobServices"
+              ]
+            },
+            "storagePrivateEndpoint": {
+              "type": "Microsoft.Network/privateEndpoints",
+              "apiVersion": "2023-05-01",
+              "name": "[format('pe-storage-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "subnet": {
+                  "id": "[parameters('storageSubnetId')]"
+                },
+                "privateLinkServiceConnections": [
+                  {
+                    "name": "storage-connection",
+                    "properties": {
+                      "privateLinkServiceId": "[resourceId('Microsoft.Storage/storageAccounts', format('st{0}', parameters('resourceToken')))]",
+                      "groupIds": [
+                        "blob"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "storageAccount"
+              ]
+            },
+            "storageDnsZoneGroup": {
+              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', format('pe-storage-{0}', parameters('resourceToken')), 'storage-dns-zone-group')]",
+              "properties": {
+                "privateDnsZoneConfigs": [
+                  {
+                    "name": "config1",
+                    "properties": {
+                      "privateDnsZoneId": "[parameters('privateDnsZoneIdStorage')]"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "storagePrivateEndpoint"
+              ]
+            }
+          },
+          "outputs": {
+            "redisId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Cache/redisEnterprise', format('redis-{0}', parameters('resourceToken')))]"
+            },
+            "redisName": {
+              "type": "string",
+              "value": "[format('redis-{0}', parameters('resourceToken'))]"
+            },
+            "redisHost": {
+              "type": "string",
+              "value": "[reference('redisEnterprise').hostName]"
+            },
+            "redisPort": {
+              "type": "int",
+              "value": 10000
+            },
+            "redisPassword": {
+              "type": "securestring",
+              "value": "[listKeys('redisDatabase', '2023-11-01').primaryKey]"
+            },
+            "storageAccountId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Storage/storageAccounts', format('st{0}', parameters('resourceToken')))]"
+            },
+            "storageAccountName": {
+              "type": "string",
+              "value": "[format('st{0}', parameters('resourceToken'))]"
+            },
+            "storageConnectionString": {
+              "type": "securestring",
+              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', format('st{0}', parameters('resourceToken')), listKeys('storageAccount', '2023-01-01').keys[0].value, environment().suffixes.storage)]"
+            },
+            "secFilingsContainerName": {
+              "type": "string",
+              "value": "sec-filings"
+            },
+            "newsArticlesContainerName": {
+              "type": "string",
+              "value": "news-articles"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "foundation",
+        "rg"
+      ]
+    },
+    "aiServices": {
+      "condition": "[or(equals(parameters('deployStage'), 'all'), equals(parameters('deployStage'), 'ai-services'))]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('ai-services-{0}', variables('resourceToken'))]",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "environmentName": {
+            "value": "[parameters('environmentName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceToken": {
+            "value": "[variables('resourceToken')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          },
+          "vnetId": {
+            "value": "[reference('foundation').outputs.vnetId.value]"
+          },
+          "openaiSubnetId": {
+            "value": "[reference('foundation').outputs.openaiSubnetId.value]"
+          },
+          "privateDnsZoneIdOpenAI": {
+            "value": "[reference('foundation').outputs.privateDnsZoneIdOpenAI.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "languageVersion": "2.0",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.37.4.10188",
+              "templateHash": "2814295699092579766"
+            }
+          },
+          "parameters": {
+            "environmentName": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Primary location for resources"
+              }
+            },
+            "resourceToken": {
+              "type": "string",
+              "metadata": {
+                "description": "Unique resource token"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags"
+              }
+            },
+            "vnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "VNet ID for private endpoints"
+              }
+            },
+            "openaiSubnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "OpenAI subnet ID"
+              }
+            },
+            "privateDnsZoneIdOpenAI": {
+              "type": "string",
+              "metadata": {
+                "description": "Private DNS Zone ID for OpenAI"
+              }
+            }
+          },
+          "resources": {
+            "openai": {
+              "type": "Microsoft.CognitiveServices/accounts",
+              "apiVersion": "2023-05-01",
+              "name": "[format('openai-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "kind": "OpenAI",
+              "sku": {
+                "name": "S0"
+              },
+              "properties": {
+                "customSubDomainName": "[format('openai-{0}', parameters('resourceToken'))]",
+                "publicNetworkAccess": "Disabled",
+                "networkAcls": {
+                  "defaultAction": "Deny",
+                  "ipRules": [],
+                  "virtualNetworkRules": []
+                }
+              }
+            },
+            "gpt4Deployment": {
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', format('openai-{0}', parameters('resourceToken')), 'gpt-4')]",
+              "sku": {
+                "name": "Standard",
+                "capacity": 10
+              },
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "gpt-4",
+                  "version": "1106-Preview"
+                }
+              },
+              "dependsOn": [
+                "openai"
+              ]
+            },
+            "embeddingDeployment": {
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', format('openai-{0}', parameters('resourceToken')), 'text-embedding-3-large')]",
+              "sku": {
+                "name": "Standard",
+                "capacity": 10
+              },
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "text-embedding-3-large",
+                  "version": "1"
+                }
+              },
+              "dependsOn": [
+                "gpt4Deployment",
+                "openai"
+              ]
+            },
+            "openaiPrivateEndpoint": {
+              "type": "Microsoft.Network/privateEndpoints",
+              "apiVersion": "2023-05-01",
+              "name": "[format('pe-openai-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "subnet": {
+                  "id": "[parameters('openaiSubnetId')]"
+                },
+                "privateLinkServiceConnections": [
+                  {
+                    "name": "openai-connection",
+                    "properties": {
+                      "privateLinkServiceId": "[resourceId('Microsoft.CognitiveServices/accounts', format('openai-{0}', parameters('resourceToken')))]",
+                      "groupIds": [
+                        "account"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "openai"
+              ]
+            },
+            "openaiDnsZoneGroup": {
+              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', format('pe-openai-{0}', parameters('resourceToken')), 'openai-dns-zone-group')]",
+              "properties": {
+                "privateDnsZoneConfigs": [
+                  {
+                    "name": "config1",
+                    "properties": {
+                      "privateDnsZoneId": "[parameters('privateDnsZoneIdOpenAI')]"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "openaiPrivateEndpoint"
+              ]
+            }
+          },
+          "outputs": {
+            "openaiId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.CognitiveServices/accounts', format('openai-{0}', parameters('resourceToken')))]"
+            },
+            "openaiName": {
+              "type": "string",
+              "value": "[format('openai-{0}', parameters('resourceToken'))]"
+            },
+            "openaiEndpoint": {
+              "type": "string",
+              "value": "[reference('openai').endpoint]"
+            },
+            "openaiKey": {
+              "type": "securestring",
+              "value": "[listKeys('openai', '2023-05-01').key1]"
+            },
+            "gpt4DeploymentName": {
+              "type": "string",
+              "value": "gpt-4"
+            },
+            "embeddingDeploymentName": {
+              "type": "string",
+              "value": "text-embedding-3-large"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "foundation",
+        "rg"
+      ]
+    },
+    "dataIngestion": {
+      "condition": "[or(equals(parameters('deployStage'), 'all'), equals(parameters('deployStage'), 'data-ingestion'))]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('data-ingestion-{0}', variables('resourceToken'))]",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "environmentName": {
+            "value": "[parameters('environmentName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceToken": {
+            "value": "[variables('resourceToken')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          },
+          "containerAppsSubnetId": {
+            "value": "[reference('foundation').outputs.containerAppsSubnetId.value]"
+          },
+          "logAnalyticsWorkspaceId": {
+            "value": "[reference('foundation').outputs.logAnalyticsWorkspaceId.value]"
+          },
+          "applicationInsightsConnectionString": {
+            "value": "[reference('foundation').outputs.applicationInsightsConnectionString.value]"
+          },
+          "redisHost": {
+            "value": "[reference('dataPlatform').outputs.redisHost.value]"
+          },
+          "redisPort": {
+            "value": "[reference('dataPlatform').outputs.redisPort.value]"
+          },
+          "redisPassword": {
+            "value": "[listOutputsWithSecureValues('dataPlatform', '2022-09-01').redisPassword]"
+          },
+          "storageAccountName": {
+            "value": "[reference('dataPlatform').outputs.storageAccountName.value]"
+          },
+          "openaiEndpoint": {
+            "value": "[reference('aiServices').outputs.openaiEndpoint.value]"
+          },
+          "openaiKey": {
+            "value": "[listOutputsWithSecureValues('aiServices', '2022-09-01').openaiKey]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "languageVersion": "2.0",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.37.4.10188",
+              "templateHash": "10660027531370216494"
+            }
+          },
+          "parameters": {
+            "environmentName": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Primary location for resources"
+              }
+            },
+            "resourceToken": {
+              "type": "string",
+              "metadata": {
+                "description": "Unique resource token"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags"
+              }
+            },
+            "containerAppsSubnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "Container Apps subnet ID"
+              }
+            },
+            "logAnalyticsWorkspaceId": {
+              "type": "string",
+              "metadata": {
+                "description": "Log Analytics Workspace ID"
+              }
+            },
+            "applicationInsightsConnectionString": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Application Insights Connection String"
+              }
+            },
+            "redisHost": {
+              "type": "string",
+              "metadata": {
+                "description": "Redis host"
+              }
+            },
+            "redisPort": {
+              "type": "int",
+              "metadata": {
+                "description": "Redis port"
+              }
+            },
+            "redisPassword": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Redis password"
+              }
+            },
+            "storageAccountName": {
+              "type": "string",
+              "metadata": {
+                "description": "Storage Account name"
+              }
+            },
+            "openaiEndpoint": {
+              "type": "string",
+              "metadata": {
+                "description": "OpenAI endpoint"
+              }
+            },
+            "openaiKey": {
+              "type": "securestring",
+              "metadata": {
+                "description": "OpenAI key"
+              }
+            }
+          },
+          "resources": {
+            "containerRegistry": {
+              "type": "Microsoft.ContainerRegistry/registries",
+              "apiVersion": "2023-07-01",
+              "name": "[format('acr{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Basic"
+              },
+              "properties": {
+                "adminUserEnabled": true,
+                "publicNetworkAccess": "Enabled"
+              }
+            },
+            "containerAppsEnvironment": {
+              "type": "Microsoft.App/managedEnvironments",
+              "apiVersion": "2023-05-01",
+              "name": "[format('cae-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "vnetConfiguration": {
+                  "infrastructureSubnetId": "[parameters('containerAppsSubnetId')]"
+                },
+                "appLogsConfiguration": {
+                  "destination": "log-analytics",
+                  "logAnalyticsConfiguration": {
+                    "customerId": "[reference(parameters('logAnalyticsWorkspaceId'), '2022-10-01').customerId]",
+                    "sharedKey": "[listKeys(parameters('logAnalyticsWorkspaceId'), '2022-10-01').primarySharedKey]"
+                  }
+                }
+              }
+            },
+            "dataIngestionApp": {
+              "type": "Microsoft.App/containerApps",
+              "apiVersion": "2023-05-01",
+              "name": "[format('ca-data-ingestion-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}', parameters('resourceToken')))]",
+                "configuration": {
+                  "activeRevisionsMode": "Single",
+                  "secrets": [
+                    {
+                      "name": "redis-password",
+                      "value": "[parameters('redisPassword')]"
+                    },
+                    {
+                      "name": "openai-key",
+                      "value": "[parameters('openaiKey')]"
+                    },
+                    {
+                      "name": "registry-password",
+                      "value": "[listCredentials('containerRegistry', '2023-07-01').passwords[0].value]"
+                    },
+                    {
+                      "name": "appinsights-connection-string",
+                      "value": "[parameters('applicationInsightsConnectionString')]"
+                    }
+                  ],
+                  "registries": [
+                    {
+                      "server": "[reference('containerRegistry').loginServer]",
+                      "username": "[format('acr{0}', parameters('resourceToken'))]",
+                      "passwordSecretRef": "registry-password"
+                    }
+                  ]
+                },
+                "template": {
+                  "containers": [
+                    {
+                      "name": "data-ingestion",
+                      "image": "[format('{0}/finagentix/data-ingestion:latest', reference('containerRegistry').loginServer)]",
+                      "resources": {
+                        "cpu": "[json('1.0')]",
+                        "memory": "2Gi"
+                      },
+                      "env": [
+                        {
+                          "name": "REDIS_HOST",
+                          "value": "[parameters('redisHost')]"
+                        },
+                        {
+                          "name": "REDIS_PORT",
+                          "value": "[string(parameters('redisPort'))]"
+                        },
+                        {
+                          "name": "REDIS_PASSWORD",
+                          "secretRef": "redis-password"
+                        },
+                        {
+                          "name": "REDIS_SSL",
+                          "value": "true"
+                        },
+                        {
+                          "name": "AZURE_OPENAI_ENDPOINT",
+                          "value": "[parameters('openaiEndpoint')]"
+                        },
+                        {
+                          "name": "AZURE_OPENAI_KEY",
+                          "secretRef": "openai-key"
+                        },
+                        {
+                          "name": "AZURE_STORAGE_ACCOUNT_NAME",
+                          "value": "[parameters('storageAccountName')]"
+                        },
+                        {
+                          "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                          "secretRef": "appinsights-connection-string"
+                        },
+                        {
+                          "name": "ENVIRONMENT",
+                          "value": "[parameters('environmentName')]"
+                        }
+                      ]
+                    }
+                  ],
+                  "scale": {
+                    "minReplicas": 0,
+                    "maxReplicas": 1
+                  }
+                }
+              },
+              "dependsOn": [
+                "containerAppsEnvironment",
+                "containerRegistry"
+              ]
+            }
+          },
+          "outputs": {
+            "containerRegistryId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}', parameters('resourceToken')))]"
+            },
+            "containerRegistryName": {
+              "type": "string",
+              "value": "[format('acr{0}', parameters('resourceToken'))]"
+            },
+            "containerRegistryLoginServer": {
+              "type": "string",
+              "value": "[reference('containerRegistry').loginServer]"
+            },
+            "containerRegistryPassword": {
+              "type": "securestring",
+              "value": "[listCredentials('containerRegistry', '2023-07-01').passwords[0].value]"
+            },
+            "containerAppsEnvironmentId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}', parameters('resourceToken')))]"
+            },
+            "dataIngestionAppId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.App/containerApps', format('ca-data-ingestion-{0}', parameters('resourceToken')))]"
+            },
+            "ingestionUrl": {
+              "type": "string",
+              "value": "[format('https://{0}', reference('dataIngestionApp').configuration.ingress.fqdn)]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "aiServices",
+        "dataPlatform",
+        "foundation",
+        "rg"
+      ]
+    },
+    "agentRuntime": {
+      "condition": "[or(equals(parameters('deployStage'), 'all'), equals(parameters('deployStage'), 'agent-runtime'))]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('agent-runtime-{0}', variables('resourceToken'))]",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "environmentName": {
+            "value": "[parameters('environmentName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceToken": {
+            "value": "[variables('resourceToken')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          },
+          "containerAppsSubnetId": {
+            "value": "[reference('foundation').outputs.containerAppsSubnetId.value]"
+          },
+          "logAnalyticsWorkspaceId": {
+            "value": "[reference('foundation').outputs.logAnalyticsWorkspaceId.value]"
+          },
+          "applicationInsightsConnectionString": {
+            "value": "[reference('foundation').outputs.applicationInsightsConnectionString.value]"
+          },
+          "redisHost": {
+            "value": "[reference('dataPlatform').outputs.redisHost.value]"
+          },
+          "redisPort": {
+            "value": "[reference('dataPlatform').outputs.redisPort.value]"
+          },
+          "redisPassword": {
+            "value": "[listOutputsWithSecureValues('dataPlatform', '2022-09-01').redisPassword]"
+          },
+          "openaiEndpoint": {
+            "value": "[reference('aiServices').outputs.openaiEndpoint.value]"
+          },
+          "openaiKey": {
+            "value": "[listOutputsWithSecureValues('aiServices', '2022-09-01').openaiKey]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.37.4.10188",
+              "templateHash": "15582545491054749053"
+            }
+          },
+          "parameters": {
+            "environmentName": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Primary location for resources"
+              }
+            },
+            "resourceToken": {
+              "type": "string",
+              "metadata": {
+                "description": "Unique resource token"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags"
+              }
+            },
+            "containerAppsSubnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "Container Apps subnet ID"
+              }
+            },
+            "logAnalyticsWorkspaceId": {
+              "type": "string",
+              "metadata": {
+                "description": "Log Analytics Workspace ID"
+              }
+            },
+            "applicationInsightsConnectionString": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Application Insights Connection String"
+              }
+            },
+            "redisHost": {
+              "type": "string",
+              "metadata": {
+                "description": "Redis host"
+              }
+            },
+            "redisPort": {
+              "type": "int",
+              "metadata": {
+                "description": "Redis port"
+              }
+            },
+            "redisPassword": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Redis password"
+              }
+            },
+            "openaiEndpoint": {
+              "type": "string",
+              "metadata": {
+                "description": "OpenAI endpoint"
+              }
+            },
+            "openaiKey": {
+              "type": "securestring",
+              "metadata": {
+                "description": "OpenAI key"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.App/containerApps",
+              "apiVersion": "2023-05-01",
+              "name": "[format('ca-agent-api-{0}', parameters('resourceToken'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}', parameters('resourceToken')))]",
+                "configuration": {
+                  "activeRevisionsMode": "Single",
+                  "ingress": {
+                    "external": true,
+                    "targetPort": 8000,
+                    "transport": "http2",
+                    "allowInsecure": false,
+                    "traffic": [
+                      {
+                        "latestRevision": true,
+                        "weight": 100
+                      }
+                    ]
+                  },
+                  "secrets": [
+                    {
+                      "name": "redis-password",
+                      "value": "[parameters('redisPassword')]"
+                    },
+                    {
+                      "name": "openai-key",
+                      "value": "[parameters('openaiKey')]"
+                    },
+                    {
+                      "name": "registry-password",
+                      "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}', replace(parameters('resourceToken'), '-', ''))), '2023-07-01').passwords[0].value]"
+                    },
+                    {
+                      "name": "appinsights-connection-string",
+                      "value": "[parameters('applicationInsightsConnectionString')]"
+                    }
+                  ],
+                  "registries": [
+                    {
+                      "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}', replace(parameters('resourceToken'), '-', ''))), '2023-07-01').loginServer]",
+                      "username": "[format('acr{0}', replace(parameters('resourceToken'), '-', ''))]",
+                      "passwordSecretRef": "registry-password"
+                    }
+                  ]
+                },
+                "template": {
+                  "containers": [
+                    {
+                      "name": "agent-api",
+                      "image": "[format('{0}/finagentix/agent-api:latest', reference(resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}', replace(parameters('resourceToken'), '-', ''))), '2023-07-01').loginServer)]",
+                      "resources": {
+                        "cpu": "[json('2.0')]",
+                        "memory": "4Gi"
+                      },
+                      "env": [
+                        {
+                          "name": "REDIS_HOST",
+                          "value": "[parameters('redisHost')]"
+                        },
+                        {
+                          "name": "REDIS_PORT",
+                          "value": "[string(parameters('redisPort'))]"
+                        },
+                        {
+                          "name": "REDIS_PASSWORD",
+                          "secretRef": "redis-password"
+                        },
+                        {
+                          "name": "REDIS_SSL",
+                          "value": "true"
+                        },
+                        {
+                          "name": "AZURE_OPENAI_ENDPOINT",
+                          "value": "[parameters('openaiEndpoint')]"
+                        },
+                        {
+                          "name": "AZURE_OPENAI_KEY",
+                          "secretRef": "openai-key"
+                        },
+                        {
+                          "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                          "secretRef": "appinsights-connection-string"
+                        },
+                        {
+                          "name": "ENVIRONMENT",
+                          "value": "[parameters('environmentName')]"
+                        }
+                      ]
+                    }
+                  ],
+                  "scale": {
+                    "minReplicas": 0,
+                    "maxReplicas": 10,
+                    "rules": [
+                      {
+                        "name": "http-scale",
+                        "http": {
+                          "metadata": {
+                            "concurrentRequests": "10"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "agentApiAppId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.App/containerApps', format('ca-agent-api-{0}', parameters('resourceToken')))]"
+            },
+            "agentApiUrl": {
+              "type": "string",
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', format('ca-agent-api-{0}', parameters('resourceToken'))), '2023-05-01').configuration.ingress.fqdn)]"
+            },
+            "agentApiFqdn": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.App/containerApps', format('ca-agent-api-{0}', parameters('resourceToken'))), '2023-05-01').configuration.ingress.fqdn]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "aiServices",
+        "dataPlatform",
+        "foundation",
+        "rg"
+      ]
+    }
+  },
+  "outputs": {
+    "AZURE_LOCATION": {
+      "type": "string",
+      "value": "[parameters('location')]"
+    },
+    "AZURE_RESOURCE_GROUP": {
+      "type": "string",
+      "value": "[variables('resourceGroupName')]"
+    },
+    "VNET_ID": {
+      "type": "string",
+      "value": "[reference('foundation').outputs.vnetId.value]"
+    },
+    "LOG_ANALYTICS_WORKSPACE_ID": {
+      "type": "string",
+      "value": "[reference('foundation').outputs.logAnalyticsWorkspaceId.value]"
+    },
+    "REDIS_HOST": {
+      "type": "string",
+      "value": "[reference('dataPlatform').outputs.redisHost.value]"
+    },
+    "REDIS_PORT": {
+      "type": "int",
+      "value": "[reference('dataPlatform').outputs.redisPort.value]"
+    },
+    "REDIS_PASSWORD": {
+      "type": "string",
+      "value": "[listOutputsWithSecureValues('dataPlatform', '2022-09-01').redisPassword]"
+    },
+    "STORAGE_ACCOUNT_NAME": {
+      "type": "string",
+      "value": "[reference('dataPlatform').outputs.storageAccountName.value]"
+    },
+    "STORAGE_CONNECTION_STRING": {
+      "type": "string",
+      "value": "[listOutputsWithSecureValues('dataPlatform', '2022-09-01').storageConnectionString]"
+    },
+    "AZURE_OPENAI_ENDPOINT": {
+      "type": "string",
+      "value": "[reference('aiServices').outputs.openaiEndpoint.value]"
+    },
+    "AZURE_OPENAI_KEY": {
+      "type": "string",
+      "value": "[listOutputsWithSecureValues('aiServices', '2022-09-01').openaiKey]"
+    },
+    "AZURE_OPENAI_GPT4_DEPLOYMENT": {
+      "type": "string",
+      "value": "[reference('aiServices').outputs.gpt4DeploymentName.value]"
+    },
+    "AZURE_OPENAI_EMBEDDING_DEPLOYMENT": {
+      "type": "string",
+      "value": "[reference('aiServices').outputs.embeddingDeploymentName.value]"
+    },
+    "DATA_INGESTION_URL": {
+      "type": "string",
+      "value": "[reference('dataIngestion').outputs.ingestionUrl.value]"
+    },
+    "AGENT_API_URL": {
+      "type": "string",
+      "value": "[reference('agentRuntime').outputs.agentApiUrl.value]"
+    }
+  }
+}

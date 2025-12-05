@@ -1,0 +1,319 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "languageVersion": "2.0",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.37.4.10188",
+      "templateHash": "1904595589447296927"
+    }
+  },
+  "parameters": {
+    "environmentName": {
+      "type": "string",
+      "metadata": {
+        "description": "Environment name"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Primary location for resources"
+      }
+    },
+    "resourceToken": {
+      "type": "string",
+      "metadata": {
+        "description": "Unique resource token"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "defaultValue": {},
+      "metadata": {
+        "description": "Resource tags"
+      }
+    },
+    "redisSku": {
+      "type": "string",
+      "defaultValue": "Enterprise_E5",
+      "allowedValues": [
+        "Enterprise_E5",
+        "Enterprise_E10",
+        "Enterprise_E20"
+      ],
+      "metadata": {
+        "description": "Redis SKU"
+      }
+    },
+    "vnetId": {
+      "type": "string",
+      "metadata": {
+        "description": "VNet ID for private endpoints"
+      }
+    },
+    "redisSubnetId": {
+      "type": "string",
+      "metadata": {
+        "description": "Redis subnet ID"
+      }
+    },
+    "storageSubnetId": {
+      "type": "string",
+      "metadata": {
+        "description": "Storage subnet ID"
+      }
+    },
+    "privateDnsZoneIdRedis": {
+      "type": "string",
+      "metadata": {
+        "description": "Private DNS Zone ID for Redis"
+      }
+    },
+    "privateDnsZoneIdStorage": {
+      "type": "string",
+      "metadata": {
+        "description": "Private DNS Zone ID for Storage"
+      }
+    }
+  },
+  "resources": {
+    "redisEnterprise": {
+      "type": "Microsoft.Cache/redisEnterprise",
+      "apiVersion": "2023-11-01",
+      "name": "[format('redis-{0}', parameters('resourceToken'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "sku": {
+        "name": "[parameters('redisSku')]",
+        "capacity": 2
+      },
+      "properties": {
+        "minimumTlsVersion": "1.2"
+      }
+    },
+    "redisDatabase": {
+      "type": "Microsoft.Cache/redisEnterprise/databases",
+      "apiVersion": "2023-11-01",
+      "name": "[format('{0}/{1}', format('redis-{0}', parameters('resourceToken')), 'default')]",
+      "properties": {
+        "clientProtocol": "Encrypted",
+        "port": 10000,
+        "clusteringPolicy": "EnterpriseCluster",
+        "evictionPolicy": "NoEviction",
+        "modules": [
+          {
+            "name": "RediSearch"
+          },
+          {
+            "name": "RedisJSON"
+          },
+          {
+            "name": "RedisTimeSeries"
+          },
+          {
+            "name": "RedisBloom"
+          }
+        ],
+        "persistence": {
+          "aofEnabled": true,
+          "aofFrequency": "1s",
+          "rdbEnabled": true,
+          "rdbFrequency": "1h"
+        }
+      },
+      "dependsOn": [
+        "redisEnterprise"
+      ]
+    },
+    "redisPrivateEndpoint": {
+      "type": "Microsoft.Network/privateEndpoints",
+      "apiVersion": "2023-05-01",
+      "name": "[format('pe-redis-{0}', parameters('resourceToken'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "properties": {
+        "subnet": {
+          "id": "[parameters('redisSubnetId')]"
+        },
+        "privateLinkServiceConnections": [
+          {
+            "name": "redis-connection",
+            "properties": {
+              "privateLinkServiceId": "[resourceId('Microsoft.Cache/redisEnterprise', format('redis-{0}', parameters('resourceToken')))]",
+              "groupIds": [
+                "redisEnterprise"
+              ]
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "redisEnterprise"
+      ]
+    },
+    "redisDnsZoneGroup": {
+      "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}', format('pe-redis-{0}', parameters('resourceToken')), 'redis-dns-zone-group')]",
+      "properties": {
+        "privateDnsZoneConfigs": [
+          {
+            "name": "config1",
+            "properties": {
+              "privateDnsZoneId": "[parameters('privateDnsZoneIdRedis')]"
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "redisPrivateEndpoint"
+      ]
+    },
+    "storageAccount": {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-01-01",
+      "name": "[format('st{0}', parameters('resourceToken'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "accessTier": "Hot",
+        "minimumTlsVersion": "TLS1_2",
+        "supportsHttpsTrafficOnly": true,
+        "allowBlobPublicAccess": false,
+        "networkAcls": {
+          "defaultAction": "Deny",
+          "bypass": "AzureServices"
+        }
+      }
+    },
+    "blobServices": {
+      "type": "Microsoft.Storage/storageAccounts/blobServices",
+      "apiVersion": "2023-01-01",
+      "name": "[format('{0}/{1}', format('st{0}', parameters('resourceToken')), 'default')]",
+      "properties": {
+        "deleteRetentionPolicy": {
+          "enabled": true,
+          "days": 7
+        }
+      },
+      "dependsOn": [
+        "storageAccount"
+      ]
+    },
+    "secFilingsContainer": {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-01-01",
+      "name": "[format('{0}/{1}/{2}', format('st{0}', parameters('resourceToken')), 'default', 'sec-filings')]",
+      "properties": {
+        "publicAccess": "None"
+      },
+      "dependsOn": [
+        "blobServices"
+      ]
+    },
+    "newsArticlesContainer": {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-01-01",
+      "name": "[format('{0}/{1}/{2}', format('st{0}', parameters('resourceToken')), 'default', 'news-articles')]",
+      "properties": {
+        "publicAccess": "None"
+      },
+      "dependsOn": [
+        "blobServices"
+      ]
+    },
+    "storagePrivateEndpoint": {
+      "type": "Microsoft.Network/privateEndpoints",
+      "apiVersion": "2023-05-01",
+      "name": "[format('pe-storage-{0}', parameters('resourceToken'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "properties": {
+        "subnet": {
+          "id": "[parameters('storageSubnetId')]"
+        },
+        "privateLinkServiceConnections": [
+          {
+            "name": "storage-connection",
+            "properties": {
+              "privateLinkServiceId": "[resourceId('Microsoft.Storage/storageAccounts', format('st{0}', parameters('resourceToken')))]",
+              "groupIds": [
+                "blob"
+              ]
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "storageAccount"
+      ]
+    },
+    "storageDnsZoneGroup": {
+      "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}', format('pe-storage-{0}', parameters('resourceToken')), 'storage-dns-zone-group')]",
+      "properties": {
+        "privateDnsZoneConfigs": [
+          {
+            "name": "config1",
+            "properties": {
+              "privateDnsZoneId": "[parameters('privateDnsZoneIdStorage')]"
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "storagePrivateEndpoint"
+      ]
+    }
+  },
+  "outputs": {
+    "redisId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Cache/redisEnterprise', format('redis-{0}', parameters('resourceToken')))]"
+    },
+    "redisName": {
+      "type": "string",
+      "value": "[format('redis-{0}', parameters('resourceToken'))]"
+    },
+    "redisHost": {
+      "type": "string",
+      "value": "[reference('redisEnterprise').hostName]"
+    },
+    "redisPort": {
+      "type": "int",
+      "value": 10000
+    },
+    "redisPassword": {
+      "type": "securestring",
+      "value": "[listKeys('redisDatabase', '2023-11-01').primaryKey]"
+    },
+    "storageAccountId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Storage/storageAccounts', format('st{0}', parameters('resourceToken')))]"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "value": "[format('st{0}', parameters('resourceToken'))]"
+    },
+    "storageConnectionString": {
+      "type": "securestring",
+      "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', format('st{0}', parameters('resourceToken')), listKeys('storageAccount', '2023-01-01').keys[0].value, environment().suffixes.storage)]"
+    },
+    "secFilingsContainerName": {
+      "type": "string",
+      "value": "sec-filings"
+    },
+    "newsArticlesContainerName": {
+      "type": "string",
+      "value": "news-articles"
+    }
+  }
+}

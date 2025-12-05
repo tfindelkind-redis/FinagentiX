@@ -1,0 +1,13 @@
+{
+  "runme.enableNotebookRenderer": false,
+  "runme.enabled": false,
+  "notebook.displayOrder": [],
+  "workbench.editorAssociations": {
+    "*.md": "default"
+  },
+  "files.associations": {
+    "*.md": "markdown"
+  },
+  "workbench.editor.enablePreview": true,
+  "markdown.preview.openMarkdownLinks": "inEditor"
+}

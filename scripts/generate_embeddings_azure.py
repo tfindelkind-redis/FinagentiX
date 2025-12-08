@@ -13,6 +13,10 @@ from typing import List, Dict, Any
 from dataclasses import dataclass
 import time
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 from azure.storage.blob import BlobServiceClient
 import redis

@@ -35,10 +35,10 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
     minimumTlsVersion: 'TLS1_2'
     allowBlobPublicAccess: false
     networkAcls: {
-      defaultAction: 'Deny'
+      defaultAction: 'Allow' // Changed from 'Deny' to allow data ingestion from local machines
       bypass: 'AzureServices'
     }
-    publicNetworkAccess: 'Disabled'
+    publicNetworkAccess: 'Enabled' // Changed from 'Disabled' to allow uploads via Azure CLI/SDK
   }
 }
 

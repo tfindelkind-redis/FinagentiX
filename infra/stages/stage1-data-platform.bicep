@@ -13,9 +13,9 @@ param resourceToken string
 @description('Resource tags')
 param tags object = {}
 
-@description('Redis SKU')
-@allowed(['Enterprise_E5', 'Enterprise_E10', 'Enterprise_E20'])
-param redisSku string = 'Enterprise_E5'
+@description('Redis SKU for Azure Managed Redis')
+@allowed(['Balanced_B1', 'Balanced_B5', 'Balanced_B10', 'MemoryOptimized_M1', 'MemoryOptimized_M5', 'ComputeOptimized_C1'])
+param redisSku string = 'Balanced_B5'
 
 @description('VNet ID for private endpoints')
 param vnetId string
@@ -33,21 +33,20 @@ param privateDnsZoneIdRedis string
 param privateDnsZoneIdStorage string
 
 // Azure Managed Redis
-resource redisEnterprise 'Microsoft.Cache/redisEnterprise@2023-11-01' = {
+resource redisEnterprise 'Microsoft.Cache/redisEnterprise@2024-09-01-preview' = {
   name: 'redis-${resourceToken}'
   location: location
   tags: tags
   sku: {
     name: redisSku
-    capacity: 2
   }
   properties: {
     minimumTlsVersion: '1.2'
   }
 }
 
-// Redis Database with required modules
-resource redisDatabase 'Microsoft.Cache/redisEnterprise/databases@2023-11-01' = {
+// Redis Database with required modules (Azure Managed Redis includes these by default)
+resource redisDatabase 'Microsoft.Cache/redisEnterprise/databases@2024-09-01-preview' = {
   parent: redisEnterprise
   name: 'default'
   properties: {
@@ -72,8 +71,6 @@ resource redisDatabase 'Microsoft.Cache/redisEnterprise/databases@2023-11-01' = 
     persistence: {
       aofEnabled: true
       aofFrequency: '1s'
-      rdbEnabled: true
-      rdbFrequency: '1h'
     }
   }
 }
@@ -132,9 +129,10 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
     supportsHttpsTrafficOnly: true
     allowBlobPublicAccess: false
     networkAcls: {
-      defaultAction: 'Deny'
+      defaultAction: 'Allow' // Changed from 'Deny' to allow data ingestion from local machines
       bypass: 'AzureServices'
     }
+    publicNetworkAccess: 'Enabled' // Allow uploads via Azure CLI/SDK during development
   }
 }
 

@@ -1,0 +1,16 @@
+{
+  "ticker": "COIN",
+  "period": "1y",
+  "interval": "1d",
+  "download_timestamp": "2025-12-08T09:46:10.917659",
+  "record_count": 250,
+  "date_range": [
+    "2024-12-06",
+    "2025-12-05"
+  ],
+  "completeness_score": 1.0,
+  "null_percentage": 0.0,
+  "checksum": "575bf227932e8f74ddbaf03d45cccda1",
+  "file_path": "data/raw/stock_data/COIN/daily_1y.parquet",
+  "file_size_bytes": 15672
+}

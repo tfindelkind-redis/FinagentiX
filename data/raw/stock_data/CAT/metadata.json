@@ -1,0 +1,16 @@
+{
+  "ticker": "CAT",
+  "period": "1y",
+  "interval": "1d",
+  "download_timestamp": "2025-12-08T09:46:05.316530",
+  "record_count": 250,
+  "date_range": [
+    "2024-12-06",
+    "2025-12-05"
+  ],
+  "completeness_score": 1.0,
+  "null_percentage": 0.0,
+  "checksum": "afda172ab3b67e1286e84b3091a93b02",
+  "file_path": "data/raw/stock_data/CAT/daily_1y.parquet",
+  "file_size_bytes": 17148
+}

@@ -1,0 +1,16 @@
+{
+  "ticker": "MCD",
+  "period": "1y",
+  "interval": "1d",
+  "download_timestamp": "2025-12-08T09:45:57.320225",
+  "record_count": 250,
+  "date_range": [
+    "2024-12-06",
+    "2025-12-05"
+  ],
+  "completeness_score": 1.0,
+  "null_percentage": 0.0,
+  "checksum": "5fac4649969e03a87a5e9b892828301c",
+  "file_path": "data/raw/stock_data/MCD/daily_1y.parquet",
+  "file_size_bytes": 17134
+}

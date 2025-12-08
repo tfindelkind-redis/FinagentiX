@@ -1,0 +1,16 @@
+{
+  "ticker": "NKE",
+  "period": "1y",
+  "interval": "1d",
+  "download_timestamp": "2025-12-08T09:45:54.753211",
+  "record_count": 250,
+  "date_range": [
+    "2024-12-06",
+    "2025-12-05"
+  ],
+  "completeness_score": 1.0,
+  "null_percentage": 0.0,
+  "checksum": "4d5cba8abf224ac556f9807bca0e3e3b",
+  "file_path": "data/raw/stock_data/NKE/daily_1y.parquet",
+  "file_size_bytes": 17273
+}

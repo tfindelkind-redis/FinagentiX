@@ -1,0 +1,4 @@
+# Stock data ingestion dependencies
+yfinance>=0.2.32
+pandas>=2.1.0
+pyarrow>=14.0.0

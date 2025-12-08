@@ -1,0 +1,16 @@
+{
+  "ticker": "CVX",
+  "period": "1y",
+  "interval": "1d",
+  "download_timestamp": "2025-12-08T09:46:09.566796",
+  "record_count": 250,
+  "date_range": [
+    "2024-12-06",
+    "2025-12-05"
+  ],
+  "completeness_score": 1.0,
+  "null_percentage": 0.0,
+  "checksum": "7156b72b5380f560dc23ebe6da322485",
+  "file_path": "data/raw/stock_data/CVX/daily_1y.parquet",
+  "file_size_bytes": 17215
+}

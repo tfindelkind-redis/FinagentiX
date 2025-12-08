@@ -1,0 +1,16 @@
+{
+  "ticker": "ABBV",
+  "period": "1y",
+  "interval": "1d",
+  "download_timestamp": "2025-12-08T09:46:02.607796",
+  "record_count": 250,
+  "date_range": [
+    "2024-12-06",
+    "2025-12-05"
+  ],
+  "completeness_score": 1.0,
+  "null_percentage": 0.0,
+  "checksum": "338b713061f4b90cb2bb826b160a3e9b",
+  "file_path": "data/raw/stock_data/ABBV/daily_1y.parquet",
+  "file_size_bytes": 17261
+}

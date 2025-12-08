@@ -1,0 +1,16 @@
+{
+  "ticker": "HD",
+  "period": "1y",
+  "interval": "1d",
+  "download_timestamp": "2025-12-08T09:45:53.431106",
+  "record_count": 250,
+  "date_range": [
+    "2024-12-06",
+    "2025-12-05"
+  ],
+  "completeness_score": 1.0,
+  "null_percentage": 0.0,
+  "checksum": "38cfcf078b75f4ef374110ef215b2d5b",
+  "file_path": "data/raw/stock_data/HD/daily_1y.parquet",
+  "file_size_bytes": 17121
+}

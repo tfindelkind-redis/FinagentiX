@@ -141,16 +141,27 @@ A **real-time AI trading agent system** that combines multiple specialized agent
 - Some 10-Q filings exceed 3MB limit (MSFT: 5.6MB, JPM: 11.5MB, BAC: 11.0MB, WFC: 10.9MB, GS: 9.3MB, MS: 8.0MB, CAT: 4.6MB, MSTR: 6.7MB)
 - These large filings still downloaded and validated successfully
 
-#### Step 4: Unified Azure Uploader 📋 (TODO)
-- **Status**: Pending
-- **Goal**: Create single script to upload all data types to Azure Storage
+#### Step 4: Unified Azure Uploader ✅
+- **Status**: Complete
+- **Script**: `scripts/upload_to_azure.py`
 - **Features**:
-  - Support `--type` flag: stock_data, news_articles, sec_filings
+  - Support for `--all` and `--type` flags (stock_data, news_articles, sec_filings)
   - Upload to respective Azure Blob Storage containers
-  - Set blob metadata from local metadata.json files
-  - Verify uploads with checksums
-  - Track upload progress and statistics
-  - Handle large files (225MB SEC filings)
+  - Checksum verification to skip already-uploaded files
+  - Proper content-type detection (parquet, json, html, md5)
+  - Metadata tagging (upload timestamp, source, checksum)
+  - Progress tracking and statistics
+  - Logging to console + file
+  - Support for Azure AD and account key authentication
+- **Results**:
+  - 423 files uploaded successfully
+  - stock-data container: 85 blobs (0.5 MB)
+  - news-articles container: 85 blobs (0.4 MB)
+  - sec-filings container: 253 blobs (225.3 MB)
+  - Total size: 226.2 MB
+  - 100% success rate
+- **Storage Account**: st545d8fdb508d4 (finagentix-dev-rg)
+- **Committed**: ✅ Yes (commit f8f94d2)
 
 **Data Summary**:
 - **Total files**: 423 (85 stock + 85 news + 253 SEC)

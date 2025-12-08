@@ -4,52 +4,20 @@ name: finagentix
 metadata:
   template: finagentix@0.0.1-beta
 
-# Services can be deployed independently or all together
-services:
-  # Stage 0: Foundation - Networking and Shared Resources
-  foundation:
-    project: ./infra/stages
-    language: bicep
-    host: azd
-    module: stage0-foundation
-
-  # Stage 1: Data Platform - Redis + Storage
-  data-platform:
-    project: ./infra/stages
-    language: bicep
-    host: azd
-    module: stage1-data-platform
-
-  # Stage 2: AI Services - Azure OpenAI
-  ai-services:
-    project: ./infra/stages
-    language: bicep
-    host: azd
-    module: stage2-ai-services
-
-  # Stage 3: Data Ingestion - Container App for batch data load
-  data-ingestion:
-    project: ./infra/stages
-    language: bicep
-    host: azd
-    module: stage3-data-ingestion
-
-  # Stage 4: Agent Runtime - Container App for agents/API
-  agent-runtime:
-    project: ./infra/stages
-    language: bicep
-    host: azd
-    module: stage4-agent-runtime
+# Note: This project uses staged deployment with custom scripts
+# Run: ./infra/scripts/deploy.sh (or azd up which calls the script)
+# 
+# Why custom scripts?
+# - Sequential stage deployment required (Foundation -> Data -> AI -> Apps)
+# - Stage outputs must feed into next stage (VNet IDs, subnet IDs, etc.)
+# - Some stages take 20+ minutes (Redis), parallel deployment not suitable
 
 # Hooks for custom deployment steps
 hooks:
-  postprovision:
+  preprovision:
     posix:
       shell: sh
-      run: |
-        echo "Infrastructure provisioned successfully!"
-        echo "Redis Host: $(azd env get-values | grep REDIS_HOST)"
+      run: ./infra/scripts/deploy.sh
     windows:
       shell: pwsh
-      run: |
-        Write-Host "Infrastructure provisioned successfully!"
+      run: .\infra\scripts\deploy.ps1

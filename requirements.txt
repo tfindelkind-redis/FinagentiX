@@ -1,0 +1,37 @@
+# Python dependencies for FinagentiX
+
+# Azure SDK
+azure-storage-blob==12.27.1
+azure-identity==1.25.1
+
+# Azure OpenAI
+openai==1.59.5
+
+# Redis with Search capabilities
+redis[hiredis]==5.2.1
+
+# Data processing
+pandas==2.2.3
+numpy==2.2.1
+pyarrow==18.1.0
+
+# Web scraping and parsing
+beautifulsoup4==4.12.3
+lxml==5.3.0
+requests==2.32.3
+
+# Progress bars and utilities
+tqdm==4.67.1
+
+# Data validation
+pydantic==2.10.4
+
+# Financial data
+yfinance==0.2.50
+
+# Configuration
+python-dotenv==1.0.1
+
+# Testing (optional)
+pytest==8.3.4
+pytest-asyncio==0.24.0

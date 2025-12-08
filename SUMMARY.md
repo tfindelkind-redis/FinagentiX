@@ -171,3 +171,150 @@ A **real-time AI trading agent system** that combines multiple specialized agent
 - **Repository size**: 21 MB (Git compression)
 
 ---
+
+### Stage 2: Azure OpenAI Deployment ✅ (COMPLETED)
+
+#### Azure OpenAI Service ✅
+- **Status**: Complete
+- **Service Name**: openai-545d8fdb508d4
+- **Resource Group**: finagentix-dev-rg
+- **Location**: East US
+- **SKU**: S0 (Standard)
+- **Endpoint**: https://openai-545d8fdb508d4.openai.azure.com/
+- **API Version**: 2024-08-01-preview
+- **Custom Subdomain**: openai-545d8fdb508d4
+- **Network Access**: Enabled (public for development)
+- **Deployment Method**: Azure CLI (due to Bicep deployment bug)
+- **Deployed**: 2025-12-08
+
+#### Model Deployments ✅
+
+**GPT-4o Deployment**:
+- **Deployment Name**: gpt-4o
+- **Model**: gpt-4o (2024-08-06)
+- **SKU**: Standard
+- **Capacity**: 10 TPM (tokens per minute) × 1000 = 10K TPM
+- **Use Cases**:
+  - Multi-agent orchestration with Microsoft AutoGen
+  - Trading recommendations and analysis
+  - Report generation
+  - Sentiment analysis
+  - Risk assessment
+- **Status**: ✅ Deployed and ready
+
+**Text Embedding 3 Large Deployment**:
+- **Deployment Name**: text-embedding-3-large
+- **Model**: text-embedding-3-large (v1)
+- **SKU**: Standard
+- **Capacity**: 10 TPM × 1000 = 10K TPM
+- **Dimensions**: 3072
+- **Use Cases**:
+  - SEC filing embeddings (225 MB of documents)
+  - News article embeddings (280 articles)
+  - Semantic search in Redis vector store
+  - Semantic caching (85% cost reduction)
+  - Document similarity and retrieval
+- **Status**: ✅ Deployed and ready
+
+#### Configuration Files ✅
+- **Environment Template**: `.env.template` (created)
+- **OpenAI Config**: `config/azure_openai.json` (created)
+- **Contains**:
+  - Service endpoints and API keys
+  - Deployment names and versions
+  - Model specifications
+  - Use case documentation
+  - Network configuration details
+
+#### Next Steps
+- Configure private endpoint for secure access (optional)
+- Set up rate limiting and monitoring
+- Integrate with AutoGen agents
+
+---
+
+### Stage 4: Feature Engineering & Vector Indexing 🔄 (IN PROGRESS)
+
+#### Redis Enterprise Infrastructure ✅
+- **Cluster**: redis-545d8fdb508d4.eastus.redis.azure.net
+- **SKU**: Balanced_B5
+- **Port**: 10000 (SSL/TLS)
+- **Redis Version**: 7.4.3
+- **Status**: Running
+
+#### Redis Modules Enabled ✅
+- **RediSearch** v2.10.23: Vector search with HNSW indexing
+- **RedisJSON** v2.8.13: JSON document storage
+- **RedisTimeSeries** v1.12.8: Time series data
+- **RedisBloom** v2.8.15: Probabilistic data structures
+
+#### Vector Indexes Created ✅
+1. **idx:sec_filings** - SEC Filing Embeddings
+   - Prefix: `sec:`
+   - Vector dimensions: 3072 (text-embedding-3-large)
+   - Distance metric: COSINE
+   - Initial capacity: 2000 documents
+   - Fields: ticker, filing_type, filing_date, content, chunk_index, embedding
+
+2. **idx:news_articles** - News Article Embeddings
+   - Prefix: `news:`
+   - Vector dimensions: 3072
+   - Distance metric: COSINE
+   - Initial capacity: 500 documents
+   - Fields: ticker, title, content, embedding
+
+3. **idx:semantic_cache** - Semantic Caching
+   - Prefix: `cache:`
+   - Vector dimensions: 3072
+   - Distance metric: COSINE
+   - Initial capacity: 10000 queries
+   - Fields: query, model, timestamp, query_embedding
+   - Purpose: 85% cost reduction through semantic similarity matching
+
+#### Embedding Generation Scripts ✅
+- **scripts/generate_embeddings_azure.py**: Main production script
+  - Reads SEC filings and news from Azure Blob Storage
+  - Generates embeddings via Azure OpenAI
+  - Stores in Redis with vector indexes
+  - Chunk size: 24K chars (~6K tokens) to stay within limits
+  - Rate limiting: 0.1s delay between requests
+
+- **scripts/test_redis.py**: Connection and feature testing
+  - Validates Redis Enterprise connectivity
+  - Tests RedisJSON operations
+  - Tests RediSearch vector indexing
+  - Tests vector similarity search
+
+#### Embedding Generation Status 🔄
+- **Status**: In Progress
+- **Processing**: First 3 tickers as test (AAPL, ABBV, AMZN)
+- **Data Source**: Azure Blob Storage (226 MB)
+- **Target**:
+  - 28 tickers × 2 filing types (10-K, 10-Q)
+  - ~225 MB of SEC filings to embed
+  - 280 news articles to embed
+- **Configuration**:
+  - Model: text-embedding-3-large (3072 dimensions)
+  - Chunk strategy: Adaptive splitting to fit 8K token limit
+  - Storage: Redis JSON documents with vector embeddings
+
+#### Technical Implementation ✅
+- **Python Dependencies**: redis, openai, azure-storage-blob, pandas, beautifulsoup4
+- **Data Processing**:
+  - HTML parsing for SEC filings (BeautifulSoup4)
+  - Parquet reading for news articles (pandas)
+  - Text chunking for large documents
+  - Automatic retry and error handling
+- **Vector Search**:
+  - HNSW (Hierarchical Navigable Small World) algorithm
+  - Sub-millisecond search latency
+  - Supports filtered queries (e.g., by ticker)
+
+#### Next Steps
+- ⏳ Complete embedding generation for all 28 tickers
+- 🔍 Test vector similarity search with real queries
+- 💰 Implement and test semantic caching
+- 📊 Set up Featureform feature definitions
+- 🤖 Begin AutoGen agent integration
+
+---

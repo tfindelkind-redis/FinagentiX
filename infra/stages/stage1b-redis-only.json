@@ -1,0 +1,176 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.37.4.10188",
+      "templateHash": "16009241551330192572"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Primary location for resources"
+      }
+    },
+    "resourceToken": {
+      "type": "string",
+      "metadata": {
+        "description": "Unique resource token"
+      }
+    },
+    "redisSku": {
+      "type": "string",
+      "defaultValue": "Balanced_B5",
+      "allowedValues": [
+        "Balanced_B1",
+        "Balanced_B5",
+        "Balanced_B10",
+        "MemoryOptimized_M1",
+        "MemoryOptimized_M5",
+        "ComputeOptimized_C1"
+      ],
+      "metadata": {
+        "description": "Redis SKU for Azure Managed Redis"
+      }
+    },
+    "redisSubnetId": {
+      "type": "string",
+      "metadata": {
+        "description": "Redis subnet ID from Stage 0"
+      }
+    },
+    "privateDnsZoneIdRedis": {
+      "type": "string",
+      "metadata": {
+        "description": "Private DNS Zone ID for Redis from Stage 0"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "defaultValue": {},
+      "metadata": {
+        "description": "Resource tags"
+      }
+    }
+  },
+  "variables": {
+    "redisClusterName": "[format('redis-{0}', parameters('resourceToken'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Cache/redisEnterprise",
+      "apiVersion": "2024-09-01-preview",
+      "name": "[variables('redisClusterName')]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "sku": {
+        "name": "[parameters('redisSku')]"
+      },
+      "properties": {
+        "minimumTlsVersion": "1.2"
+      }
+    },
+    {
+      "type": "Microsoft.Cache/redisEnterprise/databases",
+      "apiVersion": "2024-09-01-preview",
+      "name": "[format('{0}/{1}', variables('redisClusterName'), 'default')]",
+      "properties": {
+        "clientProtocol": "Encrypted",
+        "port": 10000,
+        "clusteringPolicy": "EnterpriseCluster",
+        "evictionPolicy": "NoEviction",
+        "modules": [
+          {
+            "name": "RediSearch"
+          },
+          {
+            "name": "RedisJSON"
+          },
+          {
+            "name": "RedisTimeSeries"
+          },
+          {
+            "name": "RedisBloom"
+          }
+        ],
+        "persistence": {
+          "aofEnabled": true,
+          "aofFrequency": "1s"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Cache/redisEnterprise', variables('redisClusterName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/privateEndpoints",
+      "apiVersion": "2023-05-01",
+      "name": "[format('pe-{0}', variables('redisClusterName'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "properties": {
+        "subnet": {
+          "id": "[parameters('redisSubnetId')]"
+        },
+        "privateLinkServiceConnections": [
+          {
+            "name": "redis-connection",
+            "properties": {
+              "privateLinkServiceId": "[resourceId('Microsoft.Cache/redisEnterprise', variables('redisClusterName'))]",
+              "groupIds": [
+                "redisEnterprise"
+              ]
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Cache/redisEnterprise', variables('redisClusterName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}', format('pe-{0}', variables('redisClusterName')), 'default')]",
+      "properties": {
+        "privateDnsZoneConfigs": [
+          {
+            "name": "config1",
+            "properties": {
+              "privateDnsZoneId": "[parameters('privateDnsZoneIdRedis')]"
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateEndpoints', format('pe-{0}', variables('redisClusterName')))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "redisClusterId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Cache/redisEnterprise', variables('redisClusterName'))]"
+    },
+    "redisClusterName": {
+      "type": "string",
+      "value": "[variables('redisClusterName')]"
+    },
+    "redisDatabaseId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Cache/redisEnterprise/databases', variables('redisClusterName'), 'default')]"
+    },
+    "redisHostName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Cache/redisEnterprise', variables('redisClusterName')), '2024-09-01-preview').hostName]"
+    },
+    "redisPort": {
+      "type": "int",
+      "value": "[reference(resourceId('Microsoft.Cache/redisEnterprise/databases', variables('redisClusterName'), 'default'), '2024-09-01-preview').port]"
+    }
+  }
+}

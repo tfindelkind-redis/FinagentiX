@@ -7,9 +7,9 @@ param location string = resourceGroup().location
 @description('Unique resource token')
 param resourceToken string
 
-@description('Redis SKU')
-@allowed(['Enterprise_E5', 'Enterprise_E10', 'Enterprise_E20'])
-param redisSku string = 'Enterprise_E5'
+@description('Redis SKU for Azure Managed Redis')
+@allowed(['Balanced_B1', 'Balanced_B5', 'Balanced_B10', 'MemoryOptimized_M1', 'MemoryOptimized_M5', 'ComputeOptimized_C1'])
+param redisSku string = 'Balanced_B5'
 
 @description('Redis subnet ID from Stage 0')
 param redisSubnetId string
@@ -20,24 +20,23 @@ param privateDnsZoneIdRedis string
 @description('Resource tags')
 param tags object = {}
 
-// Redis Enterprise Cluster
+// Azure Managed Redis Cluster
 var redisClusterName = 'redis-${resourceToken}'
 
-resource redisCluster 'Microsoft.Cache/redisEnterprise@2023-11-01' = {
+resource redisCluster 'Microsoft.Cache/redisEnterprise@2024-09-01-preview' = {
   name: redisClusterName
   location: location
   tags: tags
   sku: {
     name: redisSku
-    capacity: 2
   }
   properties: {
     minimumTlsVersion: '1.2'
   }
 }
 
-// Redis Database with modules
-resource redisDatabase 'Microsoft.Cache/redisEnterprise/databases@2023-11-01' = {
+// Redis Database with modules (Azure Managed Redis includes RediSearch, RedisJSON, RedisTimeSeries, RedisBloom by default)
+resource redisDatabase 'Microsoft.Cache/redisEnterprise/databases@2024-09-01-preview' = {
   parent: redisCluster
   name: 'default'
   properties: {
@@ -48,19 +47,15 @@ resource redisDatabase 'Microsoft.Cache/redisEnterprise/databases@2023-11-01' = 
     modules: [
       {
         name: 'RediSearch'
-        args: ''
       }
       {
         name: 'RedisJSON'
-        args: ''
       }
       {
         name: 'RedisTimeSeries'
-        args: ''
       }
       {
         name: 'RedisBloom'
-        args: ''
       }
     ]
     persistence: {

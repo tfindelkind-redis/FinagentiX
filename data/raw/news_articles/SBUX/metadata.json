@@ -1,0 +1,30 @@
+{
+  "ticker": "SBUX",
+  "source": "yfinance",
+  "download_timestamp": "2025-12-08T10:03:57.838253",
+  "article_count": 10,
+  "date_range": [
+    "2025-12-03T14:38:43Z",
+    "2025-12-08T04:20:16Z"
+  ],
+  "sources": [
+    "Simply Wall St.",
+    "TheStreet",
+    "24/7 Wall St.",
+    "Zacks",
+    "Money Digest",
+    "Motley Fool",
+    "Nation's Restaurant News"
+  ],
+  "has_images": 10,
+  "quality_stats": {
+    "article_count": 10,
+    "completeness": 100.0,
+    "has_images": 10,
+    "avg_title_length": 61.0,
+    "avg_description_length": 18.3,
+    "unique_sources": 7,
+    "date_range_days": 4
+  },
+  "file_size_bytes": 12797
+}

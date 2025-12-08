@@ -1,0 +1,29 @@
+{
+  "ticker": "MCD",
+  "source": "yfinance",
+  "download_timestamp": "2025-12-08T10:03:58.057322",
+  "article_count": 10,
+  "date_range": [
+    "2025-12-05T16:30:05Z",
+    "2025-12-08T02:37:00Z"
+  ],
+  "sources": [
+    "TheStreet",
+    "Money Digest",
+    "Barchart",
+    "Simply Wall St.",
+    "Motley Fool",
+    "Zacks"
+  ],
+  "has_images": 10,
+  "quality_stats": {
+    "article_count": 10,
+    "completeness": 100.0,
+    "has_images": 10,
+    "avg_title_length": 67.9,
+    "avg_description_length": 0.0,
+    "unique_sources": 6,
+    "date_range_days": 2
+  },
+  "file_size_bytes": 13159
+}

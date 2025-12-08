@@ -1,0 +1,29 @@
+{
+  "ticker": "UNH",
+  "source": "yfinance",
+  "download_timestamp": "2025-12-08T10:03:58.449119",
+  "article_count": 10,
+  "date_range": [
+    "2025-12-03T20:25:53Z",
+    "2025-12-07T11:09:40Z"
+  ],
+  "sources": [
+    "Simply Wall St.",
+    "Motley Fool",
+    "Barchart",
+    "Zacks",
+    "Insider Monkey",
+    "StockStory"
+  ],
+  "has_images": 10,
+  "quality_stats": {
+    "article_count": 10,
+    "completeness": 100.0,
+    "has_images": 10,
+    "avg_title_length": 61.7,
+    "avg_description_length": 0.0,
+    "unique_sources": 6,
+    "date_range_days": 3
+  },
+  "file_size_bytes": 11896
+}

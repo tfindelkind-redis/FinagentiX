@@ -1,0 +1,29 @@
+{
+  "ticker": "WMT",
+  "source": "yfinance",
+  "download_timestamp": "2025-12-08T10:03:57.326478",
+  "article_count": 10,
+  "date_range": [
+    "2025-12-05T19:47:00Z",
+    "2025-12-07T23:21:00Z"
+  ],
+  "sources": [
+    "Motley Fool",
+    "TheStreet",
+    "24/7 Wall St.",
+    "Yahoo Finance",
+    "Insider Monkey",
+    "GOBankingRates"
+  ],
+  "has_images": 10,
+  "quality_stats": {
+    "article_count": 10,
+    "completeness": 100.0,
+    "has_images": 10,
+    "avg_title_length": 63.2,
+    "avg_description_length": 0.0,
+    "unique_sources": 6,
+    "date_range_days": 2
+  },
+  "file_size_bytes": 12103
+}

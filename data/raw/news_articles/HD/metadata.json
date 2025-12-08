@@ -1,0 +1,29 @@
+{
+  "ticker": "HD",
+  "source": "yfinance",
+  "download_timestamp": "2025-12-08T10:03:57.490975",
+  "article_count": 10,
+  "date_range": [
+    "2025-12-03T23:07:00Z",
+    "2025-12-07T13:04:59Z"
+  ],
+  "sources": [
+    "Simply Wall St.",
+    "Insider Monkey",
+    "Motley Fool",
+    "Zacks",
+    "The Wall Street Journal",
+    "TheStreet"
+  ],
+  "has_images": 10,
+  "quality_stats": {
+    "article_count": 10,
+    "completeness": 100.0,
+    "has_images": 10,
+    "avg_title_length": 74.1,
+    "avg_description_length": 0.0,
+    "unique_sources": 6,
+    "date_range_days": 3
+  },
+  "file_size_bytes": 12484
+}

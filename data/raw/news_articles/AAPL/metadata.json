@@ -1,0 +1,30 @@
+{
+  "ticker": "AAPL",
+  "source": "yfinance",
+  "download_timestamp": "2025-12-08T10:03:55.160559",
+  "article_count": 10,
+  "date_range": [
+    "2025-12-07T10:20:00Z",
+    "2025-12-08T06:00:37Z"
+  ],
+  "sources": [
+    "Yahoo Finance",
+    "Yahoo Finance UK",
+    "The Telegraph",
+    "Insider Monkey",
+    "GOBankingRates",
+    "Motley Fool",
+    "Benzinga"
+  ],
+  "has_images": 9,
+  "quality_stats": {
+    "article_count": 10,
+    "completeness": 100.0,
+    "has_images": 9,
+    "avg_title_length": 70.2,
+    "avg_description_length": 0.0,
+    "unique_sources": 7,
+    "date_range_days": 0
+  },
+  "file_size_bytes": 11750
+}

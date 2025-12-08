@@ -1,0 +1,30 @@
+{
+  "ticker": "CAT",
+  "source": "yfinance",
+  "download_timestamp": "2025-12-08T10:03:59.134719",
+  "article_count": 10,
+  "date_range": [
+    "2025-12-03T14:17:00Z",
+    "2025-12-06T19:24:44Z"
+  ],
+  "sources": [
+    "Insider Monkey",
+    "Simply Wall St.",
+    "Barrons.com",
+    "StockStory",
+    "Zacks",
+    "Investor's Business Daily",
+    "Verdict"
+  ],
+  "has_images": 10,
+  "quality_stats": {
+    "article_count": 10,
+    "completeness": 100.0,
+    "has_images": 10,
+    "avg_title_length": 66.4,
+    "avg_description_length": 0.0,
+    "unique_sources": 7,
+    "date_range_days": 3
+  },
+  "file_size_bytes": 12995
+}

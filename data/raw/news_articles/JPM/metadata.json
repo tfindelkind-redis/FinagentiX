@@ -1,0 +1,30 @@
+{
+  "ticker": "JPM",
+  "source": "yfinance",
+  "download_timestamp": "2025-12-08T10:03:56.374651",
+  "article_count": 10,
+  "date_range": [
+    "2025-12-05T14:25:00Z",
+    "2025-12-08T03:44:50Z"
+  ],
+  "sources": [
+    "Investor's Business Daily",
+    "Simply Wall St.",
+    "Benzinga",
+    "Barrons.com",
+    "Bloomberg",
+    "Insider Monkey",
+    "Zacks"
+  ],
+  "has_images": 9,
+  "quality_stats": {
+    "article_count": 10,
+    "completeness": 100.0,
+    "has_images": 9,
+    "avg_title_length": 67.6,
+    "avg_description_length": 0.0,
+    "unique_sources": 7,
+    "date_range_days": 2
+  },
+  "file_size_bytes": 13747
+}

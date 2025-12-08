@@ -1,0 +1,31 @@
+{
+  "ticker": "COIN",
+  "source": "yfinance",
+  "download_timestamp": "2025-12-08T10:03:59.826882",
+  "article_count": 10,
+  "date_range": [
+    "2025-12-05T17:01:00Z",
+    "2025-12-08T07:18:05Z"
+  ],
+  "sources": [
+    "Cryptonews",
+    "CoinDesk",
+    "decrypt",
+    "BeInCrypto",
+    "TechCrunch",
+    "Investing.com",
+    "Coinspeaker",
+    "Barrons.com"
+  ],
+  "has_images": 9,
+  "quality_stats": {
+    "article_count": 10,
+    "completeness": 100.0,
+    "has_images": 9,
+    "avg_title_length": 72.9,
+    "avg_description_length": 0.0,
+    "unique_sources": 8,
+    "date_range_days": 2
+  },
+  "file_size_bytes": 11608
+}

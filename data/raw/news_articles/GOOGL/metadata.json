@@ -1,0 +1,27 @@
+{
+  "ticker": "GOOGL",
+  "source": "yfinance",
+  "download_timestamp": "2025-12-08T10:03:55.466786",
+  "article_count": 10,
+  "date_range": [
+    "2025-12-07T13:30:23Z",
+    "2025-12-08T08:53:00Z"
+  ],
+  "sources": [
+    "Yahoo Finance",
+    "Motley Fool",
+    "TheStreet",
+    "Simply Wall St."
+  ],
+  "has_images": 10,
+  "quality_stats": {
+    "article_count": 10,
+    "completeness": 100.0,
+    "has_images": 10,
+    "avg_title_length": 70.3,
+    "avg_description_length": 0.0,
+    "unique_sources": 4,
+    "date_range_days": 0
+  },
+  "file_size_bytes": 12133
+}

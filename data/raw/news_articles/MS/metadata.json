@@ -1,0 +1,29 @@
+{
+  "ticker": "MS",
+  "source": "yfinance",
+  "download_timestamp": "2025-12-08T10:03:57.093611",
+  "article_count": 10,
+  "date_range": [
+    "2025-12-04T04:34:46Z",
+    "2025-12-07T00:00:35Z"
+  ],
+  "sources": [
+    "Benzinga",
+    "Simply Wall St.",
+    "Zacks",
+    "Barrons.com",
+    "Bloomberg",
+    "StockStory"
+  ],
+  "has_images": 7,
+  "quality_stats": {
+    "article_count": 10,
+    "completeness": 100.0,
+    "has_images": 7,
+    "avg_title_length": 69.4,
+    "avg_description_length": 0.0,
+    "unique_sources": 6,
+    "date_range_days": 2
+  },
+  "file_size_bytes": 14439
+}

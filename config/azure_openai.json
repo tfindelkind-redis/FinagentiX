@@ -1,0 +1,51 @@
+{
+  "service_name": "openai-545d8fdb508d4",
+  "resource_group": "finagentix-dev-rg",
+  "location": "eastus",
+  "endpoint": "https://openai-545d8fdb508d4.openai.azure.com/",
+  "api_version": "2024-08-01-preview",
+  "deployments": {
+    "gpt-4o": {
+      "deployment_name": "gpt-4o",
+      "model_name": "gpt-4o",
+      "model_version": "2024-08-06",
+      "sku": {
+        "name": "Standard",
+        "capacity": 10
+      },
+      "use_cases": [
+        "Agent orchestration",
+        "Trading recommendations",
+        "Report generation",
+        "Sentiment analysis"
+      ]
+    },
+    "text-embedding-3-large": {
+      "deployment_name": "text-embedding-3-large",
+      "model_name": "text-embedding-3-large",
+      "model_version": "1",
+      "sku": {
+        "name": "Standard",
+        "capacity": 10
+      },
+      "dimensions": 3072,
+      "use_cases": [
+        "Document embeddings (SEC filings)",
+        "News article embeddings",
+        "Semantic search",
+        "Semantic caching"
+      ]
+    }
+  },
+  "network": {
+    "public_network_access": "Enabled",
+    "custom_subdomain": "openai-545d8fdb508d4",
+    "private_endpoint": "Not yet configured (requires VNet integration)"
+  },
+  "tags": {
+    "environment": "dev",
+    "project": "finagentix"
+  },
+  "deployment_date": "2025-12-08",
+  "deployed_via": "Azure CLI"
+}

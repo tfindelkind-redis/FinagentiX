@@ -1,0 +1,13 @@
+{
+  "ticker": "ABBV",
+  "cik": "0001551152",
+  "company_name": "AbbVie Inc.",
+  "download_timestamp": "2025-12-08T10:22:44.243856",
+  "filings_summary": {
+    "10-K": 1,
+    "10-Q": 1,
+    "8-K": 5
+  },
+  "total_filings": 3,
+  "total_size_bytes": 6156786
+}

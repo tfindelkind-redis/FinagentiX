@@ -1,0 +1,13 @@
+{
+  "ticker": "JPM",
+  "cik": "0000019617",
+  "company_name": "JPMORGAN CHASE & CO",
+  "form_type": "10-K",
+  "filing_date": "2025-02-14",
+  "accession_number": "0000019617-25-000270",
+  "primary_document": "jpm-20241231.htm",
+  "file_url": "https://www.sec.gov/Archives/edgar/data/0000019617/000001961725000270/jpm-20241231.htm",
+  "file_size_bytes": 12849180,
+  "download_timestamp": "2025-12-08T10:22:34.213831",
+  "checksum_md5": "b6856b1d2d890e8d489e1ba488d8b9c7"
+}

@@ -1,0 +1,13 @@
+{
+  "ticker": "MSFT",
+  "cik": "0000789019",
+  "company_name": "MICROSOFT CORP",
+  "form_type": "10-K",
+  "filing_date": "2025-07-30",
+  "accession_number": "0000950170-25-100235",
+  "primary_document": "msft-20250630.htm",
+  "file_url": "https://www.sec.gov/Archives/edgar/data/0000789019/000095017025100235/msft-20250630.htm",
+  "file_size_bytes": 8158067,
+  "download_timestamp": "2025-12-08T10:22:30.783788",
+  "checksum_md5": "43351ee63880b440101f7c6fa9ddf1ed"
+}

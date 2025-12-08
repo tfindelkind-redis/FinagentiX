@@ -1,0 +1,13 @@
+{
+  "ticker": "CVX",
+  "cik": "0000093410",
+  "company_name": "CHEVRON CORP",
+  "download_timestamp": "2025-12-08T10:22:47.766361",
+  "filings_summary": {
+    "10-K": 1,
+    "10-Q": 1,
+    "8-K": 5
+  },
+  "total_filings": 3,
+  "total_size_bytes": 8116239
+}

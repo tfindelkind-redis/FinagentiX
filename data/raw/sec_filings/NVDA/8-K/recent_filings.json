@@ -1,0 +1,35 @@
+{
+  "ticker": "NVDA",
+  "cik": "0001045810",
+  "company_name": "NVIDIA CORP",
+  "form_type": "8-K",
+  "download_timestamp": "2025-12-08T10:22:32.921890",
+  "filings_count": 5,
+  "filings": [
+    {
+      "accession_number": "0001045810-25-000228",
+      "filing_date": "2025-11-19",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001045810-25-000207",
+      "filing_date": "2025-08-27",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001045810-25-000197",
+      "filing_date": "2025-08-05",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001045810-25-000179",
+      "filing_date": "2025-07-01",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001045810-25-000115",
+      "filing_date": "2025-05-28",
+      "form_type": "8-K"
+    }
+  ]
+}

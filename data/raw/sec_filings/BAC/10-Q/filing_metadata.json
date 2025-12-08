@@ -1,0 +1,13 @@
+{
+  "ticker": "BAC",
+  "cik": "0000070858",
+  "company_name": "BANK OF AMERICA CORP /DE/",
+  "form_type": "10-Q",
+  "filing_date": "2025-10-31",
+  "accession_number": "0000070858-25-000405",
+  "primary_document": "bac-20250930.htm",
+  "file_url": "https://www.sec.gov/Archives/edgar/data/0000070858/000007085825000405/bac-20250930.htm",
+  "file_size_bytes": 11003125,
+  "download_timestamp": "2025-12-08T10:22:35.388453",
+  "checksum_md5": "b349d7ab26c7d9633cf12a3c63cd41e7"
+}

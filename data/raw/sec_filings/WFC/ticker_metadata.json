@@ -1,0 +1,13 @@
+{
+  "ticker": "WFC",
+  "cik": "0000072971",
+  "company_name": "WELLS FARGO & COMPANY/MN",
+  "download_timestamp": "2025-12-08T10:22:36.143675",
+  "filings_summary": {
+    "10-K": 1,
+    "10-Q": 1,
+    "8-K": 5
+  },
+  "total_filings": 3,
+  "total_size_bytes": 12484559
+}

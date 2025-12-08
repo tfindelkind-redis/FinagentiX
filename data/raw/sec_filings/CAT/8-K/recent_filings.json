@@ -1,0 +1,35 @@
+{
+  "ticker": "CAT",
+  "cik": "0000018230",
+  "company_name": "CATERPILLAR INC",
+  "form_type": "8-K",
+  "download_timestamp": "2025-12-08T10:22:45.712428",
+  "filings_count": 5,
+  "filings": [
+    {
+      "accession_number": "0000018230-25-000043",
+      "filing_date": "2025-10-29",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001104659-25-087011",
+      "filing_date": "2025-09-03",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001104659-25-084800",
+      "filing_date": "2025-08-28",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000018230-25-000037",
+      "filing_date": "2025-08-05",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001104659-25-058891",
+      "filing_date": "2025-06-12",
+      "form_type": "8-K"
+    }
+  ]
+}

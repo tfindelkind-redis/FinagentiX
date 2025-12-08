@@ -1,0 +1,35 @@
+{
+  "ticker": "UNH",
+  "cik": "0000731766",
+  "company_name": "UNITEDHEALTH GROUP INC",
+  "form_type": "8-K",
+  "download_timestamp": "2025-12-08T10:22:42.804082",
+  "filings_count": 5,
+  "filings": [
+    {
+      "accession_number": "0000731766-25-000314",
+      "filing_date": "2025-11-21",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000731766-25-000310",
+      "filing_date": "2025-11-13",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000731766-25-000308",
+      "filing_date": "2025-11-07",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000731766-25-000301",
+      "filing_date": "2025-10-28",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000731766-25-000245",
+      "filing_date": "2025-09-08",
+      "form_type": "8-K"
+    }
+  ]
+}

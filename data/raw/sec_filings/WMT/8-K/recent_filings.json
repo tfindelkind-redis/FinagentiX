@@ -1,0 +1,35 @@
+{
+  "ticker": "WMT",
+  "cik": "0000104169",
+  "company_name": "Walmart Inc.",
+  "form_type": "8-K",
+  "download_timestamp": "2025-12-08T10:22:38.485416",
+  "filings_count": 5,
+  "filings": [
+    {
+      "accession_number": "0000104169-25-000177",
+      "filing_date": "2025-11-20",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000104169-25-000172",
+      "filing_date": "2025-11-14",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000104169-25-000168",
+      "filing_date": "2025-10-22",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000104169-25-000153",
+      "filing_date": "2025-09-22",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000104169-25-000151",
+      "filing_date": "2025-09-19",
+      "form_type": "8-K"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "ticker": "WMT",
+  "cik": "0000104169",
+  "company_name": "Walmart Inc.",
+  "form_type": "10-K",
+  "filing_date": "2025-03-14",
+  "accession_number": "0000104169-25-000021",
+  "primary_document": "wmt-20250131.htm",
+  "file_url": "https://www.sec.gov/Archives/edgar/data/0000104169/000010416925000021/wmt-20250131.htm",
+  "file_size_bytes": 2335078,
+  "download_timestamp": "2025-12-08T10:22:38.278105",
+  "checksum_md5": "328d390543fc1d781df2a8fa1b6bfac0"
+}

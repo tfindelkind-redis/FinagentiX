@@ -1,0 +1,13 @@
+{
+  "ticker": "AAPL",
+  "cik": "0000320193",
+  "company_name": "Apple Inc.",
+  "form_type": "10-K",
+  "filing_date": "2025-10-31",
+  "accession_number": "0000320193-25-000079",
+  "primary_document": "aapl-20250927.htm",
+  "file_url": "https://www.sec.gov/Archives/edgar/data/0000320193/000032019325000079/aapl-20250927.htm",
+  "file_size_bytes": 1520208,
+  "download_timestamp": "2025-12-08T10:22:30.312564",
+  "checksum_md5": "5e0fca5509c9a82109125b50212c1c7d"
+}

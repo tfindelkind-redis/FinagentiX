@@ -1,0 +1,35 @@
+{
+  "ticker": "PFE",
+  "cik": "0000078003",
+  "company_name": "PFIZER INC",
+  "form_type": "8-K",
+  "download_timestamp": "2025-12-08T10:22:43.555733",
+  "filings_count": 5,
+  "filings": [
+    {
+      "accession_number": "0001193125-25-291406",
+      "filing_date": "2025-11-21",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000078003-25-000159",
+      "filing_date": "2025-11-13",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000078003-25-000149",
+      "filing_date": "2025-11-04",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000078003-25-000136",
+      "filing_date": "2025-08-05",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001193125-25-122480",
+      "filing_date": "2025-05-19",
+      "form_type": "8-K"
+    }
+  ]
+}

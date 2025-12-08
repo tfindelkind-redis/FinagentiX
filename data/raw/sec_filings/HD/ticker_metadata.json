@@ -1,0 +1,13 @@
+{
+  "ticker": "HD",
+  "cik": "0000354950",
+  "company_name": "HOME DEPOT, INC.",
+  "download_timestamp": "2025-12-08T10:22:39.191080",
+  "filings_summary": {
+    "10-K": 1,
+    "10-Q": 1,
+    "8-K": 5
+  },
+  "total_filings": 3,
+  "total_size_bytes": 3218031
+}

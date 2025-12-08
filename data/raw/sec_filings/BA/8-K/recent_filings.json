@@ -1,0 +1,35 @@
+{
+  "ticker": "BA",
+  "cik": "0000012927",
+  "company_name": "BOEING CO",
+  "form_type": "8-K",
+  "download_timestamp": "2025-12-08T10:22:44.967259",
+  "filings_count": 5,
+  "filings": [
+    {
+      "accession_number": "0001628280-25-055122",
+      "filing_date": "2025-12-03",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001628280-25-046915",
+      "filing_date": "2025-10-29",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000012927-25-000064",
+      "filing_date": "2025-08-28",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000012927-25-000058",
+      "filing_date": "2025-07-29",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000012927-25-000050",
+      "filing_date": "2025-07-03",
+      "form_type": "8-K"
+    }
+  ]
+}

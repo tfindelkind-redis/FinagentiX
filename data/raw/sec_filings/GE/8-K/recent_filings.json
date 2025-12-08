@@ -1,0 +1,35 @@
+{
+  "ticker": "GE",
+  "cik": "0000040545",
+  "company_name": "GENERAL ELECTRIC CO",
+  "form_type": "8-K",
+  "download_timestamp": "2025-12-08T10:22:46.402922",
+  "filings_count": 5,
+  "filings": [
+    {
+      "accession_number": "0000040545-25-000131",
+      "filing_date": "2025-10-21",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000040545-25-000126",
+      "filing_date": "2025-10-01",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000930413-25-002289",
+      "filing_date": "2025-07-29",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000930413-25-002225",
+      "filing_date": "2025-07-24",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000040545-25-000108",
+      "filing_date": "2025-07-17",
+      "form_type": "8-K"
+    }
+  ]
+}

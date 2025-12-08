@@ -1,0 +1,35 @@
+{
+  "ticker": "SBUX",
+  "cik": "0000829224",
+  "company_name": "STARBUCKS CORP",
+  "form_type": "8-K",
+  "download_timestamp": "2025-12-08T10:22:40.791938",
+  "filings_count": 5,
+  "filings": [
+    {
+      "accession_number": "0000829224-25-000079",
+      "filing_date": "2025-11-03",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000829224-25-000074",
+      "filing_date": "2025-10-29",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000829224-25-000067",
+      "filing_date": "2025-09-25",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000829224-25-000057",
+      "filing_date": "2025-07-29",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000829224-25-000048",
+      "filing_date": "2025-07-02",
+      "form_type": "8-K"
+    }
+  ]
+}

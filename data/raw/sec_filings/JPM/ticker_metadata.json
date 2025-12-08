@@ -1,0 +1,13 @@
+{
+  "ticker": "JPM",
+  "cik": "0000019617",
+  "company_name": "JPMORGAN CHASE & CO",
+  "download_timestamp": "2025-12-08T10:22:34.458838",
+  "filings_summary": {
+    "10-K": 1,
+    "10-Q": 1,
+    "8-K": 5
+  },
+  "total_filings": 3,
+  "total_size_bytes": 24345262
+}

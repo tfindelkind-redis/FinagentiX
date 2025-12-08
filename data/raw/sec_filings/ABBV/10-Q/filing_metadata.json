@@ -1,0 +1,13 @@
+{
+  "ticker": "ABBV",
+  "cik": "0001551152",
+  "company_name": "AbbVie Inc.",
+  "form_type": "10-Q",
+  "filing_date": "2025-11-04",
+  "accession_number": "0001551152-25-000049",
+  "primary_document": "abbv-20250930.htm",
+  "file_url": "https://www.sec.gov/Archives/edgar/data/0001551152/000155115225000049/abbv-20250930.htm",
+  "file_size_bytes": 2372537,
+  "download_timestamp": "2025-12-08T10:22:44.236149",
+  "checksum_md5": "3d303e5c9d93100cc4f8f0a0e55aae4b"
+}

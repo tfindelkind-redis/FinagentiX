@@ -1,0 +1,13 @@
+{
+  "ticker": "MCD",
+  "cik": "0000063908",
+  "company_name": "MCDONALDS CORP",
+  "form_type": "10-Q",
+  "filing_date": "2025-11-05",
+  "accession_number": "0000063908-25-000059",
+  "primary_document": "mcd-20250930.htm",
+  "file_url": "https://www.sec.gov/Archives/edgar/data/0000063908/000006390825000059/mcd-20250930.htm",
+  "file_size_bytes": 1579805,
+  "download_timestamp": "2025-12-08T10:22:41.582122",
+  "checksum_md5": "4207c2253f6334d5c6e7b75571754aec"
+}

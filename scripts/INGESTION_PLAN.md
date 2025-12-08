@@ -882,3 +882,495 @@ python scripts/upload_to_azure.py --type stock_data
 2. Implement Step 3 (SEC Filings)
 3. Implement unified uploader
 4. Test full pipeline end-to-end
+
+---
+---
+
+# Data Ingestion Plan - Step 2: News Articles
+
+## �� Overview
+
+**Goal:** Download news articles for 28 tickers from financial news APIs with sentiment analysis preparation, following the same robust principles as stock data ingestion.
+
+**Key Principles:**
+- ✅ Run locally (no Azure dependencies during gathering)
+- ✅ Robust retry logic with exponential backoff  
+- ✅ Comprehensive data validation after each ticker
+- ✅ Resume capability (track progress, skip completed)
+- ✅ Local storage in repo (data versioned, replayable)
+- ✅ Separate upload phase (only after all data validated)
+- ✅ Rate limiting (respect API limits)
+- ✅ Content deduplication (avoid duplicate articles)
+
+---
+
+## 📁 Local Data Structure
+
+```
+data/
+├── raw/
+│   ├── news_articles/
+│   │   ├── manifest.json           # Master tracking file
+│   │   ├── AAPL/
+│   │   │   ├── articles_1y.parquet # All articles
+│   │   │   ├── metadata.json       # Stats & validation
+│   │   │   └── checksum.md5
+│   │   ├── MSFT/
+│   │   │   ├── articles_1y.parquet
+│   │   │   ├── metadata.json
+│   │   │   └── checksum.md5
+│   │   └── ...
+│   └── stock_data/                 # From Step 1
+├── logs/
+│   ├── news_ingestion_20251208.log
+│   └── api_rate_limits.json
+└── staging/
+```
+
+---
+
+## 🔧 News Sources & APIs
+
+### **Priority 1: Free APIs**
+
+1. **NewsAPI** (https://newsapi.org)
+   - Free tier: 100 requests/day
+   - Coverage: 80k+ sources, 1 month history
+   - Rate limit: 1 req/sec
+
+2. **Alpha Vantage News** (https://www.alphavantage.co)
+   - Free tier: 500 requests/day
+   - Coverage: Financial news with sentiment
+   - Rate limit: 5 req/min
+
+3. **Finnhub** (https://finnhub.io)
+   - Free tier: 60 calls/min
+   - Coverage: Stock-specific news
+   - Rate limit: 60 req/min
+
+4. **Yahoo Finance** (yfinance)
+   - Free, no API key required
+   - Coverage: Basic news for tickers
+   - Rate limit: 1 req/sec
+
+---
+
+## 📋 Article Schema
+
+```python
+@dataclass
+class NewsArticle:
+    """Schema for news article"""
+    article_id: str              # Unique ID (hash of url + published_at)
+    ticker: str                  # Associated ticker symbol
+    source: str                  # News source (newsapi, alphavantage, etc.)
+    title: str                   # Article headline
+    description: str             # Article summary/snippet
+    url: str                     # Original article URL
+    published_at: str            # ISO 8601 timestamp
+    author: Optional[str]        # Author name(s)
+    content: Optional[str]       # Full article text (if available)
+    sentiment_score: Optional[float]  # Placeholder for future sentiment
+    relevance_score: Optional[float]  # How relevant to ticker (0-1)
+    image_url: Optional[str]     # Featured image URL
+    fetched_at: str              # When we downloaded it
+    checksum: str                # Content hash for deduplication
+```
+
+---
+
+## ✅ Validation Checks
+
+After each ticker download:
+1. ✅ Minimum 10 articles per ticker
+2. ✅ Required fields present (title, url, published_at, source)
+3. ✅ < 10% duplicate articles
+4. ✅ Valid date range (within lookback period)
+5. ✅ Title length >= 10 characters
+6. ✅ Description length >= 20 characters
+7. ✅ Valid URLs (http/https format)
+8. ✅ MD5 checksum generated
+
+---
+
+## 📊 Expected Output
+
+### **Per Ticker:**
+- 200-500 unique articles
+- Date range: Past 365 days
+- Sources: 2-3 APIs combined
+- File size: ~50-150KB compressed
+
+### **Totals (28 tickers):**
+- ~5,000-8,000 total articles
+- ~50-100MB total size
+- Download time: 30-60 minutes
+
+---
+
+## 🚀 Usage
+
+```bash
+# Setup API keys (create .env file)
+export NEWS_API_KEY="your_newsapi_key"
+export ALPHAVANTAGE_API_KEY="your_alphavantage_key"  
+export FINNHUB_API_KEY="your_finnhub_key"
+
+# Fresh download
+python scripts/download_news_articles.py
+
+# Resume from previous run
+python scripts/download_news_articles.py --resume
+
+# Specific tickers
+python scripts/download_news_articles.py --tickers AAPL MSFT GOOGL
+
+# Background execution
+nohup python scripts/download_news_articles.py > news_ingestion.out 2>&1 &
+echo $! > news_ingestion.pid
+
+# Monitor progress
+tail -f news_ingestion.out
+cat data/raw/news_articles/manifest.json | jq
+```
+
+---
+
+## ✅ Success Criteria
+
+- [ ] All 28 tickers processed
+- [ ] Average 200+ articles per ticker
+- [ ] < 10% duplicate articles
+- [ ] All validation checks passed
+- [ ] Checksums calculated
+- [ ] Manifest complete
+- [ ] Data versioned in repo
+- [ ] Ready for sentiment analysis
+- [ ] Ready for Azure upload
+
+---
+
+# Data Ingestion Plan - Step 3: SEC Filings
+
+## 🎯 Overview
+
+**Goal:** Download recent SEC filings (10-K, 10-Q, 8-K) for 28 tickers using SEC EDGAR API with robust error handling, validation, and local persistence.
+
+**Key Principles:**
+- ✅ Run locally (no Azure dependencies)
+- ✅ Use SEC EDGAR API (free, no API key required)
+- ✅ Respect SEC rate limits (10 requests/second)
+- ✅ Download filing metadata + full text
+- ✅ Robust retry logic with exponential backoff
+- ✅ Comprehensive validation (file size, format, completeness)
+- ✅ Resume capability via manifest
+- ✅ Local storage in repo (small recent filings only)
+- ✅ Separate upload phase to Azure
+
+---
+
+## 📊 SEC Filings Data Structure
+
+### **Filing Types:**
+- **10-K**: Annual report (comprehensive financial data, operations, risks)
+- **10-Q**: Quarterly report (quarterly financials, MD&A)
+- **8-K**: Current report (material events, press releases)
+
+### **Data to Collect:**
+For each ticker, download:
+- **Latest 10-K** (most recent annual report)
+- **Latest 10-Q** (most recent quarterly report)
+- **Recent 8-Ks** (last 5 material events)
+
+Expected total: ~7 filings per ticker × 28 tickers = **196 filings**
+
+---
+
+## 📁 Local Data Structure
+
+```
+data/raw/sec_filings/
+├── manifest.json                 # Master tracking file
+├── AAPL/
+│   ├── 10-K/
+│   │   ├── 0000320193-24-000123.txt  # Full filing text
+│   │   ├── filing_metadata.json       # Accession, date, CIK, etc.
+│   │   └── checksum.md5
+│   ├── 10-Q/
+│   │   ├── 0000320193-24-000456.txt
+│   │   ├── filing_metadata.json
+│   │   └── checksum.md5
+│   ├── 8-K/
+│   │   ├── recent_filings.json        # List of 5 recent 8-Ks
+│   │   └── checksum.md5
+│   └── ticker_metadata.json           # CIK, company name, filing stats
+├── MSFT/
+│   └── ...
+└── ...
+```
+
+---
+
+## 🔌 SEC EDGAR API Overview
+
+### **API Endpoints:**
+
+1. **Company Search (get CIK from ticker):**
+   ```
+   https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={TICKER}&type=&dateb=&owner=exclude&count=1&output=json
+   ```
+
+2. **Company Filings (get filing list):**
+   ```
+   https://data.sec.gov/submissions/CIK{CIK_padded}.json
+   ```
+   Example: `https://data.sec.gov/submissions/CIK0000320193.json` (Apple)
+
+3. **Filing Document (download full text):**
+   ```
+   https://www.sec.gov/Archives/edgar/data/{CIK}/{accession_no}/{primary_document}
+   ```
+   Example: `https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240930.htm`
+
+### **Rate Limits:**
+- **10 requests per second** (enforced by SEC)
+- Must include `User-Agent` header with contact info
+- Implement 0.1s delay between requests
+
+### **User-Agent Requirement:**
+```
+User-Agent: FinagentiX/1.0 (your-email@example.com)
+```
+
+---
+
+## 📋 Filing Schema
+
+### **Filing Metadata (`filing_metadata.json`):**
+```json
+{
+  "ticker": "AAPL",
+  "cik": "0000320193",
+  "company_name": "Apple Inc.",
+  "form_type": "10-K",
+  "filing_date": "2024-11-01",
+  "report_date": "2024-09-30",
+  "accession_number": "0000320193-24-000123",
+  "primary_document": "aapl-20240930.htm",
+  "file_url": "https://www.sec.gov/Archives/edgar/data/320193/...",
+  "file_size_bytes": 1245678,
+  "download_timestamp": "2025-12-08T10:00:00Z",
+  "checksum_md5": "a1b2c3d4e5f6...",
+  "is_amended": false,
+  "fiscal_year": 2024,
+  "fiscal_period": "FY"
+}
+```
+
+### **Ticker Metadata (`ticker_metadata.json`):**
+```json
+{
+  "ticker": "AAPL",
+  "cik": "0000320193",
+  "company_name": "Apple Inc.",
+  "sic_code": "3571",
+  "sic_description": "Electronic Computers",
+  "fiscal_year_end": "0930",
+  "download_timestamp": "2025-12-08T10:00:00Z",
+  "filings_summary": {
+    "10-K": 1,
+    "10-Q": 1,
+    "8-K": 5
+  },
+  "total_filings": 7,
+  "total_size_bytes": 8765432
+}
+```
+
+---
+
+## 🔧 Implementation Architecture
+
+### **File Structure:**
+```
+scripts/ingestion/
+├── sec_validators.py             # Validate SEC filing data
+├── sec_downloader.py             # SEC EDGAR API client
+├── sec_parser.py                 # Parse filing metadata
+└── (reuse) config.py, progress_tracker.py, retry_handler.py
+
+scripts/
+└── download_sec_filings.py       # CLI entry point
+```
+
+---
+
+## 📝 SEC Validators (`sec_validators.py`)
+
+### **Validation Checks:**
+
+1. **Filing completeness:** All required metadata fields present
+2. **File size:** Within expected range (10-K: 100KB-5MB, 10-Q: 50KB-3MB, 8-K: 10KB-1MB)
+3. **Accession number format:** Matches SEC pattern (e.g., 0000320193-24-000123)
+4. **Filing date:** Within last 2 years (reasonable recency)
+5. **CIK consistency:** Ticker CIK matches filing CIK
+6. **File format:** Valid HTML/TXT format
+7. **Checksum:** MD5 hash calculation successful
+8. **Content validation:** File not empty, contains expected sections
+
+```python
+class SECValidator:
+    def __init__(
+        self,
+        min_10k_size: int = 100_000,   # 100KB
+        max_10k_size: int = 5_000_000, # 5MB
+        min_10q_size: int = 50_000,    # 50KB
+        max_10q_size: int = 3_000_000, # 3MB
+        min_8k_size: int = 10_000,     # 10KB
+        max_8k_size: int = 1_000_000   # 1MB
+    )
+```
+
+---
+
+## 📥 SEC Downloader (`sec_downloader.py`)
+
+### **Key Features:**
+
+1. **CIK Lookup:** Convert ticker → CIK using SEC API
+2. **Rate Limiting:** 0.1s delay between requests (10 req/sec)
+3. **User-Agent:** Proper header with contact info
+4. **Retry Logic:** Exponential backoff (5 attempts: 2→4→8→16→32s)
+5. **Progress Tracking:** Manifest.json with resume capability
+6. **Validation:** Check each filing after download
+7. **Metadata Extraction:** Parse filing details from JSON
+8. **File Storage:** Save to local directory structure
+
+```python
+class SECDownloader:
+    def __init__(
+        self,
+        output_dir: str,
+        user_agent: str,
+        rate_limit_delay: float = 0.11,  # 10 req/sec with buffer
+        validator: Optional[SECValidator] = None,
+        tracker: Optional[ProgressTracker] = None
+    )
+    
+    def get_cik(self, ticker: str) -> str:
+        """Get CIK for ticker"""
+    
+    def get_company_filings(self, cik: str) -> dict:
+        """Get all filings for company"""
+    
+    def download_filing(self, cik: str, accession: str, form_type: str) -> bool:
+        """Download single filing"""
+    
+    def download_ticker(self, ticker: str) -> bool:
+        """Download all filings for ticker"""
+```
+
+---
+
+## 🚀 Download Script (`download_sec_filings.py`)
+
+### **CLI Interface:**
+
+```bash
+# Download all tickers
+python scripts/download_sec_filings.py
+
+# Resume previous download
+python scripts/download_sec_filings.py --resume
+
+# Fresh start (delete manifest)
+python scripts/download_sec_filings.py --fresh
+
+# Download specific tickers
+python scripts/download_sec_filings.py --tickers AAPL MSFT GOOGL
+
+# Specify filing types
+python scripts/download_sec_filings.py --forms 10-K 10-Q
+
+# Verbose logging
+python scripts/download_sec_filings.py --verbose
+
+# Set user agent email
+python scripts/download_sec_filings.py --email your-email@example.com
+```
+
+### **Features:**
+- ✅ Argparse CLI with helpful flags
+- ✅ Logging to console + file
+- ✅ Progress bar / ticker counter
+- ✅ Summary statistics (total filings, size, success rate)
+- ✅ Error reporting with failed ticker list
+- ✅ Resume capability via manifest
+- ✅ Rate limiting respected automatically
+
+---
+
+## 📊 Expected Data Size
+
+### **Estimated Sizes:**
+- **10-K:** ~500KB - 2MB per filing
+- **10-Q:** ~200KB - 1MB per filing
+- **8-K:** ~50KB - 500KB per filing
+
+### **Total Expected:**
+- 28 tickers × (1 × 10-K + 1 × 10-Q + 5 × 8-K) = **196 filings**
+- Estimated total size: **28MB - 150MB**
+- Average per ticker: **1MB - 5MB**
+
+**Decision:** Commit to repo if total < 50MB, otherwise document external storage strategy
+
+---
+
+## ✅ Validation Checklist
+
+Before marking Step 3 complete:
+
+- [ ] All 28 tickers processed
+- [ ] 1 × 10-K per ticker downloaded
+- [ ] 1 × 10-Q per ticker downloaded
+- [ ] 5 × 8-K per ticker downloaded (where available)
+- [ ] All filings validated (size, format, completeness)
+- [ ] CIK lookup successful for all tickers
+- [ ] Checksums calculated for all files
+- [ ] Metadata.json created for each filing
+- [ ] ticker_metadata.json created for each ticker
+- [ ] Manifest.json tracks all progress
+- [ ] Data versioned in repo (if < 50MB)
+- [ ] Ready for text extraction & embedding
+- [ ] Ready for Azure upload
+
+---
+
+## 📝 Implementation Notes
+
+### **SEC API Quirks:**
+1. CIKs are zero-padded to 10 digits (e.g., `0000320193`)
+2. Accession numbers have dashes (e.g., `0000320193-24-000123`)
+3. Some companies may have amended filings (form ends with `/A`)
+4. Recent filings may not have full text available immediately
+5. 8-K filings are optional (not all companies file regularly)
+
+### **Error Handling:**
+- **404 Not Found:** Company may not have filed recently
+- **503 Service Unavailable:** SEC server overload, retry with backoff
+- **Rate Limit:** Implement delay, don't exceed 10 req/sec
+- **Missing CIK:** Ticker may be delisted or wrong symbol
+
+### **Optimization:**
+- Download metadata first (cheap), then full text
+- Cache CIK lookups to avoid repeated requests
+- Skip amended filings unless specifically needed
+- Prioritize 10-K and 10-Q over 8-K (more comprehensive data)
+
+---
+
+**Status:**
+- ✅ Step 1: Stock Data Complete (28 tickers, 776KB)
+- ✅ Step 2: News Articles Complete (280 articles, 360KB)
+- ⏳ Step 3: SEC Filings (Ready to implement)
+- ⏭️ Step 4: Unified Azure uploader

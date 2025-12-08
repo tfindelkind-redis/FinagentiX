@@ -1,0 +1,35 @@
+{
+  "ticker": "CVX",
+  "cik": "0000093410",
+  "company_name": "CHEVRON CORP",
+  "form_type": "8-K",
+  "download_timestamp": "2025-12-08T10:22:47.765455",
+  "filings_count": 5,
+  "filings": [
+    {
+      "accession_number": "0000093410-25-000122",
+      "filing_date": "2025-12-05",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000093410-25-000105",
+      "filing_date": "2025-11-03",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000093410-25-000103",
+      "filing_date": "2025-10-31",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000093410-25-000098",
+      "filing_date": "2025-09-25",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001193125-25-179846",
+      "filing_date": "2025-08-13",
+      "form_type": "8-K"
+    }
+  ]
+}

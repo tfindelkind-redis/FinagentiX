@@ -1,0 +1,13 @@
+{
+  "ticker": "CAT",
+  "cik": "0000018230",
+  "company_name": "CATERPILLAR INC",
+  "form_type": "10-Q",
+  "filing_date": "2025-11-03",
+  "accession_number": "0000018230-25-000048",
+  "primary_document": "cat-20250930.htm",
+  "file_url": "https://www.sec.gov/Archives/edgar/data/0000018230/000001823025000048/cat-20250930.htm",
+  "file_size_bytes": 4604365,
+  "download_timestamp": "2025-12-08T10:22:45.704561",
+  "checksum_md5": "fc17e69e4ba9810593ce66c22eec409b"
+}

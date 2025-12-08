@@ -1,0 +1,35 @@
+{
+  "ticker": "COIN",
+  "cik": "0001679788",
+  "company_name": "Coinbase Global, Inc.",
+  "form_type": "8-K",
+  "download_timestamp": "2025-12-08T10:22:48.485935",
+  "filings_count": 5,
+  "filings": [
+    {
+      "accession_number": "0001679788-25-000207",
+      "filing_date": "2025-10-30",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001679788-25-000182",
+      "filing_date": "2025-08-15",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001679788-25-000171",
+      "filing_date": "2025-08-08",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001679788-25-000167",
+      "filing_date": "2025-08-06",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001679788-25-000163",
+      "filing_date": "2025-08-05",
+      "form_type": "8-K"
+    }
+  ]
+}

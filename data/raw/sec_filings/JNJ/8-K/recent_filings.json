@@ -1,0 +1,35 @@
+{
+  "ticker": "JNJ",
+  "cik": "0000200406",
+  "company_name": "JOHNSON & JOHNSON",
+  "form_type": "8-K",
+  "download_timestamp": "2025-12-08T10:22:42.352365",
+  "filings_count": 5,
+  "filings": [
+    {
+      "accession_number": "0000200406-25-000201",
+      "filing_date": "2025-10-14",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000200406-25-000190",
+      "filing_date": "2025-09-09",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000200406-25-000170",
+      "filing_date": "2025-07-16",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000200406-25-000152",
+      "filing_date": "2025-06-10",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000200406-25-000141",
+      "filing_date": "2025-04-30",
+      "form_type": "8-K"
+    }
+  ]
+}

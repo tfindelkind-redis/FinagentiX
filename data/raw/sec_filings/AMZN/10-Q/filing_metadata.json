@@ -1,0 +1,13 @@
+{
+  "ticker": "AMZN",
+  "cik": "0001018724",
+  "company_name": "AMAZON COM INC",
+  "form_type": "10-Q",
+  "filing_date": "2025-10-31",
+  "accession_number": "0001018724-25-000123",
+  "primary_document": "amzn-20250930.htm",
+  "file_url": "https://www.sec.gov/Archives/edgar/data/0001018724/000101872425000123/amzn-20250930.htm",
+  "file_size_bytes": 1405879,
+  "download_timestamp": "2025-12-08T10:22:31.860875",
+  "checksum_md5": "7a9565e4ce1b5d3f20c1d42a251a6d98"
+}

@@ -1,0 +1,35 @@
+{
+  "ticker": "GOOGL",
+  "cik": "0001652044",
+  "company_name": "Alphabet Inc.",
+  "form_type": "8-K",
+  "download_timestamp": "2025-12-08T10:22:31.402085",
+  "filings_count": 5,
+  "filings": [
+    {
+      "accession_number": "0001193125-25-269979",
+      "filing_date": "2025-11-06",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001652044-25-000087",
+      "filing_date": "2025-10-29",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001652044-25-000074",
+      "filing_date": "2025-09-05",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001652044-25-000067",
+      "filing_date": "2025-09-03",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001652044-25-000056",
+      "filing_date": "2025-07-23",
+      "form_type": "8-K"
+    }
+  ]
+}

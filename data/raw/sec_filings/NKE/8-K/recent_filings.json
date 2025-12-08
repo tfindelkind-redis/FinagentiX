@@ -1,0 +1,35 @@
+{
+  "ticker": "NKE",
+  "cik": "0000320187",
+  "company_name": "NIKE, Inc.",
+  "form_type": "8-K",
+  "download_timestamp": "2025-12-08T10:22:39.980256",
+  "filings_count": 5,
+  "filings": [
+    {
+      "accession_number": "0000320187-25-000115",
+      "filing_date": "2025-12-02",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000320187-25-000091",
+      "filing_date": "2025-09-30",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000320187-25-000060",
+      "filing_date": "2025-09-11",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000320187-25-000053",
+      "filing_date": "2025-07-28",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000320187-25-000034",
+      "filing_date": "2025-06-26",
+      "form_type": "8-K"
+    }
+  ]
+}

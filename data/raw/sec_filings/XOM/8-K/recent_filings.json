@@ -1,0 +1,35 @@
+{
+  "ticker": "XOM",
+  "cik": "0000034088",
+  "company_name": "EXXON MOBIL CORP",
+  "form_type": "8-K",
+  "download_timestamp": "2025-12-08T10:22:47.088799",
+  "filings_count": 5,
+  "filings": [
+    {
+      "accession_number": "0000034088-25-000074",
+      "filing_date": "2025-11-18",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001193125-25-279379",
+      "filing_date": "2025-11-13",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000034088-25-000063",
+      "filing_date": "2025-11-03",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000034088-25-000059",
+      "filing_date": "2025-10-31",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000034088-25-000055",
+      "filing_date": "2025-10-06",
+      "form_type": "8-K"
+    }
+  ]
+}

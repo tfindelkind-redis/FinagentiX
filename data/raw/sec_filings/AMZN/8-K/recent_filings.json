@@ -1,0 +1,35 @@
+{
+  "ticker": "AMZN",
+  "cik": "0001018724",
+  "company_name": "AMAZON COM INC",
+  "form_type": "8-K",
+  "download_timestamp": "2025-12-08T10:22:31.864766",
+  "filings_count": 5,
+  "filings": [
+    {
+      "accession_number": "0001104659-25-114647",
+      "filing_date": "2025-11-20",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001018724-25-000121",
+      "filing_date": "2025-10-30",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001018724-25-000084",
+      "filing_date": "2025-07-31",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001104659-25-052014",
+      "filing_date": "2025-05-22",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001018724-25-000034",
+      "filing_date": "2025-05-01",
+      "form_type": "8-K"
+    }
+  ]
+}

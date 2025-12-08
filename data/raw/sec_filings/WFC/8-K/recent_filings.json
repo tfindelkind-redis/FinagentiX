@@ -1,0 +1,35 @@
+{
+  "ticker": "WFC",
+  "cik": "0000072971",
+  "company_name": "WELLS FARGO & COMPANY/MN",
+  "form_type": "8-K",
+  "download_timestamp": "2025-12-08T10:22:36.142527",
+  "filings_count": 5,
+  "filings": [
+    {
+      "accession_number": "0000072971-25-000239",
+      "filing_date": "2025-10-14",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001193125-25-203752",
+      "filing_date": "2025-09-15",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001193125-25-191344",
+      "filing_date": "2025-08-28",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0000072971-25-000193",
+      "filing_date": "2025-07-31",
+      "form_type": "8-K"
+    },
+    {
+      "accession_number": "0001193125-25-168083",
+      "filing_date": "2025-07-29",
+      "form_type": "8-K"
+    }
+  ]
+}

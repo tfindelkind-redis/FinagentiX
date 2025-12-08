@@ -1,0 +1,13 @@
+{
+  "ticker": "GOOGL",
+  "cik": "0001652044",
+  "company_name": "Alphabet Inc.",
+  "form_type": "10-K",
+  "filing_date": "2025-02-05",
+  "accession_number": "0001652044-25-000014",
+  "primary_document": "goog-20241231.htm",
+  "file_url": "https://www.sec.gov/Archives/edgar/data/0001652044/000165204425000014/goog-20241231.htm",
+  "file_size_bytes": 2528344,
+  "download_timestamp": "2025-12-08T10:22:31.275685",
+  "checksum_md5": "d7a617b6f196c538d5da3dde31dc2a95"
+}

@@ -131,8 +131,23 @@ echo "  Public IP: $PUBLIC_IP"
 echo "  Username: $ADMIN_USERNAME"
 echo "  Password: $ADMIN_PASSWORD"
 echo ""
-echo -e "${GREEN}🔗 To connect:${NC}"
-echo -e "${BLUE}  ssh $ADMIN_USERNAME@$PUBLIC_IP${NC}"
+
+# Setup SSH key
+echo "🔐 Setting up passwordless SSH..."
+if "$SCRIPT_DIR/setup-ssh-key.sh"; then
+    echo -e "${GREEN}✅ Passwordless SSH configured${NC}"
+    echo ""
+    echo -e "${GREEN}🔗 To connect:${NC}"
+    echo -e "${BLUE}  ssh $ADMIN_USERNAME@$PUBLIC_IP${NC}"
+else
+    echo -e "${YELLOW}⚠️  SSH key setup failed, you can set it up later:${NC}"
+    echo "  ./infra/scripts/setup-ssh-key.sh"
+    echo ""
+    echo -e "${GREEN}🔗 To connect with password:${NC}"
+    echo -e "${BLUE}  ssh $ADMIN_USERNAME@$PUBLIC_IP${NC}"
+    echo "  Password: $ADMIN_PASSWORD"
+fi
+
 echo ""
 echo -e "${YELLOW}⚠️  The NSG allows SSH from anywhere. Consider restricting to your IP.${NC}"
 echo ""

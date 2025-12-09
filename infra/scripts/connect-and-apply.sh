@@ -56,6 +56,18 @@ if [ -z "$VM_IP" ]; then
 fi
 
 echo "✅ VM IP: $VM_IP"
+
+# Ensure SSH key is set up
+echo ""
+echo "🔐 Checking SSH setup..."
+if ! ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no "azureuser@${VM_IP}" "exit" 2>/dev/null; then
+    echo "⚠️  Passwordless SSH not configured. Setting up..."
+    if ! "$SCRIPT_DIR/setup-ssh-key.sh"; then
+        echo "❌ SSH setup failed"
+        exit 1
+    fi
+fi
+echo "✅ SSH configured"
 echo ""
 
 # Create temporary script to run on VM

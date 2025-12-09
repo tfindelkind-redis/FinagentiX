@@ -102,13 +102,8 @@ class EmbeddingLoader:
             print(f"  ℹ️  Index already exists: {index_name}")
         except redis.exceptions.ResponseError:
             # Create index with HNSW algorithm
-            try:
-                from redis.commands.search.field import TextField, VectorField, NumericField
-                from redis.commands.search.indexDefinition import IndexDefinition, IndexType
-            except (ImportError, ModuleNotFoundError):
-                # Fallback for different redis-py versions
-                from redis.commands.search.field import TextField, VectorField, NumericField
-                from redis.commands.search import IndexDefinition, IndexType
+            from redis.commands.search.field import TextField, VectorField, NumericField
+            from redis.commands.search.index_definition import IndexDefinition, IndexType
             
             schema = (
                 TextField("content"),

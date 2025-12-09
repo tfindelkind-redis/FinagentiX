@@ -85,6 +85,14 @@ class MarketDataLoader:
 
         # Load parquet data
         df = pd.read_parquet(parquet_file)
+        
+        # Reset index to get Date as a column
+        df = df.reset_index()
+        
+        # Flatten multi-index columns if present
+        if isinstance(df.columns, pd.MultiIndex):
+            # Extract just the metric names (first level)
+            df.columns = [col[0] if isinstance(col, tuple) else col for col in df.columns]
 
         print(f"\n{'🔍' if dry_run else '📊'} Processing {ticker}")
         print(f"  Records: {len(df)}")
@@ -100,7 +108,7 @@ class MarketDataLoader:
             }
 
         # Create time series keys for each metric
-        metrics = ["open", "high", "low", "close", "volume"]
+        metrics = ["Open", "High", "Low", "Close", "Volume"]
         keys_created = []
 
         for metric in metrics:
@@ -139,8 +147,8 @@ class MarketDataLoader:
             timestamp = int(pd.Timestamp(row["Date"]).timestamp() * 1000)
 
             for metric in metrics:
-                key = f"stock:{ticker}:{metric}"
-                value = float(row[metric.capitalize()])
+                key = f"stock:{ticker}:{metric.lower()}"
+                value = float(row[metric])
 
                 try:
                     self.ts.add(key, timestamp, value)

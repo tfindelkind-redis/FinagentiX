@@ -20,10 +20,6 @@ param tags object = {
   owner: 'Thomas Findelkind'
 }
 
-@description('Redis SKU (E5 for dev, E10 for prod)')
-@allowed(['Enterprise_E5', 'Enterprise_E10', 'Enterprise_E20'])
-param redisSku string = 'Enterprise_E5'
-
 @description('Deploy all stages or specific stages')
 @allowed(['all', 'foundation', 'data-platform', 'ai-services', 'data-ingestion', 'agent-runtime'])
 param deployStage string = 'all'
@@ -60,7 +56,6 @@ module dataPlatform './stages/stage1-data-platform.bicep' = if (deployStage == '
     location: location
     resourceToken: resourceToken
     tags: tags
-    redisSku: redisSku
     vnetId: foundation.outputs.vnetId
     redisSubnetId: foundation.outputs.redisSubnetId
     storageSubnetId: foundation.outputs.storageSubnetId
@@ -90,6 +85,9 @@ module aiServices './stages/stage2-ai-services.bicep' = if (deployStage == 'all'
   ]
 }
 
+// Stage 2b: Featureform Feature Store (deployed after Stage 3 - needs Container Apps Environment)
+// Note: Deferred to after Stage 3 to use Container Apps Environment
+
 // Stage 3: Data Ingestion (Container App for batch load)
 module dataIngestion './stages/stage3-data-ingestion.bicep' = if (deployStage == 'all' || deployStage == 'data-ingestion') {
   scope: rg
@@ -116,6 +114,23 @@ module dataIngestion './stages/stage3-data-ingestion.bicep' = if (deployStage ==
   ]
 }
 
+// Stage 3b: Featureform Feature Store (after Container Apps Environment created)
+module featureform './stages/stage2b-featureform.bicep' = if (deployStage == 'all' || deployStage == 'data-platform') {
+  scope: rg
+  name: 'featureform-${resourceToken}'
+  params: {
+    environmentName: environmentName
+    location: location
+    resourceToken: resourceToken
+    vnetId: foundation.outputs.vnetId
+    containerAppsSubnetId: foundation.outputs.containerAppsSubnetId
+    containerAppsEnvironmentId: dataIngestion.outputs.containerAppsEnvironmentId
+    redisHost: dataPlatform.outputs.redisHost
+    redisPort: dataPlatform.outputs.redisPort
+    redisPassword: dataPlatform.outputs.redisPassword
+  }
+}
+
 // Stage 4: Agent Runtime (Container App for agents/API)
 module agentRuntime './stages/stage4-agent-runtime.bicep' = if (deployStage == 'all' || deployStage == 'agent-runtime') {
   scope: rg
@@ -134,11 +149,6 @@ module agentRuntime './stages/stage4-agent-runtime.bicep' = if (deployStage == '
     openaiEndpoint: aiServices.outputs.openaiEndpoint
     openaiKey: aiServices.outputs.openaiKey
   }
-  dependsOn: [
-    foundation
-    dataPlatform
-    aiServices
-  ]
 }
 
 // Outputs for azd environment variables
@@ -163,7 +173,13 @@ output AZURE_OPENAI_GPT4_DEPLOYMENT string = aiServices.outputs.gpt4DeploymentNa
 output AZURE_OPENAI_EMBEDDING_DEPLOYMENT string = aiServices.outputs.embeddingDeploymentName
 
 // Stage 3 outputs
-output DATA_INGESTION_URL string = dataIngestion.outputs.ingestionUrl
+output DATA_INGESTION_URL string = (deployStage == 'all' || deployStage == 'data-ingestion') ? dataIngestion.outputs.ingestionUrl : ''
+output CONTAINER_APPS_ENVIRONMENT_ID string = (deployStage == 'all' || deployStage == 'data-ingestion') ? dataIngestion.outputs.containerAppsEnvironmentId : ''
+
+// Stage 3b (Featureform) outputs
+output FEATUREFORM_HOST string = (deployStage == 'all' || deployStage == 'data-platform') ? featureform.outputs.featureformHost : ''
+output FEATUREFORM_URL string = (deployStage == 'all' || deployStage == 'data-platform') ? featureform.outputs.featureformUrl : ''
+output FEATUREFORM_POSTGRES_HOST string = (deployStage == 'all' || deployStage == 'data-platform') ? featureform.outputs.postgresHost : ''
 
 // Stage 4 outputs
-output AGENT_API_URL string = agentRuntime.outputs.agentApiUrl
+output AGENT_API_URL string = (deployStage == 'all' || deployStage == 'agent-runtime') ? agentRuntime.outputs.agentApiUrl : ''

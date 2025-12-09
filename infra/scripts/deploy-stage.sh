@@ -8,7 +8,7 @@ set -e
 
 STAGE=$1
 ENVIRONMENT=${2:-dev}
-LOCATION=${AZURE_LOCATION:-eastus}
+LOCATION=${AZURE_LOCATION:-westus3}
 
 if [ -z "$STAGE" ]; then
   echo "Usage: ./deploy-stage.sh [stage-name] [environment]"

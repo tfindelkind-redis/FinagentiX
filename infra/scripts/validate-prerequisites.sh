@@ -65,7 +65,7 @@ fi
 echo ""
 echo "🔐 Environment Variables:"
 if [ -z "$AZURE_LOCATION" ]; then
-  echo "  ℹ️  AZURE_LOCATION not set (will default to 'eastus')"
+  echo "  ℹ️  AZURE_LOCATION not set (will default to 'westus3')"
 else
   echo "  ✅ AZURE_LOCATION: $AZURE_LOCATION"
 fi

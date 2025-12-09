@@ -28,6 +28,57 @@ Built on the **Redis AI Vision** with four core layers:
 
 See [System Architecture](docs/architecture/ARCHITECTURE.md) for complete details.
 
+## 🚀 Deployment
+
+### Quick Deploy (Automated)
+
+```bash
+# Set environment and location
+export AZURE_ENV_NAME=dev
+export AZURE_LOCATION=westus3
+
+# Full deployment (includes prompts for Featureform definitions)
+./infra/scripts/deploy-full.sh
+```
+
+The deployment will:
+1. Create resource group and foundation (VNet, DNS, Monitoring)
+2. Deploy Storage Account with private endpoint
+3. Deploy Redis Enterprise (takes ~7 minutes)
+4. Deploy Azure OpenAI
+5. Deploy Featureform Container App
+6. Deploy Debug VM with public IP
+7. **Prompt to apply Featureform definitions automatically**
+
+### Manual Deployment Steps
+
+```bash
+# 1. Deploy infrastructure stages
+export AZURE_ENV_NAME=dev
+./infra/scripts/deploy.sh
+
+# 2. Deploy Featureform
+./infra/scripts/deploy-featureform.sh
+
+# 3. Deploy Debug VM (for VNet access)
+./infra/scripts/deploy-debug-vm.sh
+
+# 4. Apply Featureform definitions (automated)
+./infra/scripts/connect-and-apply.sh
+```
+
+### Cleanup
+
+```bash
+# Delete all resources
+export AZURE_ENV_NAME=dev
+./infra/scripts/cleanup.sh
+
+# Skip confirmation prompt
+export SKIP_CONFIRM=1
+./infra/scripts/cleanup.sh
+```
+
 ## 📚 Documentation
 
 ### Architecture

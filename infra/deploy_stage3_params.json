@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": {"value": "dev"},
+    "resourceToken": {"value": "545d8fdb508d4"},
+    "containerAppsSubnetId": {"value": "/subscriptions/04a9ce47-b2fd-4461-a841-787c6192ceb8/resourceGroups/finagentix-dev-rg/providers/Microsoft.Network/virtualNetworks/vnet-545d8fdb508d4/subnets/container-apps-subnet"},
+    "logAnalyticsWorkspaceId": {"value": "/subscriptions/04a9ce47-b2fd-4461-a841-787c6192ceb8/resourceGroups/finagentix-dev-rg/providers/Microsoft.OperationalInsights/workspaces/log-545d8fdb508d4"},
+    "applicationInsightsConnectionString": {"value": ""},
+    "redisHost": {"value": "redis-545d8fdb508d4.eastus.redis.azure.net"},
+    "redisPort": {"value": 10000},
+    "redisPassword": {"value": ""},
+    "storageAccountName": {"value": "st545d8fdb508d4"},
+    "openaiEndpoint": {"value": "https://openai-545d8fdb508d4.openai.azure.com/"},
+    "openaiKey": {"value": ""}
+  }
+}

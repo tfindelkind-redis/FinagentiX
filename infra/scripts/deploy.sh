@@ -11,12 +11,12 @@ INFRA_DIR="$(dirname "$SCRIPT_DIR")"
 if command -v azd &> /dev/null && azd env list &> /dev/null; then
     echo "ℹ️  Using azd environment"
     AZURE_ENV_NAME=$(azd env get-value AZURE_ENV_NAME 2>/dev/null || echo "dev")
-    AZURE_LOCATION=$(azd env get-value AZURE_LOCATION 2>/dev/null || echo "eastus")
+    AZURE_LOCATION=$(azd env get-value AZURE_LOCATION 2>/dev/null || echo "westus3")
     RESOURCE_GROUP="finagentix-${AZURE_ENV_NAME}-rg"
 else
     echo "ℹ️  azd not configured, using environment variables or defaults"
     AZURE_ENV_NAME="${AZURE_ENV_NAME:-dev}"
-    AZURE_LOCATION="${AZURE_LOCATION:-eastus}"
+    AZURE_LOCATION="${AZURE_LOCATION:-westus3}"
     RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-finagentix-${AZURE_ENV_NAME}-rg}"
 fi
 
@@ -247,6 +247,24 @@ fi
 echo "✅ Azure OpenAI deployed"
 echo ""
 
+# Stage 3: Featureform (Optional - Feature Store)
+echo "🏪 Stage 3: Featureform Feature Store..."
+echo "   This stage deploys Featureform to Azure Container Apps"
+echo "   Do you want to deploy Featureform now? (y/N)"
+read -t 10 -r DEPLOY_FEATUREFORM || DEPLOY_FEATUREFORM="n"
+
+if [ "$DEPLOY_FEATUREFORM" = "y" ] || [ "$DEPLOY_FEATUREFORM" = "Y" ]; then
+    echo "   Deploying Featureform..."
+    "$SCRIPT_DIR/deploy-featureform.sh" || {
+        echo "⚠️  Featureform deployment failed, but continuing..."
+    }
+else
+    echo "   Skipping Featureform deployment"
+    echo "   You can deploy it later by running:"
+    echo "   ./infra/scripts/deploy-featureform.sh"
+fi
+echo ""
+
 echo "=========================================="
 echo "✅ Infrastructure Deployment Complete!"
 echo "=========================================="
@@ -259,3 +277,30 @@ az resource list --resource-group "$RESOURCE_GROUP" --query "[].{Name:name, Type
 echo ""
 echo "ℹ️  Note: Redis deployment may still be in progress. Check status with:"
 echo "   az deployment group show -g $RESOURCE_GROUP -n stage1b-redis-* --query properties.provisioningState"
+echo ""
+
+# Optional: Apply Featureform definitions if VM exists
+if az vm show -g "$RESOURCE_GROUP" -n "debug-vm-${RESOURCE_TOKEN}" &>/dev/null; then
+    echo "=========================================="
+    echo "📝 Apply Featureform Definitions"
+    echo "=========================================="
+    echo ""
+    read -p "Would you like to apply Featureform definitions now? (yes/no): " apply_defs
+    if [ "$apply_defs" = "yes" ]; then
+        echo "🚀 Running connect-and-apply script..."
+        "$SCRIPT_DIR/connect-and-apply.sh" || {
+            echo "⚠️  Failed to apply definitions automatically"
+            echo "You can run it manually later with:"
+            echo "   ./infra/scripts/connect-and-apply.sh"
+        }
+    else
+        echo "📋 To apply definitions later, run:"
+        echo "   ./infra/scripts/connect-and-apply.sh"
+    fi
+else
+    echo "🏪 To deploy Featureform later:"
+    echo "   ./infra/scripts/deploy-featureform.sh"
+    echo ""
+    echo "📋 After deploying VM and Featureform, apply definitions with:"
+    echo "   ./infra/scripts/connect-and-apply.sh"
+fi

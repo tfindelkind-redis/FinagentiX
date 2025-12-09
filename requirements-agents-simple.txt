@@ -1,0 +1,15 @@
+# Minimal Agent Framework Requirements
+# Let agent-framework pull in its own dependencies
+
+# Core framework - it will bring pydantic, azure-identity, etc.
+agent-framework==1.0.0b251204
+
+# FastAPI stack
+fastapi
+uvicorn[standard]
+websockets
+
+# Testing
+pytest
+pytest-asyncio
+httpx

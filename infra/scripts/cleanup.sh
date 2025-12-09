@@ -7,17 +7,21 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-finagentix-${AZURE_ENV_NAME}-rg}"
 
-echo "=========================================="
+echo "========================================="
 echo "FinagentiX Infrastructure Cleanup"
-echo "=========================================="
+echo "========================================="
 echo "Resource Group: $RESOURCE_GROUP"
 echo ""
 
-# Confirm deletion
-read -p "⚠️  This will DELETE all resources in '$RESOURCE_GROUP'. Continue? (yes/no): " confirm
-if [ "$confirm" != "yes" ]; then
-    echo "❌ Cleanup cancelled"
-    exit 0
+# Confirm deletion (skip if SKIP_CONFIRM=1)
+if [ "${SKIP_CONFIRM:-0}" != "1" ]; then
+    read -p "⚠️  This will DELETE all resources in '$RESOURCE_GROUP'. Continue? (yes/no): " confirm
+    if [ "$confirm" != "yes" ]; then
+        echo "❌ Cleanup cancelled"
+        exit 0
+    fi
+else
+    echo "ℹ️  Skipping confirmation (SKIP_CONFIRM=1)"
 fi
 
 # Check if resource group exists
@@ -32,10 +36,13 @@ echo ""
 
 # Delete resource group
 echo "🗑️  Deleting resource group '$RESOURCE_GROUP'..."
-az group delete \
+if ! az group delete \
     --name "$RESOURCE_GROUP" \
     --yes \
-    --no-wait
+    --no-wait; then
+    echo "❌ Failed to initiate deletion"
+    exit 1
+fi
 
 echo ""
 echo "✅ Deletion initiated"

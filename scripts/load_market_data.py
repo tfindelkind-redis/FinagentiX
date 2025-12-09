@@ -42,6 +42,8 @@ class MarketDataLoader:
             port=redis_port,
             password=redis_password,
             decode_responses=True,
+            ssl=True,  # Azure Redis Enterprise requires TLS
+            ssl_cert_reqs=None,  # Don't verify certificates
         )
         self.ts = self.redis_client.ts()
 

@@ -29,7 +29,8 @@ A simple explanation of how the AI-powered financial trading assistant operates.
 ### Step 5: Create Feature Store
 **What:** Calculate technical indicators (moving averages, RSI, volatility) using Featureform  
 **Why:** Pre-computed features speed up agent decision-making  
-**Storage:** Redis Hashes - instant feature lookup by ticker + timestamp
+**Storage:** Redis (online store) via Featureform - instant feature lookup by ticker + timestamp  
+**Status:** ✅ Featureform deployed and ready (West US 3)
 
 ---
 
@@ -263,10 +264,11 @@ TimeSeries  Vectors    Features   Vectors    Cache
 ## 🔒 Why It's Secure
 
 1. **Private Endpoints:** All Azure resources communicate over private network
-2. **No Public Internet:** Data never leaves Azure VNet
-3. **Redis AOF + RDB:** Data persisted every second, full backup every hour
-4. **Azure Managed Identity:** No passwords stored in code
-5. **Private DNS:** Services resolve internally, not exposed to internet
+2. **Internal-Only Featureform:** Container Apps configured as VNet-internal (no public access)
+3. **Debug VM Access:** Dedicated VM with public IP for secure VNet access and management
+4. **Redis AOF + RDB:** Data persisted every second, full backup every hour
+5. **Azure Managed Identity:** No passwords stored in code (retrieved from Azure)
+6. **Private DNS:** Services resolve internally, not exposed to internet
 
 ---
 
@@ -290,3 +292,56 @@ Users get **instant, personalized, data-driven investment insights** powered by:
 - Sub-second response times
 
 All running on **modular, cost-optimized Azure infrastructure** that scales with demand.
+
+---
+
+## 🚀 Current Deployment Status
+
+### Infrastructure: ✅ COMPLETE
+
+**Region:** West US 3  
+**Resource Group:** finagentix-dev-rg  
+**Deployed Components:**
+
+- ✅ **Redis Enterprise** (redis-3ae172dc9e9da) - Balanced_B5 with all modules
+- ✅ **Featureform** (featureform-3ae172dc9e9da) - 3 replicas, internal-only access
+- ✅ **Azure OpenAI** (openai-3ae172dc9e9da) - GPT-4 and embeddings
+- ✅ **Storage Account** (st3ae172dc9e9da) - For SEC filings and news
+- ✅ **Debug VM** (debug-vm-3ae172dc9e9da) - Ubuntu 22.04, Public IP: 4.227.91.227
+- ✅ **VNet + Private Endpoints** - Complete networking infrastructure
+- ✅ **Monitoring** - Log Analytics + Application Insights
+
+### Deployment Automation: ✅ INTEGRATED
+
+**One-Command Deployment:**
+```bash
+export AZURE_ENV_NAME=dev
+export AZURE_LOCATION=westus3
+./infra/scripts/deploy-full.sh
+```
+
+**Features:**
+- Automated Featureform definitions application
+- Region-flexible scripts (defaults to westus3)
+- Complete cleanup/redeploy capability
+- Progress tracking and error handling
+
+### Next Steps:
+
+1. **Apply Featureform Definitions** - Register features and entities
+   ```bash
+   ./infra/scripts/connect-and-apply.sh
+   ```
+
+2. **Load Market Data** - Batch load historical stock prices to Redis TimeSeries
+
+3. **Generate Embeddings** - Create vectors for SEC filings and news articles
+
+4. **Deploy Agents** - Implement and deploy the 7+ specialized agents
+
+5. **Test End-to-End** - Validate the complete workflow with real queries
+
+**Documentation:**
+- Complete setup guide: [DEPLOYMENT_INTEGRATION.md](docs/DEPLOYMENT_INTEGRATION.md)
+- Infrastructure details: [STAGE4_DEPLOYMENT_SUMMARY.md](docs/STAGE4_DEPLOYMENT_SUMMARY.md)
+- Architecture overview: [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)

@@ -274,11 +274,15 @@ TimeSeries  Vectors    Features   Vectors    Cache
 
 ## 📈 What Makes It AI-Powered
 
-- **Multi-Agent Coordination:** 7+ specialized agents work together (not a single chatbot)
+- **Multi-Agent Coordination:** 7+ specialized agents work together using **Microsoft Agent Framework** (Semantic Kernel)
+  - Orchestration Patterns: Sequential, Concurrent, Handoff, Group Chat, Magentic
+  - Agent-to-Agent (A2A) protocol for seamless communication
+  - Model Context Protocol (MCP) for tool interoperability
 - **Retrieval Augmented Generation (RAG):** Answers grounded in real financial data
 - **Semantic Search:** Finds relevant information by meaning, not just keywords
 - **Contextual Memory:** Learns user preferences across conversations
 - **Real-Time Synthesis:** Combines historical data + news + financials + AI reasoning
+- **Enterprise-Grade Observability:** OpenTelemetry integration with Application Insights
 
 ---
 

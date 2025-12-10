@@ -8,7 +8,10 @@
 
 FinagentiX leverages the **Redis AI Vision** architecture to build a production-grade financial trading assistant that combines:
 
-- **Microsoft Agentic Framework** - Multi-agent orchestration
+- **Microsoft Agent Framework** - Multi-agent orchestration and collaboration
+  - Implementation: [Semantic Kernel Python SDK](https://learn.microsoft.com/en-us/semantic-kernel/frameworks/agent/)
+  - Patterns: Sequential, Concurrent, Handoff, Group Chat, Magentic orchestration
+  - Microsoft's production-ready framework combining Semantic Kernel and AutoGen capabilities
 - **Featureform** - Feature store for ML features (backed by Redis)
 - **Azure Managed Redis** - Semantic caching, routing, memory, RAG, and real-time data
   - ⚠️ Note: Enterprise tier SKUs required (NOT Azure Cache for Redis)
@@ -53,20 +56,21 @@ FinagentiX leverages the **Redis AI Vision** architecture to build a production-
                   └──────────┬───────────────┘
                              ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│              MICROSOFT AGENTIC FRAMEWORK - AGENT LAYER                  │
+│           MICROSOFT AGENT FRAMEWORK - AGENT LAYER                       │
+│         (Semantic Kernel with Orchestration Patterns)                   │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  │
 │  │ Orchestrator │  │ Market Data  │  │  Technical   │  │ Sentiment  │  │
 │  │    Agent     │─►│    Agent     │  │   Analysis   │  │   Agent    │  │
-│  │              │  │              │  │    Agent     │  │            │  │
+│  │ (Magentic)   │  │ (SK Agent)   │  │  (SK Agent)  │  │ (SK Agent) │  │
 │  └──────┬───────┘  └──────────────┘  └──────────────┘  └────────────┘  │
 │         │                                                               │
-│         ▼                                                               │
+│         ▼     Orchestration: Sequential | Concurrent | Handoff          │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  │
 │  │     Risk     │  │  Portfolio   │  │    News &    │  │   Report   │  │
 │  │  Assessment  │  │  Management  │  │   Research   │  │ Generation │  │
-│  │    Agent     │  │    Agent     │  │    Agent     │  │   Agent    │  │
+│  │  (SK Agent)  │  │  (SK Agent)  │  │  (SK Agent)  │  │ (SK Agent) │  │
 │  └──────────────┘  └──────────────┘  └──────────────┘  └────────────┘  │
 └────────────────────────────────┬────────────────────────────────────────┘
                                  │
@@ -263,19 +267,25 @@ FinagentiX leverages the **Redis AI Vision** architecture to build a production-
 ---
 
 ### **Phase 2: Agent Layer** (Weeks 3-4)
-- [ ] Implement Microsoft Agentic Framework
-- [ ] Build core agents:
-  - Orchestrator Agent
-  - Market Data Agent
-  - Technical Analysis Agent
-  - Sentiment Agent
-- [ ] Agent-to-agent communication via Redis Pub/Sub
+- [ ] Implement Microsoft Agent Framework (Semantic Kernel Python SDK)
+- [ ] Build core agents using ChatCompletionAgent:
+  - Orchestrator Agent (Magentic pattern)
+  - Market Data Agent (with TimeSeries tools)
+  - Technical Analysis Agent (with indicator plugins)
+  - Sentiment Agent (with vector search)
+- [ ] Implement orchestration patterns:
+  - Sequential (for workflows)
+  - Concurrent (for parallel analysis)
+  - Handoff (for dynamic routing)
 - [ ] Tool caching for agent outputs
+- [ ] Integrate OpenTelemetry observability
 
 **Deliverables:**
-- 4 specialized agents working in concert
+- 4 specialized agents using Semantic Kernel
+- Multi-agent orchestration working
 - Agent memory backed by Redis
 - <2 second response times
+- Observability with Application Insights
 
 ---
 
@@ -347,7 +357,8 @@ FinagentiX leverages the **Redis AI Vision** architecture to build a production-
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **Agent Framework** | Microsoft Agentic Framework | Multi-agent orchestration |
+| **Agent Framework** | Microsoft Agent Framework (Semantic Kernel) | Multi-agent orchestration and collaboration |
+| **Orchestration** | Semantic Kernel Agents | Sequential, Concurrent, Handoff, Group Chat, Magentic patterns |
 | **LLM** | Azure OpenAI (GPT-4) | Natural language understanding |
 | **Embeddings** | text-embedding-3-large | Semantic search & caching |
 | **Feature Store** | Featureform | ML feature management |
@@ -392,10 +403,19 @@ FinagentiX leverages the **Redis AI Vision** architecture to build a production-
 
 ## 📚 Related Documentation
 
+### Internal Documentation
+- **[MICROSOFT_AGENT_FRAMEWORK_MIGRATION.md](../MICROSOFT_AGENT_FRAMEWORK_MIGRATION.md)** - Migration plan from custom agents to Semantic Kernel
 - **[DATA_PIPELINE.md](./DATA_PIPELINE.md)** - Complete data ingestion and storage strategy
 - **[REDIS_INTEGRATION.md](./REDIS_INTEGRATION.md)** - Detailed Redis implementation patterns
+
+### Microsoft Agent Framework
+- **[Microsoft Agent Framework Overview](https://learn.microsoft.com/en-us/agent-framework/overview/agent-framework-overview)** - Official framework documentation
+- **[Semantic Kernel Agent Framework](https://learn.microsoft.com/en-us/semantic-kernel/frameworks/agent/)** - Python implementation guide
+- **[Agent Orchestration Patterns](https://learn.microsoft.com/en-us/semantic-kernel/frameworks/agent/agent-orchestration/)** - Sequential, Concurrent, Handoff, Group Chat, Magentic
+- **[Azure Architecture: Multi-Agent Workflow Automation](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/idea/multiple-agent-workflow-automation)** - Reference architecture
+
+### Azure Services
 - **Redis AI Vision:** Semantic caching, routing, memory, RAG
-- **Microsoft Agentic Framework:** Multi-agent systems
 - **Featureform:** Feature store documentation
 - **Azure OpenAI:** LLM and embedding APIs
 - **RediSearch:** Vector similarity search (HNSW)

@@ -1,14 +1,25 @@
 # Microsoft Agent Framework Dependencies
 # Stage 5: Multi-Agent System
 
-# Core Agent Framework (Microsoft Agent Framework - latest beta)
-agent-framework==1.0.0b251204
-agent-framework-azurefunctions==1.0.0b251204
+# Semantic Kernel (Microsoft's Agent Framework for Python)
+# Official Documentation: https://learn.microsoft.com/en-us/semantic-kernel/
+semantic-kernel[azure]>=1.17.0
+
+# Alternative: Microsoft Agent Framework (C# available, Python in development)
+# When available, uncomment these:
+# agent-framework>=1.0.0
+# agent-framework-azurefunctions>=1.0.0
 
 # Azure Integration
 azure-identity==1.19.0
 azure-ai-projects==1.0.0b5
 azure-functions==1.21.3
+
+# OpenTelemetry for Observability
+opentelemetry-api>=1.28.0
+opentelemetry-sdk>=1.28.0
+opentelemetry-instrumentation>=0.49b0
+azure-monitor-opentelemetry>=1.7.0
 
 # FastAPI for REST API
 fastapi==0.115.5

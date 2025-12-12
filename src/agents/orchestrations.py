@@ -1,6 +1,7 @@
 """
 Agent Orchestration Patterns for Semantic Kernel
 Implements Sequential, Concurrent, and Handoff orchestration patterns
+Enhanced with comprehensive metrics collection
 """
 
 import asyncio
@@ -8,6 +9,9 @@ from typing import Dict, Any, List, Optional, Callable
 from datetime import datetime
 from semantic_kernel.agents import ChatCompletionAgent
 from semantic_kernel.contents import ChatMessageContent, AuthorRole
+from ..utils.metrics_collector import MetricsCollector
+from ..utils.cost_tracking import CostCalculator
+import tiktoken
 
 
 class SequentialOrchestration:
@@ -20,14 +24,20 @@ class SequentialOrchestration:
     Example: Market Data → Sentiment Analysis → Investment Synthesis
     """
     
-    def __init__(self, agents: List[ChatCompletionAgent]):
+    def __init__(
+        self,
+        agents: List[ChatCompletionAgent],
+        metrics_collector: Optional[MetricsCollector] = None
+    ):
         """
         Initialize sequential orchestration
         
         Args:
             agents: List of agents to execute in order
+            metrics_collector: Optional metrics collector for tracking
         """
         self.agents = agents
+        self.metrics_collector = metrics_collector
         self.execution_history: List[Dict[str, Any]] = []
     
     async def execute(
@@ -46,6 +56,14 @@ class SequentialOrchestration:
             Dictionary with results from all agents
         """
         start_time = datetime.now()
+        
+        # Start orchestration tracking
+        if self.metrics_collector:
+            event_id = self.metrics_collector.start_event(
+                "orchestration",
+                "Sequential Orchestration"
+            )
+        
         results = {
             "initial_query": initial_query,
             "context": context or {},
@@ -58,6 +76,13 @@ class SequentialOrchestration:
         
         for idx, agent in enumerate(self.agents):
             agent_start = datetime.now()
+            
+            # Start agent tracking
+            if self.metrics_collector:
+                agent_event_id = self.metrics_collector.start_event(
+                    "agent_execution",
+                    f"Agent: {agent.name}"
+                )
             
             # Add context from previous agents if available
             if results["agents"]:
@@ -83,14 +108,53 @@ class SequentialOrchestration:
                     break
             
             agent_end = datetime.now()
-            agent_duration = (agent_end - agent_start).total_seconds()
+            agent_duration = (agent_end - agent_start).total_seconds() * 1000  # Convert to ms
+            
+            # Estimate tokens if we have a metrics collector
+            input_tokens = 0
+            output_tokens = 0
+            cost = 0.0
+            
+            if self.metrics_collector:
+                # Count tokens using tiktoken
+                input_tokens = self.metrics_collector.cost_calculator.count_messages([
+                    {"role": "user", "content": current_message}
+                ])
+                if response:
+                    output_tokens = self.metrics_collector.cost_calculator.count_tokens(response)
+                
+                # Calculate cost (assuming gpt-4o)
+                cost = self.metrics_collector.cost_calculator.calculate_llm_cost(
+                    input_tokens,
+                    output_tokens
+                )
+                
+                # Record agent execution
+                self.metrics_collector.record_agent_execution(
+                    agent_name=agent.name,
+                    agent_id=f"{agent.name.lower().replace(' ', '_')}_{idx}",
+                    duration_ms=agent_duration,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    model="gpt-4o",  # Default model
+                    cost=cost,
+                    status="success" if response else "error",
+                    response=response or ""
+                )
+                
+                # End agent tracking
+                self.metrics_collector.end_event(agent_event_id, status="success")
             
             # Record result
             agent_result = {
                 "agent_name": agent.name,
                 "agent_index": idx,
                 "response": response,
-                "duration_seconds": agent_duration,
+                "duration_seconds": agent_duration / 1000,
+                "duration_ms": agent_duration,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cost_usd": cost,
                 "timestamp": agent_end.isoformat()
             }
             results["agents"].append(agent_result)
@@ -110,8 +174,14 @@ class SequentialOrchestration:
             results["final_result"] = results["agents"][-1]["response"]
         
         end_time = datetime.now()
-        results["total_duration_seconds"] = (end_time - start_time).total_seconds()
+        total_duration = (end_time - start_time).total_seconds()
+        results["total_duration_seconds"] = total_duration
+        results["total_duration_ms"] = total_duration * 1000
         results["execution_pattern"] = "sequential"
+        
+        # End orchestration tracking
+        if self.metrics_collector:
+            self.metrics_collector.end_event(event_id, status="success")
         
         # Store in history
         self.execution_history.append(results)
@@ -129,14 +199,20 @@ class ConcurrentOrchestration:
     Example: Parallel analysis of Market Data + Sentiment + Technical Indicators
     """
     
-    def __init__(self, agents: List[ChatCompletionAgent]):
+    def __init__(
+        self,
+        agents: List[ChatCompletionAgent],
+        metrics_collector: Optional[MetricsCollector] = None
+    ):
         """
         Initialize concurrent orchestration
         
         Args:
             agents: List of agents to execute in parallel
+            metrics_collector: Optional metrics collector for tracking
         """
         self.agents = agents
+        self.metrics_collector = metrics_collector
         self.execution_history: List[Dict[str, Any]] = []
     
     async def execute(
@@ -155,6 +231,14 @@ class ConcurrentOrchestration:
             Dictionary with results from all agents
         """
         start_time = datetime.now()
+        
+        # Start orchestration tracking
+        if self.metrics_collector:
+            event_id = self.metrics_collector.start_event(
+                "orchestration",
+                "Concurrent Orchestration"
+            )
+        
         results = {
             "query": query,
             "context": context or {},
@@ -165,6 +249,13 @@ class ConcurrentOrchestration:
         # Create tasks for all agents
         async def execute_agent(agent: ChatCompletionAgent, idx: int) -> Dict[str, Any]:
             agent_start = datetime.now()
+            
+            # Start agent tracking
+            if self.metrics_collector:
+                agent_event_id = self.metrics_collector.start_event(
+                    "agent_execution",
+                    f"Agent: {agent.name}"
+                )
             
             history = [
                 ChatMessageContent(
@@ -180,12 +271,50 @@ class ConcurrentOrchestration:
                     break
             
             agent_end = datetime.now()
+            agent_duration = (agent_end - agent_start).total_seconds() * 1000
+            
+            # Estimate tokens and cost
+            input_tokens = 0
+            output_tokens = 0
+            cost = 0.0
+            
+            if self.metrics_collector:
+                input_tokens = self.metrics_collector.cost_calculator.count_messages([
+                    {"role": "user", "content": query}
+                ])
+                if response:
+                    output_tokens = self.metrics_collector.cost_calculator.count_tokens(response)
+                
+                cost = self.metrics_collector.cost_calculator.calculate_llm_cost(
+                    input_tokens,
+                    output_tokens
+                )
+                
+                # Record agent execution
+                self.metrics_collector.record_agent_execution(
+                    agent_name=agent.name,
+                    agent_id=f"{agent.name.lower().replace(' ', '_')}_{idx}",
+                    duration_ms=agent_duration,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    model="gpt-4o",
+                    cost=cost,
+                    status="success" if response else "error",
+                    response=response or ""
+                )
+                
+                # End agent tracking
+                self.metrics_collector.end_event(agent_event_id, status="success")
             
             return {
                 "agent_name": agent.name,
                 "agent_index": idx,
                 "response": response,
-                "duration_seconds": (agent_end - agent_start).total_seconds(),
+                "duration_seconds": agent_duration / 1000,
+                "duration_ms": agent_duration,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cost_usd": cost,
                 "timestamp": agent_end.isoformat()
             }
         
@@ -214,8 +343,14 @@ class ConcurrentOrchestration:
             results["combined_result"] = combined
         
         end_time = datetime.now()
-        results["total_duration_seconds"] = (end_time - start_time).total_seconds()
+        total_duration = (end_time - start_time).total_seconds()
+        results["total_duration_seconds"] = total_duration
+        results["total_duration_ms"] = total_duration * 1000
         results["execution_pattern"] = "concurrent"
+        
+        # End orchestration tracking
+        if self.metrics_collector:
+            self.metrics_collector.end_event(event_id, status="success")
         
         # Store in history
         self.execution_history.append(results)
@@ -236,7 +371,8 @@ class HandoffOrchestration:
     def __init__(
         self,
         agents: Dict[str, ChatCompletionAgent],
-        router: Optional[Callable[[str], str]] = None
+        router: Optional[Callable[[str], str]] = None,
+        metrics_collector: Optional[MetricsCollector] = None
     ):
         """
         Initialize handoff orchestration
@@ -244,9 +380,11 @@ class HandoffOrchestration:
         Args:
             agents: Dictionary mapping agent names to agent instances
             router: Optional function to determine which agent to use
+            metrics_collector: Optional metrics collector for tracking
         """
         self.agents = agents
         self.router = router
+        self.metrics_collector = metrics_collector
         self.execution_history: List[Dict[str, Any]] = []
     
     async def execute(
@@ -267,6 +405,14 @@ class HandoffOrchestration:
             Dictionary with execution results
         """
         start_time = datetime.now()
+        
+        # Start orchestration tracking
+        if self.metrics_collector:
+            event_id = self.metrics_collector.start_event(
+                "orchestration",
+                "Handoff Orchestration"
+            )
+        
         results = {
             "query": query,
             "handoff_chain": [],
@@ -301,6 +447,13 @@ class HandoffOrchestration:
             agent = self.agents[current_agent_name]
             agent_start = datetime.now()
             
+            # Start agent tracking
+            if self.metrics_collector:
+                agent_event_id = self.metrics_collector.start_event(
+                    "agent_execution",
+                    f"Agent: {current_agent_name}"
+                )
+            
             # Execute agent
             response = None
             async for message in agent.invoke(history):
@@ -309,12 +462,50 @@ class HandoffOrchestration:
                     break
             
             agent_end = datetime.now()
+            agent_duration = (agent_end - agent_start).total_seconds() * 1000
+            
+            # Estimate tokens and cost
+            input_tokens = 0
+            output_tokens = 0
+            cost = 0.0
+            
+            if self.metrics_collector:
+                input_tokens = self.metrics_collector.cost_calculator.count_messages([
+                    {"role": "user", "content": query}
+                ])
+                if response:
+                    output_tokens = self.metrics_collector.cost_calculator.count_tokens(response)
+                
+                cost = self.metrics_collector.cost_calculator.calculate_llm_cost(
+                    input_tokens,
+                    output_tokens
+                )
+                
+                # Record agent execution
+                self.metrics_collector.record_agent_execution(
+                    agent_name=current_agent_name,
+                    agent_id=f"{current_agent_name.lower().replace(' ', '_')}_{handoff_count}",
+                    duration_ms=agent_duration,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    model="gpt-4o",
+                    cost=cost,
+                    status="success" if response else "error",
+                    response=response or ""
+                )
+                
+                # End agent tracking
+                self.metrics_collector.end_event(agent_event_id, status="success")
             
             # Record handoff
             handoff = {
                 "agent_name": current_agent_name,
                 "response": response,
-                "duration_seconds": (agent_end - agent_start).total_seconds(),
+                "duration_seconds": agent_duration / 1000,
+                "duration_ms": agent_duration,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cost_usd": cost,
                 "timestamp": agent_end.isoformat(),
                 "handoff_index": handoff_count
             }
@@ -340,9 +531,15 @@ class HandoffOrchestration:
             results["final_result"] = results["handoff_chain"][-1].get("response")
         
         end_time = datetime.now()
-        results["total_duration_seconds"] = (end_time - start_time).total_seconds()
+        total_duration = (end_time - start_time).total_seconds()
+        results["total_duration_seconds"] = total_duration
+        results["total_duration_ms"] = total_duration * 1000
         results["execution_pattern"] = "handoff"
         results["total_handoffs"] = len(results["handoff_chain"])
+        
+        # End orchestration tracking
+        if self.metrics_collector:
+            self.metrics_collector.end_event(event_id, status="success")
         
         # Store in history
         self.execution_history.append(results)

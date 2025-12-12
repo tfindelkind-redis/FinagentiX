@@ -19,12 +19,13 @@ FinagentiX combines cutting-edge technologies to deliver intelligent trading ins
 
 ## 🏗️ Architecture
 
-Built on the **Redis AI Vision** with four core layers:
+Built on the **Redis AI Vision** with five core layers:
 
-1. **Semantic Routing & Caching** - Intelligent query routing and LLM response caching
-2. **Agentic Memory** - Contextual user preferences, portfolio state, conversation history
-3. **Feature Store (Featureform)** - Real-time feature serving backed by Redis
-4. **RAG Knowledge Base** - Q&A on 10-K filings, earnings, news via vector search
+1. **Semantic Routing & Caching** - Intelligent query routing and LLM response caching (30-70% cost savings)
+2. **Contextual Memory** - User preferences, portfolio state, conversation history (~53% memory savings)
+3. **Semantic Routing** - Direct workflow routing without LLM orchestrator
+4. **Tool Cache** - Agent tool output caching for faster workflows
+5. **RAG/Document Search** - Q&A on SEC filings (10-K, 10-Q), earnings, news via vector search (<10ms retrieval)
 
 See [System Architecture](docs/architecture/ARCHITECTURE.md) for complete details.
 

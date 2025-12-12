@@ -1,0 +1,19 @@
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--color-bg-primary);
+}
+
+.main-content {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 40% 60%;
+  overflow: hidden;
+}
+
+@media (max-width: 1024px) {
+  .main-content {
+    grid-template-columns: 1fr;
+  }
+}

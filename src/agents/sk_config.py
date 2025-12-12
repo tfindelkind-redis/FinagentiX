@@ -9,6 +9,7 @@ import redis
 from semantic_kernel import Kernel
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
 from semantic_kernel.agents.runtime import InProcessRuntime
+from ..utils.logger import SKDebugger
 
 
 class SemanticKernelConfig:
@@ -20,7 +21,7 @@ class SemanticKernelConfig:
         self,
         azure_openai_endpoint: Optional[str] = None,
         azure_openai_key: Optional[str] = None,
-        azure_openai_deployment: str = "gpt-4",
+        azure_openai_deployment: Optional[str] = None,
         azure_openai_api_version: str = "2024-08-01-preview",
         redis_host: Optional[str] = None,
         redis_port: int = 10000,
@@ -42,20 +43,29 @@ class SemanticKernelConfig:
         """
         # Azure OpenAI configuration
         self.azure_openai_endpoint = azure_openai_endpoint or os.getenv("AZURE_OPENAI_ENDPOINT")
-        self.azure_openai_key = azure_openai_key or os.getenv("AZURE_OPENAI_KEY")
-        self.azure_openai_deployment = azure_openai_deployment
+        self.azure_openai_key = azure_openai_key or os.getenv("AZURE_OPENAI_API_KEY")
+        self.azure_openai_deployment = azure_openai_deployment or os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT", "gpt-4")
         self.azure_openai_api_version = azure_openai_api_version
         
         # Redis configuration
         self.redis_host = redis_host or os.getenv("REDIS_HOST")
-        self.redis_port = redis_port
+        self.redis_port = int(os.getenv("REDIS_PORT", redis_port))
         self.redis_password = redis_password or os.getenv("REDIS_PASSWORD")
-        self.redis_ssl = redis_ssl
+        self.redis_ssl = os.getenv("REDIS_SSL", str(redis_ssl)).lower() == "true"
         
         # Validate configuration
         self._validate_config()
         
-        # Initialize components
+        # Initialize debugger and components
+        self.debugger = SKDebugger("config")
+        self.debugger.log_config({
+            "deployment": self.azure_openai_deployment,
+            "endpoint": self.azure_openai_endpoint,
+            "redis_host": self.redis_host,
+            "redis_port": self.redis_port,
+            "redis_ssl": self.redis_ssl
+        })
+        
         self._kernel: Optional[Kernel] = None
         self._redis_client: Optional[redis.Redis] = None
         self._runtime: Optional[InProcessRuntime] = None
@@ -66,12 +76,15 @@ class SemanticKernelConfig:
             raise ValueError("Azure OpenAI endpoint not configured. Set AZURE_OPENAI_ENDPOINT environment variable.")
         
         if not self.azure_openai_key:
-            raise ValueError("Azure OpenAI key not configured. Set AZURE_OPENAI_KEY environment variable.")
+            raise ValueError("Azure OpenAI key not configured. Set AZURE_OPENAI_API_KEY environment variable.")
         
         if not self.redis_host:
             raise ValueError("Redis host not configured. Set REDIS_HOST environment variable.")
         
-        if not self.redis_password:
+        # Only require password for remote Redis (not localhost)
+        # Check for both None and empty string
+        has_password = self.redis_password and self.redis_password.strip()
+        if self.redis_host not in ["localhost", "127.0.0.1"] and not has_password:
             raise ValueError("Redis password not configured. Set REDIS_PASSWORD environment variable.")
     
     def create_kernel(self) -> Kernel:
@@ -82,6 +95,12 @@ class SemanticKernelConfig:
             Configured Kernel with Azure OpenAI service
         """
         if self._kernel is None:
+            # Log kernel creation
+            self.debugger.log_kernel_creation(
+                self.azure_openai_deployment,
+                self.azure_openai_endpoint
+            )
+            
             kernel = Kernel()
             
             # Add Azure OpenAI chat completion service

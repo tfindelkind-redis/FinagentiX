@@ -1,0 +1,112 @@
+.agents-tab h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-md);
+  color: var(--color-text-primary);
+}
+
+.agents-table {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.agents-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.agents-table thead {
+  background-color: var(--color-bg-tertiary);
+}
+
+.agents-table th {
+  padding: var(--spacing-md);
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.agents-table td {
+  padding: var(--spacing-md);
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.agents-table tr:last-child td {
+  border-bottom: none;
+}
+
+.agent-name {
+  font-weight: 600;
+}
+
+.agent-model {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: var(--spacing-xs);
+}
+
+.token-detail {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-left: var(--spacing-xs);
+}
+
+.tool-list {
+  margin: var(--spacing-sm) 0;
+  padding-left: var(--spacing-md);
+  list-style: none;
+}
+
+.tool-list li {
+  padding: var(--spacing-xs) 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.tool-time {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.cache-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  background-color: var(--color-success);
+  color: white;
+  font-size: 0.625rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.status-badge.success {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--color-success);
+}
+
+.status-badge.error {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--color-error);
+}
+
+.text-muted {
+  color: var(--color-text-muted);
+}

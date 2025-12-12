@@ -42,17 +42,23 @@ def check_semantic_cache(
         similarity_threshold: Minimum similarity for cache hit (0.92 = 92%)
         
     Returns:
-        Cached response dict if found, None otherwise:
+        Cached response dict if found with comprehensive metrics, None otherwise:
             - answer: Final answer text
             - agents_used: List of agents that generated the response
             - timestamp: When response was cached
             - cache_hits: Number of times this was a cache hit
+            - similarity_score: Similarity to cached query
+            - query_time_ms: Time taken for cache lookup
+            - cached_query: Original cached query text
             
     Example:
         cached = check_semantic_cache("Should I buy AAPL?")
         if cached:
             return cached["answer"]  # Cache hit! 30-70% cost savings
     """
+    import time
+    start_time = time.time()
+    
     redis_client = _get_redis_client()
     config = get_config()
     
@@ -68,7 +74,7 @@ def check_semantic_cache(
     
     query_obj = (
         Query(f"*=>[KNN 1 @embedding $vector AS score]")
-        .return_fields("query", "response", "timestamp", "agents_used", "score")
+        .return_fields("query", "response", "timestamp", "agents_used", "cache_hits", "score")
         .dialect(2)
     )
     
@@ -77,6 +83,8 @@ def check_semantic_cache(
             query_obj,
             query_params={"vector": _embedding_to_bytes(query_embedding)}
         )
+        
+        query_time_ms = (time.time() - start_time) * 1000
         
         if results.docs:
             doc = results.docs[0]
@@ -95,10 +103,21 @@ def check_semantic_cache(
                     "agents_used": json.loads(doc.agents_used) if hasattr(doc, 'agents_used') else [],
                     "timestamp": doc.timestamp,
                     "cached": True,
-                    "similarity_score": score
+                    "cache_hit": True,
+                    "similarity_score": score,
+                    "query_time_ms": query_time_ms,
+                    "cached_query": doc.query if hasattr(doc, 'query') else None,
+                    "cache_key": cache_key,
+                    "previous_hits": int(doc.cache_hits) if hasattr(doc, 'cache_hits') else 0,
                 }
         
-        return None
+        # Cache miss but return metrics
+        return {
+            "cache_hit": False,
+            "similarity_score": 0.0,
+            "query_time_ms": query_time_ms,
+            "cached_query": None,
+        }
     
     except Exception as e:
         # Index might not exist yet

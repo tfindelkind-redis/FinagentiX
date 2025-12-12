@@ -10,8 +10,8 @@ from semantic_kernel.agents import ChatCompletionAgent
 from semantic_kernel.contents import ChatMessageContent, AuthorRole
 import redis
 
-from sk_config import get_global_config
-from plugins.market_data_plugin import MarketDataPlugin
+from .sk_config import get_global_config
+from .plugins.market_data_plugin import MarketDataPlugin
 
 
 class MarketDataAgentSK:

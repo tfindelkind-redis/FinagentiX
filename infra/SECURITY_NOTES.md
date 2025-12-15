@@ -248,7 +248,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
 ```bash
 # Disable public network access
 az storage account update \
-  -n st545d8fdb508d4 \
+  -n st<RESOURCE_ID> \
   -g finagentix-dev-rg \
   --public-network-access Disabled \
   --default-action Deny
@@ -256,7 +256,7 @@ az storage account update \
 # Enable diagnostic logs
 az monitor diagnostic-settings create \
   --name storage-diagnostics \
-  --resource /subscriptions/.../storageAccounts/st545d8fdb508d4 \
+  --resource /subscriptions/.../storageAccounts/st<RESOURCE_ID> \
   --logs '[{"category": "StorageWrite", "enabled": true}]' \
   --workspace /subscriptions/.../workspaces/...
 ```
@@ -265,13 +265,13 @@ az monitor diagnostic-settings create \
 ```bash
 # View network rules
 az storage account show \
-  -n st545d8fdb508d4 \
+  -n st<RESOURCE_ID> \
   -g finagentix-dev-rg \
   --query "{PublicAccess:publicNetworkAccess, DefaultAction:networkRuleSet.defaultAction}"
 
 # List IP rules
 az storage account network-rule list \
-  --account-name st545d8fdb508d4 \
+  --account-name st<RESOURCE_ID> \
   -g finagentix-dev-rg
 ```
 

@@ -198,6 +198,13 @@ export interface CacheMetrics {
   timestamp: string;
 }
 
+export interface CacheOperationResult {
+  cache_type: 'semantic' | 'tool';
+  cleared_entries: number;
+  timestamp: string;
+  details: Record<string, any>;
+}
+
 export interface PerformanceMetricsResponse {
   latency: {
     avg_total_ms: number;

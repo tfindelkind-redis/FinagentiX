@@ -192,6 +192,23 @@ class WorkflowDebugger:
         if self.debug_enabled:
             self.logger.debug(f"💨 Cache miss for: {query[:100]}...")
 
+    def log_error(self, error: Exception):
+        """Log workflow error"""
+        if self.debug_enabled:
+            self.logger.error(f"💥 Error: {error}", exc_info=True)
+        else:
+            self.logger.error(f"💥 Error: {error}")
+
+    def log_metric(self, metric_name: str, value: any):
+        """Log workflow metric"""
+        if self.debug_enabled:
+            self.logger.debug(f"📊 {metric_name}: {value}")
+
+    def log_config(self, config: dict):
+        """Log workflow configuration details"""
+        if self.debug_enabled:
+            self.logger.debug(f"⚙️ Configuration: {config}")
+
 
 # Azure/SK debugging
 class SKDebugger:
@@ -228,6 +245,11 @@ class SKDebugger:
         """Log plugin registration"""
         if self.debug_enabled:
             self.logger.info(f"🔌 Registered plugin: {plugin_name} ({functions_count} functions)")
+
+    def log_config(self, config: dict):
+        """Log Semantic Kernel configuration"""
+        if self.debug_enabled:
+            self.logger.debug(f"⚙️ Configuration: {config}")
 
 
 # Example usage documentation
@@ -299,9 +321,11 @@ DEBUG_SK=false
 
 For development/debugging:
 ```
+# Logging Configuration
 LOG_LEVEL=DEBUG
 DEBUG_AGENTS=true
 DEBUG_WORKFLOWS=true
 DEBUG_SK=true
 ```
+
 """

@@ -23,7 +23,7 @@ Built on the **Redis AI Vision** with five core layers:
 
 1. **Semantic Routing & Caching** - Intelligent query routing and LLM response caching (30-70% cost savings)
 2. **Contextual Memory** - User preferences, portfolio state, conversation history (~53% memory savings)
-3. **Semantic Routing** - Direct workflow routing without LLM orchestrator
+3. **Semantic Routing** - Redis vector-powered workflow routing with pattern fallback
 4. **Tool Cache** - Agent tool output caching for faster workflows
 5. **RAG/Document Search** - Q&A on SEC filings (10-K, 10-Q), earnings, news via vector search (<10ms retrieval)
 

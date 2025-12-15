@@ -107,7 +107,7 @@ FEATUREFORM_INSECURE=false
 cd /Users/thomas.findelkind/Code/FinagentiX
 
 # Set Featureform host
-export FEATUREFORM_HOST=featureform-545d8fdb508d4.nicebeach-12345678.eastus.azurecontainerapps.io:443
+export FEATUREFORM_HOST=featureform-<RESOURCE_ID>.nicebeach-12345678.eastus.azurecontainerapps.io:443
 
 # Apply definitions
 featureform apply featureform/definitions.py
@@ -249,7 +249,7 @@ client.materialize_feature("volatility_30d", "default")
 
 ```bash
 az containerapp logs show \
-  --name featureform-545d8fdb508d4 \
+  --name featureform-<RESOURCE_ID> \
   --resource-group finagentix-dev-rg \
   --follow
 ```
@@ -271,7 +271,7 @@ featureform get feature sma_20 default
 Featureform provides a web dashboard:
 
 ```
-https://featureform-545d8fdb508d4.nicebeach-12345678.eastus.azurecontainerapps.io
+https://featureform-<RESOURCE_ID>.nicebeach-12345678.eastus.azurecontainerapps.io
 ```
 
 ## Cost Estimation
@@ -289,7 +289,7 @@ Can scale to zero when not in use to save costs.
 ```bash
 # Check if Featureform is running
 az containerapp show \
-  --name featureform-545d8fdb508d4 \
+  --name featureform-<RESOURCE_ID> \
   --resource-group finagentix-dev-rg \
   --query "properties.runningStatus"
 ```
@@ -299,7 +299,7 @@ az containerapp show \
 ```bash
 # Verify Redis credentials in Container App secrets
 az containerapp secret list \
-  --name featureform-545d8fdb508d4 \
+  --name featureform-<RESOURCE_ID> \
   --resource-group finagentix-dev-rg
 ```
 

@@ -56,15 +56,15 @@ A simple explanation of how the AI-powered financial trading assistant operates.
 **Example:** User previously said "I'm conservative" → influences recommendations
 
 ### Step 3: Semantic Routing (Workflow Decision Shortcut)
-**What:** Check if this type of question has a cached **workflow routing** in Redis  
-**Cache Hit:** Route directly to known workflow (skip orchestrator reasoning!)  
-- Example: "Should I buy AAPL?" → matches pattern → **Investment Analysis Workflow**  
+**What:** Convert the query embedding into a Redis vector search to find past routing decisions  
+**Semantic Hit:** High-similarity example found → route directly to stored workflow & agents (skip orchestrator reasoning!)  
+- Example: "Should I buy AAPL?" → matches semantic example → **Investment Analysis Workflow**  
 - Workflow includes: Market Data Agent + Risk Agent + Sentiment Agent + Fundamental Agent  
-- **Result:** Go directly to Step 5 with pre-determined agent list (skip Step 4 orchestrator)  
-**Cache Miss:** New type of question → needs orchestrator to decide which workflow/agents  
-- **Result:** Continue to Step 4  
-**Why:** Router shortcuts the "which workflow?" decision - avoids orchestrator's LLM reasoning  
-**Storage:** Redis Hashes (query patterns → workflow names → agent lists)
+- **Result:** Jump to Step 5 with pre-determined agent list (skip Step 4 orchestrator)  
+**Pattern Fallback:** If no semantic match, fall back to legacy pattern rules (substring match)  
+**Full Miss:** No semantic or pattern match → orchestrator decides workflow in Step 4  
+**Why:** Router shortcuts the "which workflow?" decision - avoids orchestrator's LLM reasoning whenever previous examples exist  
+**Storage:** Redis Vector Index (semantic examples) + Redis Hash fallback for patterns
 
 ### Step 4: Orchestrator Agent (Only if Routing Cache Miss)
 **What:** LLM makes expensive reasoning call to determine workflow strategy  
@@ -195,8 +195,8 @@ A simple explanation of how the AI-powered financial trading assistant operates.
 **When:** During request analysis  
 **What:** Cache routing decisions to avoid LLM reasoning  
 **Savings:** Every routing decision would be an LLM call - now cached  
-**Example:** "Buy AAPL?" → Investment workflow (cached route, no LLM call)  
-**Storage:** Redis Hashes (query patterns → workflow routes)
+**Example:** "Buy AAPL?" → Semantic example routes to Investment workflow (no LLM call)  
+**Storage:** Redis Vector index for semantic examples + Hash fallback for patterns
 
 ### 3. Tool Caching (Steps 5-9) - Individual Tool Output Caching
 **When:** During agent execution  
@@ -307,11 +307,11 @@ All running on **modular, cost-optimized Azure infrastructure** that scales with
 **Resource Group:** finagentix-dev-rg  
 **Deployed Components:**
 
-- ✅ **Redis Enterprise** (redis-3ae172dc9e9da) - Balanced_B5 with all modules
-- ✅ **Featureform** (featureform-3ae172dc9e9da) - 3 replicas, internal-only access
-- ✅ **Azure OpenAI** (openai-3ae172dc9e9da) - GPT-4 and embeddings
-- ✅ **Storage Account** (st3ae172dc9e9da) - For SEC filings and news
-- ✅ **Debug VM** (debug-vm-3ae172dc9e9da) - Ubuntu 22.04, Public IP: 4.227.91.227
+- ✅ **Redis Enterprise** (redis-<RESOURCE_ID>) - Balanced_B5 with all modules
+- ✅ **Featureform** (featureform-<RESOURCE_ID>) - 3 replicas, internal-only access
+- ✅ **Azure OpenAI** (openai-<RESOURCE_ID>) - GPT-4 and embeddings
+- ✅ **Storage Account** (st<RESOURCE_ID>) - For SEC filings and news
+- ✅ **Debug VM** (debug-vm-<RESOURCE_ID>) - Ubuntu 22.04, Public IP: 4.227.91.227
 - ✅ **VNet + Private Endpoints** - Complete networking infrastructure
 - ✅ **Monitoring** - Log Analytics + Application Insights
 

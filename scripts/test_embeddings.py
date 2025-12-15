@@ -3,11 +3,41 @@
 Test embedding generation with a single ticker
 """
 
+import os
 import sys
+
+import pytest
+from pathlib import Path
+from dotenv import load_dotenv
+
 sys.path.insert(0, '/Users/thomas.findelkind/Code/FinagentiX')
 
-from scripts.generate_embeddings import *
-from pathlib import Path
+from scripts.generate_embeddings import *  # noqa: F401,F403
+
+load_dotenv()
+
+_required = {
+    "AZURE_OPENAI_ENDPOINT",
+    "AZURE_OPENAI_API_KEY",
+    "AZURE_OPENAI_API_VERSION",
+    "AZURE_OPENAI_EMBEDDING_DEPLOYMENT",
+    "REDIS_HOST",
+    "REDIS_PORT",
+}
+_missing = [env for env in _required if not os.getenv(env)]
+if _missing:
+    pytest.skip(
+        f"Skipping embedding integration test; missing environment variables: {', '.join(sorted(_missing))}",
+        allow_module_level=True,
+    )
+
+
+def require_env(name: str) -> str:
+    """Fetch required environment variable"""
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
 
 def test_single_ticker():
     """Test with just AAPL"""
@@ -16,12 +46,12 @@ def test_single_ticker():
     print("=" * 60)
     
     config = EmbeddingConfig(
-        azure_openai_endpoint='https://openai-545d8fdb508d4.openai.azure.com/',
-        azure_openai_key=os.getenv('AZURE_OPENAI_KEY'),
-        azure_openai_api_version='2024-08-01-preview',
-        embedding_deployment='text-embedding-3-large',
-        redis_host=os.getenv('REDIS_HOST'),
-        redis_port=int(os.getenv('REDIS_PORT', '10000')),
+        azure_openai_endpoint=require_env('AZURE_OPENAI_ENDPOINT'),
+        azure_openai_key=require_env('AZURE_OPENAI_API_KEY'),
+        azure_openai_api_version=require_env('AZURE_OPENAI_API_VERSION'),
+        embedding_deployment=require_env('AZURE_OPENAI_EMBEDDING_DEPLOYMENT'),
+        redis_host=require_env('REDIS_HOST'),
+        redis_port=int(require_env('REDIS_PORT')),
         redis_password=os.getenv('REDIS_PASSWORD')
     )
     

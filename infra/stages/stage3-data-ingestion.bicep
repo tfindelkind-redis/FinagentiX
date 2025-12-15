@@ -8,6 +8,7 @@ param environmentName string
 param location string = resourceGroup().location
 
 @description('Unique resource token')
+@minLength(5)
 param resourceToken string
 
 @description('Resource tags')
@@ -36,12 +37,24 @@ param redisPassword string
 @description('Storage Account name')
 param storageAccountName string
 
+@description('Deploy the data ingestion container app')
+param deployDataIngestionApp bool = false
+
 @description('OpenAI endpoint')
 param openaiEndpoint string
 
 @description('OpenAI key')
 @secure()
 param openaiKey string
+
+@description('Azure OpenAI GPT-4 deployment name')
+param openaiGpt4Deployment string
+
+@description('Azure OpenAI embedding deployment name')
+param openaiEmbeddingDeployment string
+
+@description('Azure OpenAI API version')
+param openaiApiVersion string = '2024-08-01-preview'
 
 // Container Registry
 resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
@@ -65,6 +78,7 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-05-01'
   properties: {
     vnetConfiguration: {
       infrastructureSubnetId: containerAppsSubnetId
+      internal: false
     }
     appLogsConfiguration: {
       destination: 'log-analytics'
@@ -73,11 +87,17 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-05-01'
         sharedKey: listKeys(logAnalyticsWorkspaceId, '2022-10-01').primarySharedKey
       }
     }
+    workloadProfiles: [
+      {
+        name: 'consumption'
+        workloadProfileType: 'Consumption'
+      }
+    ]
   }
 }
 
 // Data Ingestion Container App
-resource dataIngestionApp 'Microsoft.App/containerApps@2023-05-01' = {
+resource dataIngestionApp 'Microsoft.App/containerApps@2023-05-01' = if (deployDataIngestionApp) {
   name: 'ca-data-ingestion-${resourceToken}'
   location: location
   tags: tags
@@ -142,8 +162,24 @@ resource dataIngestionApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: openaiEndpoint
             }
             {
-              name: 'AZURE_OPENAI_KEY'
+              name: 'AZURE_OPENAI_API_KEY'
               secretRef: 'openai-key'
+            }
+            {
+              name: 'AZURE_OPENAI_CHAT_DEPLOYMENT'
+              value: openaiGpt4Deployment
+            }
+            {
+              name: 'AZURE_OPENAI_GPT4_DEPLOYMENT'
+              value: openaiGpt4Deployment
+            }
+            {
+              name: 'AZURE_OPENAI_EMBEDDING_DEPLOYMENT'
+              value: openaiEmbeddingDeployment
+            }
+            {
+              name: 'AZURE_OPENAI_API_VERSION'
+              value: openaiApiVersion
             }
             {
               name: 'AZURE_STORAGE_ACCOUNT_NAME'
@@ -176,5 +212,5 @@ output containerRegistryLoginServer string = containerRegistry.properties.loginS
 output containerRegistryPassword string = containerRegistry.listCredentials().passwords[0].value
 
 output containerAppsEnvironmentId string = containerAppsEnvironment.id
-output dataIngestionAppId string = dataIngestionApp.id
-output ingestionUrl string = 'https://${dataIngestionApp.properties.configuration.ingress.fqdn}'
+output dataIngestionAppId string = deployDataIngestionApp ? dataIngestionApp!.id : ''
+output ingestionUrl string = deployDataIngestionApp ? 'https://${dataIngestionApp!.properties.configuration.ingress.fqdn}' : ''

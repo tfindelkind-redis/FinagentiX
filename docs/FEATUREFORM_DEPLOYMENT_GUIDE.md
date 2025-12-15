@@ -65,7 +65,7 @@ To deploy prerequisites:
 # Get Redis password
 REDIS_PASSWORD=$(az redisenterprise database list-keys \
   -g finagentix-dev-rg \
-  --cluster-name redis-545d8fdb508d4 \
+  --cluster-name redis-<RESOURCE_ID> \
   --query "primaryKey" -o tsv)
 
 # Deploy
@@ -74,7 +74,7 @@ az deployment group create \
   --template-file infra/deploy-featureform-final.bicep \
   --parameters \
     location=eastus \
-    resourceToken=545d8fdb508d4 \
+    resourceToken=<RESOURCE_ID> \
     redisPassword="$REDIS_PASSWORD"
 ```
 
@@ -86,16 +86,16 @@ az deployment group create \
 ```bash
 az containerapp show \
   -g finagentix-dev-rg \
-  -n featureform-545d8fdb508d4 \
+  -n featureform-<RESOURCE_ID> \
   --query "{Name:name, Status:properties.runningStatus, URL:properties.configuration.ingress.fqdn}"
 ```
 
 ### Expected Output
 ```json
 {
-  "Name": "featureform-545d8fdb508d4",
+  "Name": "featureform-<RESOURCE_ID>",
   "Status": "Running",
-  "URL": "featureform-545d8fdb508d4.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io"
+  "URL": "featureform-<RESOURCE_ID>.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io"
 }
 ```
 
@@ -103,7 +103,7 @@ az containerapp show \
 ```bash
 az containerapp logs show \
   -g finagentix-dev-rg \
-  -n featureform-545d8fdb508d4 \
+  -n featureform-<RESOURCE_ID> \
   --tail 100 \
   --follow
 ```
@@ -125,7 +125,7 @@ The script is **idempotent** and safe to run multiple times.
 # Delete app
 az containerapp delete \
   -g finagentix-dev-rg \
-  -n featureform-545d8fdb508d4 \
+  -n featureform-<RESOURCE_ID> \
   --yes
 
 # Redeploy
@@ -142,7 +142,7 @@ az containerapp delete \
 ```bash
 az containerapp revision list \
   -g finagentix-dev-rg \
-  -n featureform-545d8fdb508d4 \
+  -n featureform-<RESOURCE_ID> \
   -o table
 ```
 
@@ -150,7 +150,7 @@ az containerapp revision list \
 ```bash
 az containerapp logs show \
   -g finagentix-dev-rg \
-  -n featureform-545d8fdb508d4 \
+  -n featureform-<RESOURCE_ID> \
   --tail 500
 ```
 
@@ -160,7 +160,7 @@ az containerapp logs show \
 ```bash
 az redisenterprise database show \
   -g finagentix-dev-rg \
-  --cluster-name redis-545d8fdb508d4 \
+  --cluster-name redis-<RESOURCE_ID> \
   --query "{State:provisioningState, Host:hostName, Port:port}"
 ```
 
@@ -168,10 +168,10 @@ az redisenterprise database show \
 ```bash
 REDIS_PASSWORD=$(az redisenterprise database list-keys \
   -g finagentix-dev-rg \
-  --cluster-name redis-545d8fdb508d4 \
+  --cluster-name redis-<RESOURCE_ID> \
   --query "primaryKey" -o tsv)
 
-redis-cli -h redis-545d8fdb508d4.eastus.redis.azure.net -p 10000 --tls --pass "$REDIS_PASSWORD" ping
+redis-cli -h redis-<RESOURCE_ID>.eastus.redis.azure.net -p 10000 --tls --pass "$REDIS_PASSWORD" ping
 # Expected: PONG
 ```
 
@@ -182,7 +182,7 @@ redis-cli -h redis-545d8fdb508d4.eastus.redis.azure.net -p 10000 --tls --pass "$
 # Delete failed environment
 az containerapp env delete \
   -g finagentix-dev-rg \
-  -n cae-545d8fdb508d4 \
+  -n cae-<RESOURCE_ID> \
   --yes
 
 # Wait for deletion
@@ -229,11 +229,11 @@ The deployment script configures these automatically:
 | Variable | Value | Purpose |
 |----------|-------|---------|
 | `METADATA_BACKEND` | redis | Use Redis for metadata |
-| `METADATA_REDIS_HOST` | redis-545d8fdb508d4.eastus.redis.azure.net | Redis host |
+| `METADATA_REDIS_HOST` | redis-<RESOURCE_ID>.eastus.redis.azure.net | Redis host |
 | `METADATA_REDIS_PORT` | 10000 | Redis port |
 | `METADATA_REDIS_DB` | 2 | Metadata database |
 | `METADATA_REDIS_SSL` | true | Enable SSL |
-| `REDIS_HOST` | redis-545d8fdb508d4.eastus.redis.azure.net | Redis host |
+| `REDIS_HOST` | redis-<RESOURCE_ID>.eastus.redis.azure.net | Redis host |
 | `REDIS_PORT` | 10000 | Redis port |
 | `REDIS_SSL` | true | Enable SSL |
 
@@ -260,7 +260,7 @@ The deployment script configures these automatically:
 ### Apply Definitions (Python 3.11/3.12)
 ```bash
 # Set Featureform host
-export FEATUREFORM_HOST=featureform-545d8fdb508d4.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io
+export FEATUREFORM_HOST=featureform-<RESOURCE_ID>.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io
 
 # Apply definitions
 ./scripts/deploy_featureform_definitions.sh
@@ -319,7 +319,7 @@ az resource list \
 ```bash
 az containerapp show \
   -g finagentix-dev-rg \
-  -n featureform-545d8fdb508d4 \
+  -n featureform-<RESOURCE_ID> \
   > featureform-config.json
 ```
 
@@ -342,13 +342,13 @@ az containerapp show \
 ./infra/scripts/deploy-featureform.sh
 
 # Check status
-az containerapp show -g finagentix-dev-rg -n featureform-545d8fdb508d4
+az containerapp show -g finagentix-dev-rg -n featureform-<RESOURCE_ID>
 
 # View logs
-az containerapp logs show -g finagentix-dev-rg -n featureform-545d8fdb508d4 --tail 100
+az containerapp logs show -g finagentix-dev-rg -n featureform-<RESOURCE_ID> --tail 100
 
 # Redeploy
-az containerapp delete -g finagentix-dev-rg -n featureform-545d8fdb508d4 --yes
+az containerapp delete -g finagentix-dev-rg -n featureform-<RESOURCE_ID> --yes
 ./infra/scripts/deploy-featureform.sh
 ```
 
@@ -356,4 +356,4 @@ az containerapp delete -g finagentix-dev-rg -n featureform-545d8fdb508d4 --yes
 
 **Status**: ✅ Deployment infrastructure complete and production-ready!
 
-**Featureform URL**: `https://featureform-545d8fdb508d4.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io`
+**Featureform URL**: `https://featureform-<RESOURCE_ID>.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io`

@@ -9,14 +9,14 @@
 ## Deployed Resources
 
 ### Azure OpenAI Service
-- **Service Name**: openai-545d8fdb508d4
+- **Service Name**: openai-<RESOURCE_ID>
 - **Resource Group**: finagentix-dev-rg
 - **Location**: East US
 - **SKU**: S0 (Standard)
 - **State**: Succeeded
-- **Endpoint**: https://openai-545d8fdb508d4.openai.azure.com/
+- **Endpoint**: https://openai-<RESOURCE_ID>.openai.azure.com/
 - **API Version**: 2024-08-01-preview
-- **Custom Subdomain**: openai-545d8fdb508d4
+- **Custom Subdomain**: openai-<RESOURCE_ID>
 
 ### Model Deployments
 

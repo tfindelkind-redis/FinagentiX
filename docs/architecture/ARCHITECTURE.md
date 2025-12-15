@@ -150,9 +150,10 @@ FinagentiX leverages the **Redis AI Vision** architecture to build a production-
 ### 1. **Semantic Routing & LongCache**
 **Use Case:** Reduce LLM costs by 30-70%
 - Embed user queries and cache LLM responses
-- For similar queries, return cached responses instead of calling LLM
+- Semantic router persists successful workflow executions as labeled examples
+- Redis vector search ranks the top routes by cosine similarity, with pattern-based fallback
 - Store query embeddings + response pairs in Redis Vector Search
-- Similarity threshold: 0.92+ returns cached result
+- Similarity threshold: 0.92+ returns cached result and new examples extend routing coverage
 
 **Redis Features:**
 - `RediSearch` with HNSW vector index

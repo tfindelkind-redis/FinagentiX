@@ -4,7 +4,7 @@
 
 **Date**: December 8, 2025  
 **Environment**: finagentix-dev-rg (East US)  
-**Resource Token**: 545d8fdb508d4
+**Resource Token**: <RESOURCE_ID>
 
 ---
 
@@ -15,7 +15,7 @@ Featureform has been successfully deployed to Azure Container Apps using the aut
 ### Infrastructure Created
 
 1. **Container Apps Environment** (Internal-only)
-   - Name: `cae-545d8fdb508d4`
+   - Name: `cae-<RESOURCE_ID>`
    - Type: Internal (no public IP)
    - Status: Succeeded
    - Location: East US
@@ -23,9 +23,9 @@ Featureform has been successfully deployed to Azure Container Apps using the aut
    - VNet Integration: ✅ (container-apps-subnet)
 
 2. **Featureform Container App**
-   - Name: `featureform-545d8fdb508d4`
+   - Name: `featureform-<RESOURCE_ID>`
    - Image: `featureformcom/featureform:latest`
-   - URL: `https://featureform-545d8fdb508d4.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io`
+   - URL: `https://featureform-<RESOURCE_ID>.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io`
    - Status: Succeeded
    - Resources: 1 CPU, 2GB RAM
    - Scaling: 1-3 replicas
@@ -34,7 +34,7 @@ Featureform has been successfully deployed to Azure Container Apps using the aut
 3. **Redis Integration**
    - Metadata Store: Redis Enterprise DB 2
    - Online Feature Store: Redis Enterprise DB 0
-   - Host: `redis-545d8fdb508d4.eastus.redis.azure.net:10000`
+   - Host: `redis-<RESOURCE_ID>.eastus.redis.azure.net:10000`
    - SSL/TLS: ✅ Enabled
 
 ---
@@ -82,7 +82,7 @@ Key features:
 # Manual deployment example:
 REDIS_PASSWORD=$(az redisenterprise database list-keys \
   -g finagentix-dev-rg \
-  --cluster-name redis-545d8fdb508d4 \
+  --cluster-name redis-<RESOURCE_ID> \
   --query "primaryKey" -o tsv)
 
 az deployment group create \
@@ -90,7 +90,7 @@ az deployment group create \
   --template-file infra/deploy-featureform-final.bicep \
   --parameters \
     location=eastus \
-    resourceToken=545d8fdb508d4 \
+    resourceToken=<RESOURCE_ID> \
     redisPassword="$REDIS_PASSWORD"
 ```
 
@@ -126,7 +126,7 @@ The following file is ready but cannot be applied yet:
 **To apply when Python 3.11/3.12 is available**:
 ```bash
 # From Python 3.11/3.12 environment:
-export FEATUREFORM_HOST=featureform-545d8fdb508d4.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io
+export FEATUREFORM_HOST=featureform-<RESOURCE_ID>.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io
 ./scripts/deploy_featureform_definitions.sh
 ```
 
@@ -138,7 +138,7 @@ export FEATUREFORM_HOST=featureform-545d8fdb508d4.victoriousdune-76bc4f5c.eastus
 ```bash
 az containerapp show \
   -g finagentix-dev-rg \
-  -n featureform-545d8fdb508d4 \
+  -n featureform-<RESOURCE_ID> \
   --query "{Name:name, Status:properties.runningStatus, URL:properties.configuration.ingress.fqdn}"
 ```
 
@@ -146,7 +146,7 @@ az containerapp show \
 ```bash
 az containerapp env show \
   -g finagentix-dev-rg \
-  -n cae-545d8fdb508d4 \
+  -n cae-<RESOURCE_ID> \
   --query "{Name:name, State:properties.provisioningState, Location:location}"
 ```
 
@@ -154,14 +154,14 @@ az containerapp env show \
 ```bash
 az containerapp logs show \
   -g finagentix-dev-rg \
-  -n featureform-545d8fdb508d4 \
+  -n featureform-<RESOURCE_ID> \
   --tail 100
 ```
 
 ### 4. Test Featureform Endpoint (Internal VNet only)
 ```bash
 # From a VM or resource in the same VNet:
-curl https://featureform-545d8fdb508d4.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io/health
+curl https://featureform-<RESOURCE_ID>.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io/health
 ```
 
 ---
@@ -174,13 +174,13 @@ curl https://featureform-545d8fdb508d4.victoriousdune-76bc4f5c.eastus.azureconta
 # Check replica status
 az containerapp revision list \
   -g finagentix-dev-rg \
-  -n featureform-545d8fdb508d4 \
+  -n featureform-<RESOURCE_ID> \
   -o table
 
 # Check logs for errors
 az containerapp logs show \
   -g finagentix-dev-rg \
-  -n featureform-545d8fdb508d4 \
+  -n featureform-<RESOURCE_ID> \
   --tail 500
 ```
 
@@ -190,12 +190,12 @@ az containerapp logs show \
 # Test Redis connectivity
 az redisenterprise database list-keys \
   -g finagentix-dev-rg \
-  --cluster-name redis-545d8fdb508d4
+  --cluster-name redis-<RESOURCE_ID>
 
 # Check Redis status
 az redisenterprise database show \
   -g finagentix-dev-rg \
-  --cluster-name redis-545d8fdb508d4 \
+  --cluster-name redis-<RESOURCE_ID> \
   --query "{State:provisioningState, Host:hostName, Port:port}"
 ```
 
@@ -205,7 +205,7 @@ az redisenterprise database show \
 # Delete and recreate Featureform app
 az containerapp delete \
   -g finagentix-dev-rg \
-  -n featureform-545d8fdb508d4 \
+  -n featureform-<RESOURCE_ID> \
   --yes
 
 # Re-run deployment script
@@ -218,11 +218,11 @@ az containerapp delete \
 
 | Resource | Name | Status | Type |
 |----------|------|--------|------|
-| Container Apps Environment | cae-545d8fdb508d4 | ✅ Succeeded | Internal-only |
-| Featureform App | featureform-545d8fdb508d4 | ✅ Running | Container App |
-| Redis Metadata | redis-545d8fdb508d4 (DB 2) | ✅ Connected | Redis Enterprise |
-| Redis Online Store | redis-545d8fdb508d4 (DB 0) | ✅ Connected | Redis Enterprise |
-| Log Analytics | log-545d8fdb508d4 | ✅ Integrated | Workspace |
+| Container Apps Environment | cae-<RESOURCE_ID> | ✅ Succeeded | Internal-only |
+| Featureform App | featureform-<RESOURCE_ID> | ✅ Running | Container App |
+| Redis Metadata | redis-<RESOURCE_ID> (DB 2) | ✅ Connected | Redis Enterprise |
+| Redis Online Store | redis-<RESOURCE_ID> (DB 0) | ✅ Connected | Redis Enterprise |
+| Log Analytics | log-<RESOURCE_ID> | ✅ Integrated | Workspace |
 | VNet Subnet | container-apps-subnet | ✅ Delegated | 10.0.4.0/23 |
 
 ---
@@ -278,7 +278,7 @@ The automated deployment script ensures that Featureform can be:
 
 **Featureform URL**:
 ```
-https://featureform-545d8fdb508d4.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io
+https://featureform-<RESOURCE_ID>.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io
 ```
 
 **Deployment Date**: 2025-12-08 17:58:47 UTC  

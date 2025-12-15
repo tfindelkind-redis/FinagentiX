@@ -22,11 +22,28 @@ param openaiSubnetId string
 @description('Private DNS Zone ID for OpenAI')
 param privateDnsZoneIdOpenAI string
 
+// Ensure we keep tags consistent and reference virtual network
+var mergedTags = union(tags, {
+  environment: environmentName
+})
+
+var vnetName = last(split(vnetId, '/'))
+var subnetName = last(split(openaiSubnetId, '/'))
+
+resource openaiVnet 'Microsoft.Network/virtualNetworks@2023-05-01' existing = {
+  name: vnetName
+}
+
+resource openaiSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-05-01' existing = {
+  parent: openaiVnet
+  name: subnetName
+}
+
 // Azure OpenAI Service
 resource openai 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
   name: 'openai-${resourceToken}'
   location: location
-  tags: tags
+  tags: mergedTags
   kind: 'OpenAI'
   sku: {
     name: 'S0'
@@ -42,10 +59,10 @@ resource openai 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
   }
 }
 
-// GPT-4 Deployment
-resource gpt4Deployment 'Microsoft.CognitiveServices/accounts/deployments@2023-05-01' = {
+// GPT-4o Deployment
+resource gpt4oDeployment 'Microsoft.CognitiveServices/accounts/deployments@2023-05-01' = {
   parent: openai
-  name: 'gpt-4'
+  name: 'gpt-4o'
   sku: {
     name: 'Standard'
     capacity: 10
@@ -53,8 +70,8 @@ resource gpt4Deployment 'Microsoft.CognitiveServices/accounts/deployments@2023-0
   properties: {
     model: {
       format: 'OpenAI'
-      name: 'gpt-4'
-      version: '1106-Preview'
+      name: 'gpt-4o'
+      version: '2024-11-20'
     }
   }
 }
@@ -75,7 +92,7 @@ resource embeddingDeployment 'Microsoft.CognitiveServices/accounts/deployments@2
     }
   }
   dependsOn: [
-    gpt4Deployment
+    gpt4oDeployment
   ]
 }
 
@@ -83,10 +100,10 @@ resource embeddingDeployment 'Microsoft.CognitiveServices/accounts/deployments@2
 resource openaiPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
   name: 'pe-openai-${resourceToken}'
   location: location
-  tags: tags
+  tags: mergedTags
   properties: {
     subnet: {
-      id: openaiSubnetId
+      id: openaiSubnet.id
     }
     privateLinkServiceConnections: [
       {
@@ -124,5 +141,5 @@ output openaiName string = openai.name
 output openaiEndpoint string = openai.properties.endpoint
 @secure()
 output openaiKey string = openai.listKeys().key1
-output gpt4DeploymentName string = gpt4Deployment.name
+output gpt4DeploymentName string = gpt4oDeployment.name
 output embeddingDeploymentName string = embeddingDeployment.name

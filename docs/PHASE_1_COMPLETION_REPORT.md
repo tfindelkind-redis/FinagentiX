@@ -57,7 +57,7 @@ Phase 1 of the Microsoft Agent Framework migration has been successfully complet
 
 ### ✅ 6. Infrastructure Validation
 - **Azure OpenAI**: GPT-4o deployment created (gpt-4o-2024-11-20, 10 TPM)
-- **Redis Enterprise**: Validated connection to redis-3ae172dc9e9da.westus3.redis.azure.net
+- **Redis Enterprise**: Validated connection to redis-<RESOURCE_ID>.westus3.redis.azure.net
 - **Data Verified**: 
   - 35,000 TimeSeries data points (28 tickers × 250 days × 5 metrics)
   - 280 news embeddings in RediSearch
@@ -133,7 +133,7 @@ Result: AAPL volume: 47,244,000 (+2.6% vs avg) - around average - normal trading
 | Resource | Status | Details |
 |----------|--------|---------|
 | Azure OpenAI | ✅ Deployed | gpt-4o (2024-11-20), 10 TPM capacity |
-| Redis Enterprise | ✅ Active | redis-3ae172dc9e9da, 35K datapoints |
+| Redis Enterprise | ✅ Active | redis-<RESOURCE_ID>, 35K datapoints |
 | Virtual Network | ✅ Active | Private endpoints configured |
 | Debug VM | ✅ Active | 4.227.91.227 (passwordless SSH) |
 | Featureform | ✅ Active | Container Apps deployment |

@@ -122,11 +122,11 @@ This installs:
 
 ```bash
 # Set environment variables
-export AZURE_OPENAI_ENDPOINT="https://openai-3ae172dc9e9da.openai.azure.com/"
-export AZURE_OPENAI_KEY="$(az cognitiveservices account keys list -g finagentix-dev-rg -n openai-3ae172dc9e9da --query key1 -o tsv)"
-export REDIS_HOST="redis-3ae172dc9e9da.westus3.redis.azure.net"
+export AZURE_OPENAI_ENDPOINT="https://openai-<RESOURCE_ID>.openai.azure.com/"
+export AZURE_OPENAI_KEY="$(az cognitiveservices account keys list -g finagentix-dev-rg -n openai-<RESOURCE_ID> --query key1 -o tsv)"
+export REDIS_HOST="redis-<RESOURCE_ID>.westus3.redis.azure.net"
 export REDIS_PORT="10000"
-export REDIS_PASSWORD="$(az redisenterprise database list-keys -g finagentix-dev-rg --cluster-name redis-3ae172dc9e9da --query primaryKey -o tsv)"
+export REDIS_PASSWORD="$(az redisenterprise database list-keys -g finagentix-dev-rg --cluster-name redis-<RESOURCE_ID> --query primaryKey -o tsv)"
 
 # Run example (optional - for testing only)
 python src/agents/semantic_kernel_example.py

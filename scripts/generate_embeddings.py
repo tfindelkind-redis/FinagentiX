@@ -19,12 +19,27 @@ from datetime import datetime
 
 import redis
 from redis.commands.search.field import VectorField, TextField, TagField, NumericField
-from redis.commands.search.index_definition import IndexDefinition, IndexType
+try:
+    from redis.commands.search.indexDefinition import IndexDefinition, IndexType
+except ImportError:  # Older redis-py releases
+    from redis.commands.search.index_definition import IndexDefinition, IndexType
 from redis.commands.search.query import Query
 import numpy as np
 from openai import AzureOpenAI
 from bs4 import BeautifulSoup
 from tqdm import tqdm
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
+
+def require_env(name: str) -> str:
+    """Fetch required environment variable"""
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
 
 
 @dataclass
@@ -457,15 +472,12 @@ def main():
     
     # Load configuration
     config = EmbeddingConfig(
-        azure_openai_endpoint=os.getenv('AZURE_OPENAI_ENDPOINT', 
-                                        'https://openai-545d8fdb508d4.openai.azure.com/'),
-        azure_openai_key=os.getenv('AZURE_OPENAI_API_KEY', 
-                                   'a72469a7210c4c6286beddca96f37d62'),
-        azure_openai_api_version='2024-08-01-preview',
-        embedding_deployment='text-embedding-3-large',
-        redis_host=os.getenv('REDIS_HOST', 
-                            'redis-545d8fdb508d4.eastus.redis.azure.net'),
-        redis_port=int(os.getenv('REDIS_PORT', '10000')),
+        azure_openai_endpoint=require_env('AZURE_OPENAI_ENDPOINT'),
+        azure_openai_key=require_env('AZURE_OPENAI_API_KEY'),
+        azure_openai_api_version=require_env('AZURE_OPENAI_API_VERSION'),
+        embedding_deployment=require_env('AZURE_OPENAI_EMBEDDING_DEPLOYMENT'),
+        redis_host=require_env('REDIS_HOST'),
+        redis_port=int(require_env('REDIS_PORT')),
         redis_password=os.getenv('REDIS_PASSWORD')
     )
     

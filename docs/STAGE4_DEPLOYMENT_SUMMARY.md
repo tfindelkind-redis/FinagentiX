@@ -4,7 +4,7 @@
 **Status**: ✅ COMPLETE - All Infrastructure Deployed  
 **Resource Group**: finagentix-dev-rg  
 **Region**: West US 3 (migrated from East US)  
-**Resource Token**: 3ae172dc9e9da  
+**Resource Token**: <RESOURCE_ID>  
 
 ---
 
@@ -28,26 +28,26 @@ Successfully completed full infrastructure deployment for FinagentiX to Azure We
 ## 🏗️ Infrastructure Deployed
 
 ### Redis Enterprise Cluster
-- **Cluster Name**: redis-3ae172dc9e9da
+- **Cluster Name**: redis-<RESOURCE_ID>
 - **SKU**: Balanced_B5
 - **Redis Version**: 7.4.x
-- **Endpoint**: redis-3ae172dc9e9da.westus3.redisenterprise.cache.azure.net:10000
+- **Endpoint**: redis-<RESOURCE_ID>.westus3.redisenterprise.cache.azure.net:10000
 - **Protocol**: SSL/TLS (Port 10000)
 - **Password**: Retrieved via `az redisenterprise database list-keys`
 - **Status**: ✅ Running
 - **Deployment Time**: ~7 minutes
 
 ### Featureform Feature Store
-- **Name**: featureform-3ae172dc9e9da
+- **Name**: featureform-<RESOURCE_ID>
 - **Type**: Azure Container Apps
 - **Status**: ✅ Running
 - **Replicas**: 3
-- **Internal URL**: featureform-3ae172dc9e9da.internal.lemonpond-bf9ae03d.westus3.azurecontainerapps.io
-- **Public URL**: featureform-3ae172dc9e9da.lemonpond-bf9ae03d.westus3.azurecontainerapps.io
+- **Internal URL**: featureform-<RESOURCE_ID>.internal.lemonpond-bf9ae03d.westus3.azurecontainerapps.io
+- **Public URL**: featureform-<RESOURCE_ID>.lemonpond-bf9ae03d.westus3.azurecontainerapps.io
 - **Environment**: Internal-only (VNetInternal)
 
 ### Debug VM
-- **Name**: debug-vm-3ae172dc9e9da
+- **Name**: debug-vm-<RESOURCE_ID>
 - **Size**: Standard_B1s (1 vCPU, 1 GB RAM)
 - **OS**: Ubuntu 22.04 LTS
 - **Public IP**: 4.227.91.227
@@ -59,12 +59,12 @@ Successfully completed full infrastructure deployment for FinagentiX to Azure We
 - **Cost**: ~$7.59/month
 
 ### Azure OpenAI
-- **Name**: openai-3ae172dc9e9da
+- **Name**: openai-<RESOURCE_ID>
 - **Type**: Cognitive Services
 - **Status**: ✅ Deployed
 
 ### Storage Account
-- **Name**: st3ae172dc9e9da
+- **Name**: st<RESOURCE_ID>
 - **Type**: Storage Account with Private Endpoint
 - **Status**: ✅ Running
 
@@ -240,7 +240,7 @@ def extract_text_from_html(html_content: str) -> str:
 #### 3. Embedding Generation
 - **Model**: text-embedding-3-large
 - **Dimensions**: 3072
-- **API**: Azure OpenAI (https://openai-545d8fdb508d4.openai.azure.com/)
+- **API**: Azure OpenAI (https://openai-<RESOURCE_ID>.openai.azure.com/)
 - **Rate Limiting**: 0.1 second delay between requests
 - **Error Handling**: Retry logic with exponential backoff
 
@@ -314,12 +314,12 @@ python scripts/generate_embeddings_azure.py
 
 **Environment Variables Required**:
 ```bash
-AZURE_OPENAI_ENDPOINT=https://openai-545d8fdb508d4.openai.azure.com/
+AZURE_OPENAI_ENDPOINT=https://openai-<RESOURCE_ID>.openai.azure.com/
 AZURE_OPENAI_KEY=<key>
-REDIS_HOST=redis-545d8fdb508d4.eastus.redis.azure.net
+REDIS_HOST=redis-<RESOURCE_ID>.eastus.redis.azure.net
 REDIS_PORT=10000
 REDIS_PASSWORD=<password>
-AZURE_STORAGE_ACCOUNT_NAME=st545d8fdb508d4
+AZURE_STORAGE_ACCOUNT_NAME=st<RESOURCE_ID>
 AZURE_STORAGE_ACCOUNT_KEY=<key>
 ```
 
@@ -387,7 +387,7 @@ import numpy as np
 
 # Connect to Redis
 r = redis.Redis(
-    host='redis-545d8fdb508d4.eastus.redis.azure.net',
+    host='redis-<RESOURCE_ID>.eastus.redis.azure.net',
     port=10000,
     password=os.getenv('REDIS_PASSWORD'),
     ssl=True
@@ -607,7 +607,7 @@ Successfully migrated from East US to West US 3:
 ### Monitoring
 - **Logs**: `logs/embedding_generation.log`
 - **Progress**: `python scripts/monitor_embeddings.py --watch`
-- **Redis CLI**: `redis-cli -h redis-545d8fdb508d4.eastus.redis.azure.net -p 10000 --tls`
+- **Redis CLI**: `redis-cli -h redis-<RESOURCE_ID>.eastus.redis.azure.net -p 10000 --tls`
 
 ---
 

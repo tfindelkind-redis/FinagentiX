@@ -11,9 +11,13 @@ import type {
   CacheMetrics,
   PerformanceMetricsResponse,
   MetricsSummary,
+  CacheOperationResult,
 } from '@/types/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const runtimeBaseUrl =
+  typeof window !== 'undefined' ? window.__ENV__?.PUBLIC_API_BASE_URL : undefined;
+
+const API_BASE_URL = runtimeBaseUrl || import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 class APIError extends Error {
   constructor(
@@ -83,6 +87,24 @@ export async function getMetricsSummary(): Promise<MetricsSummary> {
   return fetchJSON<MetricsSummary>('/api/metrics/summary');
 }
 
+// ==================== Cache Management ====================
+
+export async function clearSemanticCache(pattern?: string): Promise<CacheOperationResult> {
+  const body = pattern ? { pattern } : {};
+  return fetchJSON<CacheOperationResult>('/api/cache/semantic/clear', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function clearToolCache(toolName?: string): Promise<CacheOperationResult> {
+  const body = toolName ? { tool_name: toolName } : {};
+  return fetchJSON<CacheOperationResult>('/api/cache/tool/clear', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
 // ==================== Health Endpoint ====================
 
 export async function getHealth(): Promise<{
@@ -105,6 +127,10 @@ export const api = {
     cache: getCacheMetrics,
     performance: getPerformanceMetrics,
     summary: getMetricsSummary,
+  },
+  cache: {
+    clearSemantic: clearSemanticCache,
+    clearTool: clearToolCache,
   },
   health: getHealth,
 };

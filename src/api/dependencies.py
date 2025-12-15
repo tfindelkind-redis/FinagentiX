@@ -59,6 +59,6 @@ def get_rag_retriever() -> RAGRetriever:
     return RAGRetriever(
         document_store=document_store,
         openai_client=openai_client,
-        deployment_name=settings.GPT4_DEPLOYMENT_NAME,
+        deployment_name=settings.AZURE_OPENAI_GPT4_DEPLOYMENT,
     )
 

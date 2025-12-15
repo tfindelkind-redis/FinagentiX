@@ -103,7 +103,10 @@ class EmbeddingLoader:
         except redis.exceptions.ResponseError:
             # Create index with HNSW algorithm
             from redis.commands.search.field import TextField, VectorField, NumericField
-            from redis.commands.search.index_definition import IndexDefinition, IndexType
+            try:
+                from redis.commands.search.indexDefinition import IndexDefinition, IndexType
+            except ImportError:
+                from redis.commands.search.index_definition import IndexDefinition, IndexType
             
             schema = (
                 TextField("content"),

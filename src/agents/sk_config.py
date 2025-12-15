@@ -26,7 +26,8 @@ class SemanticKernelConfig:
         redis_host: Optional[str] = None,
         redis_port: int = 10000,
         redis_password: Optional[str] = None,
-        redis_ssl: bool = True
+        redis_ssl: bool = True,
+        allow_empty_password: Optional[bool] = None
     ):
         """
         Initialize Semantic Kernel configuration
@@ -52,6 +53,13 @@ class SemanticKernelConfig:
         self.redis_port = int(os.getenv("REDIS_PORT", redis_port))
         self.redis_password = redis_password or os.getenv("REDIS_PASSWORD")
         self.redis_ssl = os.getenv("REDIS_SSL", str(redis_ssl)).lower() == "true"
+        allow_empty_env = os.getenv("REDIS_ALLOW_EMPTY_PASSWORD")
+        if allow_empty_password is not None:
+            self.allow_empty_password = allow_empty_password
+        elif allow_empty_env is not None:
+            self.allow_empty_password = allow_empty_env.lower() == "true"
+        else:
+            self.allow_empty_password = False
         
         # Validate configuration
         self._validate_config()
@@ -63,7 +71,8 @@ class SemanticKernelConfig:
             "endpoint": self.azure_openai_endpoint,
             "redis_host": self.redis_host,
             "redis_port": self.redis_port,
-            "redis_ssl": self.redis_ssl
+            "redis_ssl": self.redis_ssl,
+            "allow_empty_password": self.allow_empty_password
         })
         
         self._kernel: Optional[Kernel] = None
@@ -84,7 +93,8 @@ class SemanticKernelConfig:
         # Only require password for remote Redis (not localhost)
         # Check for both None and empty string
         has_password = self.redis_password and self.redis_password.strip()
-        if self.redis_host not in ["localhost", "127.0.0.1"] and not has_password:
+        local_hosts = {"localhost", "127.0.0.1", "redis", "redis-local"}
+        if not has_password and not self.allow_empty_password and self.redis_host not in local_hosts:
             raise ValueError("Redis password not configured. Set REDIS_PASSWORD environment variable.")
     
     def create_kernel(self) -> Kernel:

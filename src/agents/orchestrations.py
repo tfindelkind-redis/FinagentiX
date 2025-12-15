@@ -5,6 +5,9 @@ Enhanced with comprehensive metrics collection
 """
 
 import asyncio
+import json
+import logging
+import os
 from typing import Dict, Any, List, Optional, Callable
 from datetime import datetime
 from semantic_kernel.agents import ChatCompletionAgent
@@ -12,6 +15,48 @@ from semantic_kernel.contents import ChatMessageContent, AuthorRole
 from ..utils.metrics_collector import MetricsCollector
 from ..utils.cost_tracking import CostCalculator
 import tiktoken
+
+
+logger = logging.getLogger(__name__)
+
+
+def _format_missing_deployment_message() -> str:
+    """Generate a helpful message when the Azure deployment is missing."""
+    configured = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or os.getenv("AZURE_OPENAI_GPT4_DEPLOYMENT")
+    deployment = configured or "<unset>"
+    return (
+        "Unable to reach the configured Azure OpenAI deployment. "
+        f"Expected deployment '{deployment}', but Azure returned DeploymentNotFound.\n"
+        "Fix this by either creating the deployment in your Azure OpenAI resource or updating "
+        "AZURE_OPENAI_CHAT_DEPLOYMENT (and related settings) to match an existing deployment."
+    )
+
+
+def _coerce_to_text(payload: Any) -> str:
+    """Convert agent output to plain text."""
+    if payload is None:
+        return ""
+    if isinstance(payload, str):
+        return payload
+    if isinstance(payload, ChatMessageContent):
+        # Prefer direct string content when available
+        if isinstance(payload.content, str):
+            return payload.content
+        items = getattr(payload, "items", None)
+        if items:
+            texts = [getattr(item, "text", "") for item in items if getattr(item, "text", "")]
+            if texts:
+                return "\n".join(texts)
+        return str(payload)
+    if isinstance(payload, list):
+        texts = [_coerce_to_text(item) for item in payload]
+        return "\n".join(filter(None, texts))
+    if isinstance(payload, dict):
+        try:
+            return json.dumps(payload, indent=2, sort_keys=True)
+        except (TypeError, ValueError):
+            return str(payload)
+    return str(payload)
 
 
 class SequentialOrchestration:
@@ -101,11 +146,24 @@ class SequentialOrchestration:
             )
             
             # Execute agent
-            response = None
-            async for message in agent.invoke(history):
-                if message.role == AuthorRole.ASSISTANT:
-                    response = message.content
-                    break
+            response_text = ""
+            agent_status = "success"
+            error_message = None
+            try:
+                async for message in agent.invoke(history):
+                    if message.role == AuthorRole.ASSISTANT:
+                        response_text = _coerce_to_text(message.content)
+                        break
+            except Exception as exc:  # pragma: no cover - defensive path
+                error_message = str(exc)
+                if "DeploymentNotFound" in error_message or "API deployment" in error_message:
+                    agent_status = "error"
+                    response_text = _format_missing_deployment_message()
+                    logger.error("Azure OpenAI deployment missing: %s", error_message)
+                else:
+                    if self.metrics_collector:
+                        self.metrics_collector.end_event(agent_event_id, status="error")
+                    raise
             
             agent_end = datetime.now()
             agent_duration = (agent_end - agent_start).total_seconds() * 1000  # Convert to ms
@@ -120,14 +178,16 @@ class SequentialOrchestration:
                 input_tokens = self.metrics_collector.cost_calculator.count_messages([
                     {"role": "user", "content": current_message}
                 ])
-                if response:
-                    output_tokens = self.metrics_collector.cost_calculator.count_tokens(response)
+                if response_text:
+                    output_tokens = self.metrics_collector.cost_calculator.count_tokens(response_text)
                 
                 # Calculate cost (assuming gpt-4o)
                 cost = self.metrics_collector.cost_calculator.calculate_llm_cost(
                     input_tokens,
                     output_tokens
                 )
+                temperature = getattr(agent, "temperature", 0.0)
+                max_tokens = getattr(agent, "max_tokens", 0)
                 
                 # Record agent execution
                 self.metrics_collector.record_agent_execution(
@@ -138,33 +198,44 @@ class SequentialOrchestration:
                     output_tokens=output_tokens,
                     model="gpt-4o",  # Default model
                     cost=cost,
-                    status="success" if response else "error",
-                    response=response or ""
+                    status=agent_status if response_text else "error",
+                    response=response_text or "",
+                    start_time=agent_start,
+                    end_time=agent_end,
+                    temperature=temperature,
+                    max_tokens=max_tokens
                 )
                 
                 # End agent tracking
-                self.metrics_collector.end_event(agent_event_id, status="success")
+                end_status = agent_status if response_text else "error"
+                self.metrics_collector.end_event(agent_event_id, status=end_status)
+            elif error_message is not None:
+                # Ensure error is logged when we don't have metrics collector
+                logger.error("Agent %s failed: %s", agent.name, error_message)
             
             # Record result
             agent_result = {
                 "agent_name": agent.name,
                 "agent_index": idx,
-                "response": response,
+                "response": response_text,
                 "duration_seconds": agent_duration / 1000,
                 "duration_ms": agent_duration,
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
                 "cost_usd": cost,
-                "timestamp": agent_end.isoformat()
+                "timestamp": agent_end.isoformat(),
+                "status": agent_status if response_text else "error"
             }
+            if error_message:
+                agent_result["error"] = error_message
             results["agents"].append(agent_result)
             
             # Add agent response to history
-            if response:
+            if response_text:
                 history.append(
                     ChatMessageContent(
                         role=AuthorRole.ASSISTANT,
-                        content=response,
+                        content=response_text,
                         name=agent.name
                     )
                 )
@@ -264,11 +335,24 @@ class ConcurrentOrchestration:
                 )
             ]
             
-            response = None
-            async for message in agent.invoke(history):
-                if message.role == AuthorRole.ASSISTANT:
-                    response = message.content
-                    break
+            response_text = ""
+            agent_status = "success"
+            error_message = None
+            try:
+                async for message in agent.invoke(history):
+                    if message.role == AuthorRole.ASSISTANT:
+                        response_text = _coerce_to_text(message.content)
+                        break
+            except Exception as exc:  # pragma: no cover - defensive path
+                error_message = str(exc)
+                if "DeploymentNotFound" in error_message or "API deployment" in error_message:
+                    agent_status = "error"
+                    response_text = _format_missing_deployment_message()
+                    logger.error("Azure OpenAI deployment missing: %s", error_message)
+                else:
+                    if self.metrics_collector:
+                        self.metrics_collector.end_event(agent_event_id, status="error")
+                    raise
             
             agent_end = datetime.now()
             agent_duration = (agent_end - agent_start).total_seconds() * 1000
@@ -282,13 +366,15 @@ class ConcurrentOrchestration:
                 input_tokens = self.metrics_collector.cost_calculator.count_messages([
                     {"role": "user", "content": query}
                 ])
-                if response:
-                    output_tokens = self.metrics_collector.cost_calculator.count_tokens(response)
+                if response_text:
+                    output_tokens = self.metrics_collector.cost_calculator.count_tokens(response_text)
                 
                 cost = self.metrics_collector.cost_calculator.calculate_llm_cost(
                     input_tokens,
                     output_tokens
                 )
+                temperature = getattr(agent, "temperature", 0.0)
+                max_tokens = getattr(agent, "max_tokens", 0)
                 
                 # Record agent execution
                 self.metrics_collector.record_agent_execution(
@@ -299,24 +385,35 @@ class ConcurrentOrchestration:
                     output_tokens=output_tokens,
                     model="gpt-4o",
                     cost=cost,
-                    status="success" if response else "error",
-                    response=response or ""
+                    status=agent_status if response_text else "error",
+                    response=response_text or "",
+                    start_time=agent_start,
+                    end_time=agent_end,
+                    temperature=temperature,
+                    max_tokens=max_tokens
                 )
                 
                 # End agent tracking
-                self.metrics_collector.end_event(agent_event_id, status="success")
+                end_status = agent_status if response_text else "error"
+                self.metrics_collector.end_event(agent_event_id, status=end_status)
+            elif error_message is not None:
+                logger.error("Agent %s failed: %s", agent.name, error_message)
             
-            return {
+            result_payload = {
                 "agent_name": agent.name,
                 "agent_index": idx,
-                "response": response,
+                "response": response_text,
                 "duration_seconds": agent_duration / 1000,
                 "duration_ms": agent_duration,
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
                 "cost_usd": cost,
-                "timestamp": agent_end.isoformat()
+                "timestamp": agent_end.isoformat(),
+                "status": agent_status if response_text else "error"
             }
+            if error_message:
+                result_payload["error"] = error_message
+            return result_payload
         
         # Execute all agents concurrently
         tasks = [execute_agent(agent, idx) for idx, agent in enumerate(self.agents)]
@@ -455,10 +552,10 @@ class HandoffOrchestration:
                 )
             
             # Execute agent
-            response = None
+            response_text = ""
             async for message in agent.invoke(history):
                 if message.role == AuthorRole.ASSISTANT:
-                    response = message.content
+                    response_text = _coerce_to_text(message.content)
                     break
             
             agent_end = datetime.now()
@@ -473,13 +570,15 @@ class HandoffOrchestration:
                 input_tokens = self.metrics_collector.cost_calculator.count_messages([
                     {"role": "user", "content": query}
                 ])
-                if response:
-                    output_tokens = self.metrics_collector.cost_calculator.count_tokens(response)
+                if response_text:
+                    output_tokens = self.metrics_collector.cost_calculator.count_tokens(response_text)
                 
                 cost = self.metrics_collector.cost_calculator.calculate_llm_cost(
                     input_tokens,
                     output_tokens
                 )
+                temperature = getattr(agent, "temperature", 0.0)
+                max_tokens = getattr(agent, "max_tokens", 0)
                 
                 # Record agent execution
                 self.metrics_collector.record_agent_execution(
@@ -490,17 +589,22 @@ class HandoffOrchestration:
                     output_tokens=output_tokens,
                     model="gpt-4o",
                     cost=cost,
-                    status="success" if response else "error",
-                    response=response or ""
+                    status="success" if response_text else "error",
+                    response=response_text or "",
+                    start_time=agent_start,
+                    end_time=agent_end,
+                    temperature=temperature,
+                    max_tokens=max_tokens
                 )
                 
                 # End agent tracking
-                self.metrics_collector.end_event(agent_event_id, status="success")
+                end_status = "success" if response_text else "error"
+                self.metrics_collector.end_event(agent_event_id, status=end_status)
             
             # Record handoff
             handoff = {
                 "agent_name": current_agent_name,
-                "response": response,
+                "response": response_text,
                 "duration_seconds": agent_duration / 1000,
                 "duration_ms": agent_duration,
                 "input_tokens": input_tokens,
@@ -512,11 +616,11 @@ class HandoffOrchestration:
             results["handoff_chain"].append(handoff)
             
             # Add response to history
-            if response:
+            if response_text:
                 history.append(
                     ChatMessageContent(
                         role=AuthorRole.ASSISTANT,
-                        content=response,
+                        content=response_text,
                         name=current_agent_name
                     )
                 )

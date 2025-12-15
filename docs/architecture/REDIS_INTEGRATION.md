@@ -76,6 +76,42 @@ def get_cached_response(query_embedding, threshold=0.92):
 - **Hit Rate:** 80-85% achievable
 - **Storage:** ~4KB per cached query+response
 
+### Semantic Router (Workflow Shortcuts)
+```
+User Query
+    ↓
+Embed query (text-embedding-3-large)
+    ↓
+Search Redis workflow index (`idx:semantic_routes`)
+    ↓
+    ├─→ [Similarity > 0.82] → Return stored workflow + agents (skip orchestrator)
+    │
+    └─→ [No semantic match] → Fall back to pattern rules (legacy)
+                              ↓
+                        Full miss → orchestrator selects workflow
+```
+
+### Redis Components (Routing)
+- **RediSearch** HNSW index for workflow examples
+- **Index:** `idx:semantic_routes`
+- **Schema:**
+  ```
+  query_embedding: VECTOR (HNSW, dim=3072)
+  route_id: TEXT
+  workflow: TEXT
+  agents: TEXT (JSON payload)
+  query_text: TEXT
+  source: TEXT (inference, fallback, pattern)
+  timestamp: NUMERIC
+  ```
+
+### Runtime Flow
+1. API generates embedding once for cache + router reuse
+2. Router queries vector index for top-N matches (default 3)
+3. If similarity ≥ threshold (0.82 default) → reuse stored workflow definition
+4. Otherwise evaluate pattern fallbacks (substring triggers)
+5. On successful execution the router records the query embedding, workflow, and agent list for future matches
+
 ---
 
 ## 2️⃣ Contextual Memory (Agentic Memory)

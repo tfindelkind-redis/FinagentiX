@@ -7,7 +7,23 @@ set -e
 VM_IP="4.227.91.227"
 VM_USER="azureuser"
 LOCAL_PORT=8443
-AZURE_OPENAI_HOST="openai-545d8fdb508d4.openai.azure.com"
+AZURE_OPENAI_HOST=$(python - <<'PY'
+import os
+from dotenv import load_dotenv
+from urllib.parse import urlparse
+
+load_dotenv()
+endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+if not endpoint:
+	raise SystemExit("AZURE_OPENAI_ENDPOINT is not set. Update .env and re-run.")
+
+host = urlparse(endpoint).netloc or endpoint.replace("https://", "").rstrip("/")
+if not host:
+	raise SystemExit("Unable to derive host from AZURE_OPENAI_ENDPOINT")
+
+print(host)
+PY
+)
 AZURE_OPENAI_PORT=443
 
 echo "🔐 Setting up SSH port forward to Azure OpenAI..."

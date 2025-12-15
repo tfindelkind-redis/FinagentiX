@@ -93,21 +93,21 @@ az cognitiveservices account deployment create \
 
 echo -e "${GREEN}✅ text-embedding-3-large deployed${NC}"
 
-# Deploy GPT-4
+# Deploy GPT-4o
 echo ""
-echo "📦 Deploying gpt-4 model..."
+echo "📦 Deploying gpt-4o model..."
 az cognitiveservices account deployment create \
     --resource-group "$RESOURCE_GROUP" \
     --name "$OPENAI_NAME" \
-    --deployment-name gpt-4 \
-    --model-name gpt-4 \
-    --model-version "1106-Preview" \
+    --deployment-name gpt-4o \
+    --model-name gpt-4o \
+    --model-version "2024-11-20" \
     --model-format OpenAI \
     --sku-name "Standard" \
     --sku-capacity 10 \
     --output none
 
-echo -e "${GREEN}✅ gpt-4 deployed${NC}"
+echo -e "${GREEN}✅ gpt-4o deployed${NC}"
 
 # Show final status
 echo ""

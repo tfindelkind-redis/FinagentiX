@@ -48,7 +48,7 @@ REDIS_PASSWORD=
 REDIS_SSL=false
 
 # OR use Azure Redis Enterprise (if accessible)
-REDIS_HOST=redis-545d8fdb508d4.eastus.redis.azure.net
+REDIS_HOST=redis-<RESOURCE_ID>.eastus.redis.azure.net
 REDIS_PORT=10000
 REDIS_PASSWORD=your-password-here
 REDIS_SSL=true

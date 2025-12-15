@@ -68,7 +68,7 @@ python ingest_market_data.py --tickers AAPL,MSFT,GOOGL --days 365
 **Setup:**
 ```bash
 # In .env, use Azure Redis:
-REDIS_HOST=redis-545d8fdb508d4.eastus.redis.azure.net
+REDIS_HOST=redis-<RESOURCE_ID>.eastus.redis.azure.net
 REDIS_PORT=10000
 REDIS_PASSWORD=<your-redis-access-key>
 ```

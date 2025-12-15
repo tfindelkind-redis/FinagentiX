@@ -84,13 +84,13 @@ pip install -r requirements.txt
 Make sure `.env` has:
 ```bash
 # Azure OpenAI
-AZURE_OPENAI_ENDPOINT=https://openai-545d8fdb508d4.openai.azure.com/
+AZURE_OPENAI_ENDPOINT=https://openai-<RESOURCE_ID>.openai.azure.com/
 AZURE_OPENAI_API_KEY=your-key-here
 AZURE_OPENAI_GPT4_DEPLOYMENT=gpt-4o
 AZURE_OPENAI_EMBEDDING_DEPLOYMENT=text-embedding-3-large
 
 # Redis
-REDIS_HOST=redis-545d8fdb508d4.eastus.redis.azure.net
+REDIS_HOST=redis-<RESOURCE_ID>.eastus.redis.azure.net
 REDIS_PORT=10000
 REDIS_PASSWORD=your-password-here
 REDIS_SSL=true

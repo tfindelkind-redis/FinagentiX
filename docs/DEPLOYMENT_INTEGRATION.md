@@ -150,7 +150,7 @@ Connect to VM and Apply Definitions
 =========================================
 
 📋 Configuration:
-  Resource Token: 3ae172dc9e9da
+  Resource Token: <RESOURCE_ID>
   Location: westus3
   Resource Group: finagentix-dev-rg
 
@@ -169,8 +169,8 @@ Running on VM: Applying Definitions
 =========================================
 
 📋 Configuration:
-  Featureform: featureform-3ae172dc9e9da.internal.westus3.azurecontainerapps.io
-  Redis: redis-3ae172dc9e9da.westus3.redisenterprise.cache.azure.net:10000
+  Featureform: featureform-<RESOURCE_ID>.internal.westus3.azurecontainerapps.io
+  Redis: redis-<RESOURCE_ID>.westus3.redisenterprise.cache.azure.net:10000
 
 📥 Cloning repository...
 🚀 Applying Featureform definitions...
@@ -234,4 +234,4 @@ If needed, the scripts can be run independently:
 **Status**: ✅ Integration Complete - Ready for Testing
 **Date**: December 9, 2025
 **Region**: West US 3
-**Resource Token**: 3ae172dc9e9da
+**Resource Token**: <RESOURCE_ID>

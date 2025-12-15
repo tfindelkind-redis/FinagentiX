@@ -6,6 +6,7 @@ including token counting using tiktoken and cost estimation based on
 current Azure OpenAI pricing.
 """
 
+import json
 import tiktoken
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
@@ -71,16 +72,27 @@ class CostCalculator:
             # Fallback to cl100k_base for unknown models
             self.encoding = tiktoken.get_encoding("cl100k_base")
     
-    def count_tokens(self, text: str) -> int:
+    def count_tokens(self, text: Any) -> int:
         """
         Count tokens in text using tiktoken
         
         Args:
-            text: Text to count tokens for
+            text: Text or structured payload to count tokens for
             
         Returns:
             Number of tokens
         """
+        if text is None:
+            return 0
+        if not isinstance(text, str):
+            # Normalize structured responses before token counting
+            if isinstance(text, (dict, list)):
+                try:
+                    text = json.dumps(text, sort_keys=True)
+                except (TypeError, ValueError):
+                    text = str(text)
+            else:
+                text = str(text)
         if not text:
             return 0
         return len(self.encoding.encode(text))

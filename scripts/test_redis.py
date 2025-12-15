@@ -3,21 +3,43 @@
 Test script for Redis connection and vector operations
 """
 
-import redis
+import os
 import json
+
+import pytest
+import redis
+from dotenv import load_dotenv
 from redis.commands.search.field import VectorField, TextField, TagField
-from redis.commands.search.index_definition import IndexDefinition, IndexType
+try:
+    from redis.commands.search.indexDefinition import IndexDefinition, IndexType
+except ImportError:
+    from redis.commands.search.index_definition import IndexDefinition, IndexType
 from redis.commands.search.query import Query
 import numpy as np
-import os
+
+
+load_dotenv()
+
+REQUIRED_ENVS = ["REDIS_HOST", "REDIS_PORT", "REDIS_PASSWORD"]
+_missing = [env for env in REQUIRED_ENVS if not os.getenv(env)]
+if _missing:
+    pytest.skip(
+        f"Skipping Redis integration tests; missing environment variables: {', '.join(_missing)}",
+        allow_module_level=True,
+    )
+
+
+def require_env(name: str) -> str:
+    """Fetch required environment variable"""
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
 
 # Redis connection details from environment
-REDIS_HOST = os.getenv('REDIS_HOST', 'redis-545d8fdb508d4.eastus.redis.azure.net')
-REDIS_PORT = int(os.getenv('REDIS_PORT', '10000'))
-REDIS_PASSWORD = os.getenv('REDIS_PASSWORD')
-
-if not REDIS_PASSWORD:
-    raise ValueError("REDIS_PASSWORD environment variable must be set")
+REDIS_HOST = require_env('REDIS_HOST')
+REDIS_PORT = int(require_env('REDIS_PORT'))
+REDIS_PASSWORD = require_env('REDIS_PASSWORD')
 
 def test_connection():
     """Test basic Redis connection"""

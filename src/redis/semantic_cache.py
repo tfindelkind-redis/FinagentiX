@@ -10,7 +10,7 @@ from typing import Optional, Dict, Any, List
 import numpy as np
 from redis import Redis
 
-from .client import get_redis_client
+from .client import RedisConfig
 
 # Import search modules - will gracefully degrade if not available
 try:
@@ -40,7 +40,7 @@ class SemanticCache:
         index_name: str = "idx:semantic_cache",
         prefix: str = "cache:",
         similarity_threshold: float = 0.92,
-        ttl_seconds: int = 3600 * 24 * 7,  # 7 days
+        ttl_seconds: int = 300,  # 5 minutes
     ):
         """
         Initialize semantic cache
@@ -52,7 +52,33 @@ class SemanticCache:
             similarity_threshold: Minimum similarity for cache hit (0.0-1.0)
             ttl_seconds: Time to live for cache entries
         """
-        self.redis = redis_client or get_redis_client()
+        if redis_client is not None:
+            # Prefer provided client when it already handles binary payloads.
+            decode_flag = getattr(getattr(redis_client, "connection_pool", None), "connection_kwargs", {}).get("decode_responses")
+            if decode_flag:
+                # Create a binary-safe clone so vector blobs remain intact.
+                config = RedisConfig()
+                self.redis = Redis(
+                    host=config.host,
+                    port=config.port,
+                    password=config.password,
+                    ssl=config.ssl,
+                    decode_responses=False,
+                    max_connections=config.max_connections,
+                )
+            else:
+                self.redis = redis_client
+        else:
+            # Default to a binary-safe client for vector operations.
+            config = RedisConfig()
+            self.redis = Redis(
+                host=config.host,
+                port=config.port,
+                password=config.password,
+                ssl=config.ssl,
+                decode_responses=False,
+                max_connections=config.max_connections,
+            )
         self.index_name = index_name
         self.prefix = prefix
         self.similarity_threshold = similarity_threshold
@@ -269,15 +295,19 @@ class SemanticCache:
             print(f"❌ Error getting cache stats: {e}")
             return {}
     
-    def clear(self):
-        """Clear all cache entries"""
+    def clear(self, pattern: Optional[str] = None) -> int:
+        """Clear cache entries matching the optional pattern and return count."""
+        key_pattern = f"{self.prefix}{pattern or '*'}"
         try:
-            cache_keys = list(self.redis.scan_iter(f"{self.prefix}*"))
+            cache_keys = list(self.redis.scan_iter(key_pattern, count=1000))
+            cleared = len(cache_keys)
             if cache_keys:
                 self.redis.delete(*cache_keys)
-            print(f"✅ Cleared {len(cache_keys)} cache entries")
+            print(f"✅ Cleared {cleared} semantic cache entries")
+            return cleared
         except Exception as e:
             print(f"❌ Error clearing cache: {e}")
+            return 0
 
 
 if __name__ == "__main__":

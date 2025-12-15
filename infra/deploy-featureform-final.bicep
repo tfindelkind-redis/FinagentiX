@@ -2,7 +2,7 @@
 targetScope = 'resourceGroup'
 
 param location string = resourceGroup().location
-param resourceToken string = '545d8fdb508d4'
+param resourceToken string
 @secure()
 param redisPassword string
 

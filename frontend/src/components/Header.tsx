@@ -1,4 +1,5 @@
 import { Activity } from 'lucide-react'
+import CacheControls from './CacheControls'
 import './Header.css'
 
 export default function Header() {
@@ -10,10 +11,13 @@ export default function Header() {
           <h1>FinagentiX</h1>
           <span className="header-subtitle">AI Financial Assistant</span>
         </div>
-        <div className="header-status">
-          <div className="status-indicator">
-            <span className="status-dot status-online"></span>
-            <span className="status-text">Online</span>
+        <div className="header-actions">
+          <CacheControls />
+          <div className="header-status">
+            <div className="status-indicator">
+              <span className="status-dot status-online"></span>
+              <span className="status-text">Online</span>
+            </div>
           </div>
         </div>
       </div>

@@ -160,7 +160,7 @@ A **real-time AI trading agent system** that combines multiple specialized agent
   - sec-filings container: 253 blobs (225.3 MB)
   - Total size: 226.2 MB
   - 100% success rate
-- **Storage Account**: st545d8fdb508d4 (finagentix-dev-rg)
+- **Storage Account**: st<RESOURCE_ID> (finagentix-dev-rg)
 - **Committed**: ✅ Yes (commit f8f94d2)
 
 **Data Summary**:
@@ -176,13 +176,13 @@ A **real-time AI trading agent system** that combines multiple specialized agent
 
 #### Azure OpenAI Service ✅
 - **Status**: Complete
-- **Service Name**: openai-545d8fdb508d4
+- **Service Name**: openai-<RESOURCE_ID>
 - **Resource Group**: finagentix-dev-rg
 - **Location**: East US
 - **SKU**: S0 (Standard)
-- **Endpoint**: https://openai-545d8fdb508d4.openai.azure.com/
+- **Endpoint**: https://openai-<RESOURCE_ID>.openai.azure.com/
 - **API Version**: 2024-08-01-preview
-- **Custom Subdomain**: openai-545d8fdb508d4
+- **Custom Subdomain**: openai-<RESOURCE_ID>
 - **Network Access**: Enabled (public for development)
 - **Deployment Method**: Azure CLI (due to Bicep deployment bug)
 - **Deployed**: 2025-12-08
@@ -236,7 +236,7 @@ A **real-time AI trading agent system** that combines multiple specialized agent
 ### Stage 4: Feature Engineering & Vector Indexing 🔄 (IN PROGRESS)
 
 #### Redis Enterprise Infrastructure ✅
-- **Cluster**: redis-545d8fdb508d4.eastus.redis.azure.net
+- **Cluster**: redis-<RESOURCE_ID>.eastus.redis.azure.net
 - **SKU**: Balanced_B5
 - **Port**: 10000 (SSL/TLS)
 - **Redis Version**: 7.4.3

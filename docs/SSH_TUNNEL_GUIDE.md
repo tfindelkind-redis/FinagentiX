@@ -15,7 +15,7 @@ Use SSH tunnel through the debug VM that's already running in the Azure VNet.
 ssh azureuser@4.227.91.227
 
 # 2. If that works, create the tunnel (in a separate terminal):
-ssh -L 8443:openai-545d8fdb508d4.openai.azure.com:443 -N azureuser@4.227.91.227
+ssh -L 8443:openai-<RESOURCE_ID>.openai.azure.com:443 -N azureuser@4.227.91.227
 
 # 3. Keep this terminal open! The tunnel stays active.
 ```
@@ -37,7 +37,7 @@ Once the tunnel is running, update your `.env` file:
 
 ```bash
 # Change from:
-AZURE_OPENAI_ENDPOINT=https://openai-545d8fdb508d4.openai.azure.com/
+AZURE_OPENAI_ENDPOINT=https://openai-<RESOURCE_ID>.openai.azure.com/
 
 # To:
 AZURE_OPENAI_ENDPOINT=https://localhost:8443/
@@ -64,12 +64,12 @@ Once tunnel is active:
 
 ```bash
 # Terminal 1: Keep tunnel running
-ssh -L 8443:openai-545d8fdb508d4.openai.azure.com:443 -N azureuser@4.227.91.227
+ssh -L 8443:openai-<RESOURCE_ID>.openai.azure.com:443 -N azureuser@4.227.91.227
 
 # Terminal 2: Update .env and test
 cat > .env << 'EOF'
 AZURE_OPENAI_ENDPOINT=https://localhost:8443/
-AZURE_OPENAI_API_KEY=a72469a7210c4c6286beddca96f37d62
+AZURE_OPENAI_API_KEY=<your-api-key>
 AZURE_OPENAI_API_VERSION=2024-08-01-preview
 AZURE_OPENAI_GPT4_DEPLOYMENT=gpt-4o
 AZURE_OPENAI_CHAT_DEPLOYMENT=gpt-4o
@@ -92,7 +92,7 @@ python test_azure_connection.py
 - **User:** azureuser
 - **Location:** westus3
 - **Resource Group:** FINAGENTIX-DEV-RG
-- **Name:** debug-vm-3ae172dc9e9da
+- **Name:** debug-vm-<RESOURCE_ID>
 - **Status:** Running ✅
 
 ## Get VM Password
@@ -103,7 +103,7 @@ If you don't have the password:
 # Reset the password
 az vm user update \
   -g FINAGENTIX-DEV-RG \
-  -n debug-vm-3ae172dc9e9da \
+  -n debug-vm-<RESOURCE_ID> \
   -u azureuser \
   -p 'YourNewPassword123!'
 ```
@@ -113,7 +113,7 @@ az vm user update \
 ### Can't connect to VM
 ```bash
 # Check VM is running
-az vm get-instance-view -g FINAGENTIX-DEV-RG -n debug-vm-3ae172dc9e9da --query instanceView.statuses
+az vm get-instance-view -g FINAGENTIX-DEV-RG -n debug-vm-<RESOURCE_ID> --query instanceView.statuses
 ```
 
 ### SSH timeout
@@ -128,7 +128,7 @@ We'll need to modify the code to skip SSL verification for localhost. Let me kno
 
 1. ✅ Get VM password (or reset it)
 2. ✅ Test SSH connection: `ssh azureuser@4.227.91.227`
-3. ✅ Create tunnel: `ssh -L 8443:openai-545d8fdb508d4.openai.azure.com:443 -N azureuser@4.227.91.227`
+3. ✅ Create tunnel: `ssh -L 8443:openai-<RESOURCE_ID>.openai.azure.com:443 -N azureuser@4.227.91.227`
 4. ✅ Update .env with `AZURE_OPENAI_ENDPOINT=https://localhost:8443/`
 5. ✅ Test: `python test_azure_connection.py`
 6. ✅ Run server and test agents!

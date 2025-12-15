@@ -20,9 +20,9 @@ Date: December 8, 2025
   - Full error handling
 
 ### 2. Deployed Featureform to Azure ✅
-- **Container Apps Environment**: `cae-545d8fdb508d4` (Internal-only)
-- **Featureform App**: `featureform-545d8fdb508d4`
-- **URL**: `https://featureform-545d8fdb508d4.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io`
+- **Container Apps Environment**: `cae-<RESOURCE_ID>` (Internal-only)
+- **Featureform App**: `featureform-<RESOURCE_ID>`
+- **URL**: `https://featureform-<RESOURCE_ID>.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io`
 - **Redis Integration**: DB 2 (metadata) + DB 0 (online store)
 - **Status**: Running successfully
 
@@ -56,7 +56,7 @@ Date: December 8, 2025
 ```bash
 REDIS_PASSWORD=$(az redisenterprise database list-keys \
   -g finagentix-dev-rg \
-  --cluster-name redis-545d8fdb508d4 \
+  --cluster-name redis-<RESOURCE_ID> \
   --query "primaryKey" -o tsv)
 
 az deployment group create \
@@ -64,7 +64,7 @@ az deployment group create \
   --template-file infra/deploy-featureform-final.bicep \
   --parameters \
     location=eastus \
-    resourceToken=545d8fdb508d4 \
+    resourceToken=<RESOURCE_ID> \
     redisPassword="$REDIS_PASSWORD"
 ```
 
@@ -117,14 +117,14 @@ az deployment group create \
 # Check deployment status
 az containerapp show \
   -g finagentix-dev-rg \
-  -n featureform-545d8fdb508d4 \
+  -n featureform-<RESOURCE_ID> \
   --query "{Name:name, Status:properties.runningStatus, URL:properties.configuration.ingress.fqdn}"
 
 # Expected output:
 {
-  "Name": "featureform-545d8fdb508d4",
+  "Name": "featureform-<RESOURCE_ID>",
   "Status": "Running",
-  "URL": "featureform-545d8fdb508d4.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io"
+  "URL": "featureform-<RESOURCE_ID>.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io"
 }
 ```
 
@@ -173,14 +173,14 @@ The `featureform` Python package (v1.15.8) is not compatible with Python 3.13:
 ```
 ┌────────────────────────────────────────────────────┐
 │  Azure Container Apps Environment                   │
-│  (cae-545d8fdb508d4)                               │
+│  (cae-<RESOURCE_ID>)                               │
 │  - Internal-only (no public IP)                    │
 │  - VNet: container-apps-subnet (10.0.4.0/23)       │
-│  - Log Analytics: log-545d8fdb508d4                │
+│  - Log Analytics: log-<RESOURCE_ID>                │
 │                                                     │
 │  ┌──────────────────────────────────────────────┐ │
 │  │  Featureform Container App                    │ │
-│  │  (featureform-545d8fdb508d4)                 │ │
+│  │  (featureform-<RESOURCE_ID>)                 │ │
 │  │                                                │ │
 │  │  Image: featureformcom/featureform:latest    │ │
 │  │  CPU: 1.0, Memory: 2GB                        │ │
@@ -194,7 +194,7 @@ The `featureform` Python package (v1.15.8) is not compatible with Python 3.13:
                     ↓ (SSL/TLS)
 ┌────────────────────────────────────────────────────┐
 │  Redis Enterprise                                   │
-│  (redis-545d8fdb508d4.eastus.redis.azure.net)      │
+│  (redis-<RESOURCE_ID>.eastus.redis.azure.net)      │
 │  - DB 0: Online Feature Store                      │
 │  - DB 2: Metadata Store                            │
 │  - Port: 10000 (SSL)                               │
@@ -210,7 +210,7 @@ The `featureform` Python package (v1.15.8) is not compatible with Python 3.13:
 # Delete existing app
 az containerapp delete \
   -g finagentix-dev-rg \
-  -n featureform-545d8fdb508d4 \
+  -n featureform-<RESOURCE_ID> \
   --yes
 
 # Re-run deployment script
@@ -222,7 +222,7 @@ az containerapp delete \
 # Delete environment (will also delete apps)
 az containerapp env delete \
   -g finagentix-dev-rg \
-  -n cae-545d8fdb508d4 \
+  -n cae-<RESOURCE_ID> \
   --yes
 
 # Wait for deletion to complete (30-60 seconds)
@@ -332,13 +332,13 @@ The automated deployment script ensures that Featureform can be deployed reliabl
 ./infra/scripts/deploy-featureform.sh
 
 # Check status
-az containerapp show -g finagentix-dev-rg -n featureform-545d8fdb508d4
+az containerapp show -g finagentix-dev-rg -n featureform-<RESOURCE_ID>
 
 # View logs
-az containerapp logs show -g finagentix-dev-rg -n featureform-545d8fdb508d4 --tail 100
+az containerapp logs show -g finagentix-dev-rg -n featureform-<RESOURCE_ID> --tail 100
 
 # Featureform URL
-https://featureform-545d8fdb508d4.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io
+https://featureform-<RESOURCE_ID>.victoriousdune-76bc4f5c.eastus.azurecontainerapps.io
 ```
 
 ---

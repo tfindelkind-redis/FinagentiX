@@ -15,13 +15,24 @@ import time
 from datetime import datetime
 from dotenv import load_dotenv
 
-# Load environment variables
+
 load_dotenv()
+
+
+def require_env(name: str) -> str:
+    """Fetch required environment variable"""
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
 
 from azure.storage.blob import BlobServiceClient
 import redis
 from redis.commands.search.field import VectorField, TextField, TagField, NumericField
-from redis.commands.search.index_definition import IndexDefinition, IndexType
+try:
+    from redis.commands.search.indexDefinition import IndexDefinition, IndexType
+except ImportError:
+    from redis.commands.search.index_definition import IndexDefinition, IndexType
 from redis.commands.search.query import Query
 import numpy as np
 from openai import AzureOpenAI
@@ -430,17 +441,15 @@ def main():
     print("=" * 60)
     
     config = Config(
-        azure_openai_endpoint=os.getenv('AZURE_OPENAI_ENDPOINT',
-                                        'https://openai-545d8fdb508d4.openai.azure.com/'),
-        azure_openai_key=os.getenv('AZURE_OPENAI_API_KEY',
-                                   'a72469a7210c4c6286beddca96f37d62'),
-        redis_host=os.getenv('REDIS_HOST',
-                            'redis-545d8fdb508d4.eastus.redis.azure.net'),
-        redis_port=int(os.getenv('REDIS_PORT', '10000')),
+        azure_openai_endpoint=require_env('AZURE_OPENAI_ENDPOINT'),
+        azure_openai_key=require_env('AZURE_OPENAI_API_KEY'),
+        redis_host=require_env('REDIS_HOST'),
+        redis_port=int(require_env('REDIS_PORT')),
         redis_password=os.getenv('REDIS_PASSWORD'),
-        storage_account_name=os.getenv('AZURE_STORAGE_ACCOUNT_NAME',
-                                       'st545d8fdb508d4'),
-        storage_account_key=os.getenv('AZURE_STORAGE_ACCOUNT_KEY', '')
+        storage_account_name=require_env('AZURE_STORAGE_ACCOUNT_NAME'),
+        storage_account_key=require_env('AZURE_STORAGE_ACCOUNT_KEY'),
+        embedding_deployment=require_env('AZURE_OPENAI_EMBEDDING_DEPLOYMENT'),
+        api_version=require_env('AZURE_OPENAI_API_VERSION')
     )
     
     # Get storage key if not provided

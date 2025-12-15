@@ -10,7 +10,7 @@ Usage:
     python upload_to_azure.py --type stock_data
     python upload_to_azure.py --type news_articles
     python upload_to_azure.py --type sec_filings
-    python upload_to_azure.py --storage-account st545d8fdb508d4 --resource-group finagentix-dev-rg
+    python upload_to_azure.py --storage-account <storage-account-name> --resource-group finagentix-dev-rg
 
 Requirements:
     - Azure CLI installed and authenticated (az login)
@@ -18,13 +18,16 @@ Requirements:
 """
 
 import argparse
+import hashlib
 import json
 import logging
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-import hashlib
+
+from dotenv import load_dotenv
 
 try:
     from azure.storage.blob import BlobServiceClient, ContentSettings
@@ -32,6 +35,17 @@ try:
 except ImportError:
     print("Error: azure-storage-blob not installed. Run: pip install azure-storage-blob azure-identity")
     sys.exit(1)
+
+
+load_dotenv()
+
+
+def require_env(name: str) -> str:
+    """Fetch required environment variable"""
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
 
 
 class AzureUploader:
@@ -341,8 +355,8 @@ Examples:
     
     parser.add_argument(
         '--storage-account',
-        default='st545d8fdb508d4',
-        help='Azure storage account name (default: st545d8fdb508d4)'
+        default=os.getenv('AZURE_STORAGE_ACCOUNT_NAME'),
+        help='Azure storage account name (defaults to AZURE_STORAGE_ACCOUNT_NAME)'
     )
     
     parser.add_argument(
@@ -364,6 +378,9 @@ Examples:
     )
     
     args = parser.parse_args()
+
+    if not args.storage_account:
+        args.storage_account = require_env('AZURE_STORAGE_ACCOUNT_NAME')
     
     # Validate arguments
     if not args.all and not args.type:

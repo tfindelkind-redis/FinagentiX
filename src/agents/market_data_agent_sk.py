@@ -10,6 +10,8 @@ from semantic_kernel.agents import ChatCompletionAgent
 from semantic_kernel.contents import ChatMessageContent, AuthorRole
 import redis
 
+from ..utils.logger import AgentDebugger
+
 from .sk_config import get_global_config
 from .plugins.market_data_plugin import MarketDataPlugin
 
@@ -53,6 +55,9 @@ class MarketDataAgentSK:
         # Create Market Data Plugin
         self.plugin = MarketDataPlugin(self.redis_client)
         
+        # Set up agent debugger for detailed logging
+        self.debugger = AgentDebugger("MarketDataAgent")
+
         # Agent instructions
         instructions = """You are a Market Data Agent specializing in financial market analysis.
 
@@ -86,6 +91,13 @@ Always use the appropriate tool to get real data before responding. Never make u
             instructions=instructions,
             plugins=[self.plugin]
         )
+
+        # Log initial configuration details when debugging is enabled
+        self.debugger.log_config({
+            "kernel_provided": kernel is not None,
+            "redis_provided": redis_client is not None,
+            "instructions_length": len(instructions)
+        })
     
     async def analyze(self, query: str) -> str:
         """
@@ -98,6 +110,8 @@ Always use the appropriate tool to get real data before responding. Never make u
             Analysis result as string
         """
         try:
+            self.debugger.log_query(query)
+
             # Create chat history
             history = []
             
@@ -112,11 +126,14 @@ Always use the appropriate tool to get real data before responding. Never make u
             # Invoke agent
             async for message in self.agent.invoke(history):
                 if message.role == AuthorRole.ASSISTANT:
-                    return message.content
+                    response = message.content or ""
+                    self.debugger.log_response(response)
+                    return response
             
             return "No response generated"
             
         except Exception as e:
+            self.debugger.log_error(e)
             return f"Error analyzing query: {str(e)}"
     
     async def analyze_ticker(self, ticker: str, days: int = 30) -> Dict[str, Any]:
@@ -131,15 +148,26 @@ Always use the appropriate tool to get real data before responding. Never make u
             Dictionary with comprehensive analysis
         """
         try:
+            self.debugger.log_metric("analyze_ticker_days", days)
+
             # Get current price
+            self.debugger.log_tool_call("get_stock_price", {"ticker": ticker, "metric": "close"})
             current = await self.plugin.get_stock_price(ticker, "close")
+            self.debugger.log_tool_result("get_stock_price", current)
             
             # Get price history and change
+            self.debugger.log_tool_call("get_price_history", {"ticker": ticker, "days": days})
             history = await self.plugin.get_price_history(ticker, days=days)
+            self.debugger.log_tool_result("get_price_history", history)
+
+            self.debugger.log_tool_call("get_price_change", {"ticker": ticker, "days": days})
             change = await self.plugin.get_price_change(ticker, days=days)
+            self.debugger.log_tool_result("get_price_change", change)
             
             # Get volume analysis
+            self.debugger.log_tool_call("get_volume_analysis", {"ticker": ticker, "days": days})
             volume = await self.plugin.get_volume_analysis(ticker, days=days)
+            self.debugger.log_tool_result("get_volume_analysis", volume)
             
             # Compile analysis
             analysis = {
@@ -171,6 +199,7 @@ Provide 2-3 sentences summarizing the current market position and trend."""
             return analysis
             
         except Exception as e:
+            self.debugger.log_error(e)
             return {
                 "ticker": ticker.upper(),
                 "success": False,
@@ -189,10 +218,14 @@ Provide 2-3 sentences summarizing the current market position and trend."""
             Dictionary with comparison analysis
         """
         try:
+            self.debugger.log_metric("compare_tickers_days", days)
+
             # Get data for all tickers
             ticker_data = []
             for ticker in tickers:
+                self.debugger.log_tool_call("get_price_change", {"ticker": ticker, "days": days})
                 change = await self.plugin.get_price_change(ticker, days=days)
+                self.debugger.log_tool_result("get_price_change", change)
                 if change.get("success"):
                     ticker_data.append({
                         "ticker": ticker.upper(),
@@ -235,6 +268,7 @@ Provide a brief 2-3 sentence comparison highlighting the best and worst performe
             }
             
         except Exception as e:
+            self.debugger.log_error(e)
             return {
                 "tickers": tickers,
                 "success": False,

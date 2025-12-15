@@ -13,40 +13,40 @@
 - **Total Resources:** 24 deployed and operational
 - **Deployment Time:** ~12-15 minutes
 - **Region:** West US 3 (migrated from East US due to quota)
-- **Resource Token:** 3ae172dc9e9da
+- **Resource Token:** <RESOURCE_ID>
 
 ### Core Components Deployed
 
 #### ✅ Redis Enterprise
-- **Name:** redis-3ae172dc9e9da
+- **Name:** redis-<RESOURCE_ID>
 - **SKU:** Balanced_B5
-- **Endpoint:** redis-3ae172dc9e9da.westus3.redisenterprise.cache.azure.net:10000
+- **Endpoint:** redis-<RESOURCE_ID>.westus3.redisenterprise.cache.azure.net:10000
 - **Modules:** RediSearch, RedisJSON, RedisTimeSeries, RedisBloom
 - **Status:** Running
 
 #### ✅ Featureform Feature Store
-- **Name:** featureform-3ae172dc9e9da
+- **Name:** featureform-<RESOURCE_ID>
 - **Type:** Azure Container Apps
 - **Replicas:** 3 (minimum 1)
 - **Status:** Running
 - **Access:** Internal-only (VNet)
-- **Internal URL:** featureform-3ae172dc9e9da.internal.westus3.azurecontainerapps.io
+- **Internal URL:** featureform-<RESOURCE_ID>.internal.westus3.azurecontainerapps.io
 - **Definitions:** ✅ Applied successfully
 
 #### ✅ Azure OpenAI
-- **Name:** openai-3ae172dc9e9da
+- **Name:** openai-<RESOURCE_ID>
 - **Models:** GPT-4, text-embedding-3-large
 - **Private Endpoint:** Enabled
 - **Status:** Running
 
 #### ✅ Storage Account
-- **Name:** st3ae172dc9e9da
+- **Name:** st<RESOURCE_ID>
 - **Private Endpoint:** Enabled
 - **Purpose:** SEC filings, news articles
 - **Status:** Running
 
 #### ✅ Debug VM
-- **Name:** debug-vm-3ae172dc9e9da
+- **Name:** debug-vm-<RESOURCE_ID>
 - **Size:** Standard_B1s (1 vCPU, 1 GB RAM)
 - **OS:** Ubuntu 22.04 LTS
 - **Public IP:** 4.227.91.227
@@ -56,15 +56,15 @@
 - **Status:** Running
 
 ### Networking
-- **VNet:** vnet-3ae172dc9e9da (10.0.0.0/16)
+- **VNet:** vnet-<RESOURCE_ID> (10.0.0.0/16)
 - **Subnets:** 6 (redis, openai, storage, container-apps, vm, private-endpoints)
 - **Private DNS Zones:** 3 (Redis, OpenAI, Storage)
 - **Private Endpoints:** All core services
 - **NSGs:** Container Apps + VM
 
 ### Monitoring
-- **Log Analytics:** log-3ae172dc9e9da
-- **Application Insights:** appi-3ae172dc9e9da
+- **Log Analytics:** log-<RESOURCE_ID>
+- **Application Insights:** appi-<RESOURCE_ID>
 - **Failure Anomaly Detection:** Enabled
 
 ---
@@ -139,7 +139,7 @@ export SKIP_CONFIRM=1
 
 ### What Was Registered
 1. **Redis Provider** (azure-redis-online)
-   - Host: redis-3ae172dc9e9da.westus3.redisenterprise.cache.azure.net
+   - Host: redis-<RESOURCE_ID>.westus3.redisenterprise.cache.azure.net
    - Port: 10000
    - Database: 0
    - Password: Retrieved from Azure automatically
@@ -261,8 +261,8 @@ news:{article_id}
 # Create new container app for agent runtime
 az containerapp create \
   -g finagentix-dev-rg \
-  -n agent-runtime-3ae172dc9e9da \
-  --environment cae-3ae172dc9e9da \
+  -n agent-runtime-<RESOURCE_ID> \
+  --environment cae-<RESOURCE_ID> \
   --image <your-agent-image> \
   --target-port 8000 \
   --ingress internal
@@ -271,7 +271,7 @@ az containerapp create \
 **Option B: Azure Functions**
 ```bash
 # Deploy as Python Functions
-func azure functionapp publish finagentix-agents-3ae172dc9e9da
+func azure functionapp publish finagentix-agents-<RESOURCE_ID>
 ```
 
 **Components to Deploy:**
@@ -414,15 +414,15 @@ func azure functionapp publish finagentix-agents-3ae172dc9e9da
 - **Region:** West US 3
 
 ### Endpoints
-- **Redis:** redis-3ae172dc9e9da.westus3.redisenterprise.cache.azure.net:10000
-- **Featureform Internal:** featureform-3ae172dc9e9da.internal.westus3.azurecontainerapps.io
-- **Featureform Public:** featureform-3ae172dc9e9da.lemonpond-bf9ae03d.westus3.azurecontainerapps.io
-- **OpenAI:** openai-3ae172dc9e9da.openai.azure.com
-- **Storage:** st3ae172dc9e9da.blob.core.windows.net
+- **Redis:** redis-<RESOURCE_ID>.westus3.redisenterprise.cache.azure.net:10000
+- **Featureform Internal:** featureform-<RESOURCE_ID>.internal.westus3.azurecontainerapps.io
+- **Featureform Public:** featureform-<RESOURCE_ID>.lemonpond-bf9ae03d.westus3.azurecontainerapps.io
+- **OpenAI:** openai-<RESOURCE_ID>.openai.azure.com
+- **Storage:** st<RESOURCE_ID>.blob.core.windows.net
 
 ### Access
 - **VM SSH:** `ssh azureuser@4.227.91.227` (password: DebugVM2024!@#)
-- **Get Redis Password:** `az redisenterprise database list-keys -g finagentix-dev-rg --cluster-name redis-3ae172dc9e9da --query "primaryKey" -o tsv`
+- **Get Redis Password:** `az redisenterprise database list-keys -g finagentix-dev-rg --cluster-name redis-<RESOURCE_ID> --query "primaryKey" -o tsv`
 
 ### Repository
 - **GitHub:** https://github.com/tfindelkind-redis/FinagentiX
@@ -460,15 +460,15 @@ ssh azureuser@4.227.91.227
 ```bash
 # Redis password
 az redisenterprise database list-keys -g finagentix-dev-rg \
-  --cluster-name redis-3ae172dc9e9da --query "primaryKey" -o tsv
+  --cluster-name redis-<RESOURCE_ID> --query "primaryKey" -o tsv
 
 # OpenAI key
 az cognitiveservices account keys list -g finagentix-dev-rg \
-  -n openai-3ae172dc9e9da --query "key1" -o tsv
+  -n openai-<RESOURCE_ID> --query "key1" -o tsv
 
 # Storage key
 az storage account keys list -g finagentix-dev-rg \
-  -n st3ae172dc9e9da --query "[0].value" -o tsv
+  -n st<RESOURCE_ID> --query "[0].value" -o tsv
 ```
 
 ### Cleanup

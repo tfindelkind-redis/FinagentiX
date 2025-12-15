@@ -1,77 +1,67 @@
 # Applying Featureform Definitions
 
-## Quickstart - One Command
+## Quickstart (recommended)
+
+Run the helper script from your workstation:
 
 ```bash
-# Get Redis password and store it
-export REDIS_PASSWORD=$(az redisenterprise database list-keys \
-  -g finagentix-dev-rg \
-  --cluster-name redis-545d8fdb508d4 \
-  --query "primaryKey" -o tsv)
-
-# Connect to debug pod
-az container exec -g finagentix-dev-rg -n debug-pod-545d8fdb508d4 --exec-command /bin/bash
+./infra/scripts/connect-and-apply.sh
 ```
 
-## Inside the Debug Pod
+The script retrieves Redis credentials, copies an execution script to the debug VM, and runs `featureform/definitions.py` from inside the VNet.
 
-Once connected, run these commands:
+## Manual workflow
 
-```bash
-# Install dependencies
-pip3 install -q featureform redis python-dotenv requests
+1. Retrieve the Redis password:
+   ```bash
+   export REDIS_PASSWORD=$(az redisenterprise database list-keys \
+     -g finagentix-<env>-rg \
+     --cluster-name redis-<resource-token> \
+     --query primaryKey -o tsv)
+   ```
+2. SSH to the debug VM:
+   ```bash
+   ssh azureuser@<vm-public-ip>
+   ```
+3. On the VM, apply the definitions:
+   ```bash
+   cd /tmp
+   if [ -d FinagentiX ]; then
+     cd FinagentiX && git pull && cd ..
+   else
+     git clone https://github.com/tfindelkind-redis/FinagentiX.git
+   fi
+   cd FinagentiX
 
-# Clone repository
-git clone https://github.com/tfindelkind-redis/FinagentiX.git /tmp/FinagentiX
-cd /tmp/FinagentiX
+   export FEATUREFORM_HOST="featureform-<resource-token>.internal.<region>.azurecontainerapps.io"
+   export REDIS_HOST="redis-<resource-token>.<region>.redisenterprise.cache.azure.net"
+   export REDIS_PORT=10000
+   export REDIS_PASSWORD=$REDIS_PASSWORD
 
-# Set environment variables
-export FEATUREFORM_HOST="featureform-545d8fdb508d4.internal.azurecontainerapps.io"
-export REDIS_HOST="redis-545d8fdb508d4.eastus.redis.azure.net"
-export REDIS_PORT="10000"
-export REDIS_PASSWORD="<paste-the-password-from-your-terminal>"
-
-# Apply definitions
-python3 featureform/definitions.py
-```
-
-## Why Not Fully Automated?
-
-The debug pod runs **inside Azure's VNet** (private IP: 10.0.6.4), so:
-- SSH from your local machine → ❌ Can't reach private IP
-- `az container exec` with piping → ❌ Command parsing issues
-- **Interactive `az container exec`** → ✅ **Works perfectly**
-
-For CI/CD, you can use Azure DevOps agents or GitHub Actions runners **inside the VNet**.
+   python featureform/definitions.py
+   ```
 
 ## Verification
 
-After applying definitions, verify they were registered:
+After the script finishes, verify the resources:
 
 ```bash
-# Inside debug pod
-python3 << 'EOF'
+python <<'EOF2'
 import featureform as ff
 import os
 
 client = ff.Client(host=os.getenv("FEATUREFORM_HOST"), insecure=True)
 features = client.list_features()
-print(f"✅ Registered {len(features)} features:")
-for f in features:
-    print(f"  - {f.name}")
-EOF
+print(f"Found {len(features)} features")
+for feature in features:
+    print(f" - {feature.name}")
+EOF2
 ```
-
-## Next Steps
-
-1. **Apply Definitions**: Run the commands above
-2. **Verify Features**: Check that features were registered
-3. **Update Agents**: Modify agent code to use Featureform client
-4. **Test Retrieval**: Fetch features from agents
 
 ## Troubleshooting
 
-If definitions fail to apply:
-- Check Featureform server logs: `az containerapp logs show -g finagentix-dev-rg -n featureform-545d8fdb508d4`
-- Verify Redis connectivity: `redis-cli -h redis-545d8fdb508d4.eastus.redis.azure.net -p 10000 --tls -a $REDIS_PASSWORD PING`
-- Test Featureform connectivity: `curl http://featureform-545d8fdb508d4.internal.azurecontainerapps.io`
+- Check Featureform: `az containerapp logs show -g finagentix-<env>-rg -n featureform-<resource-token>`
+- Validate Redis: `redis-cli -h redis-<resource-token>.<region>.redisenterprise.cache.azure.net -p 10000 --tls -a $REDIS_PASSWORD PING`
+- Confirm DNS from VM: `dig featureform-<resource-token>.internal.<region>.azurecontainerapps.io`
+
+```

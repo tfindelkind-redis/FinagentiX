@@ -133,7 +133,7 @@ Both agents follow the validated Phase 1 pattern:
 
 ### LLM Integration
 - **Model**: GPT-4o (gpt-4o-2024-11-20)
-- **Deployment**: Azure OpenAI (openai-3ae172dc9e9da)
+- **Deployment**: Azure OpenAI (openai-<RESOURCE_ID>)
 - **Instructions**: Comprehensive prompts for each agent
 - **Tool Use**: Automatic kernel function invocation by GPT-4o
 

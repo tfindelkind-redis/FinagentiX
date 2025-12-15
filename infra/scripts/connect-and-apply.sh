@@ -5,6 +5,8 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 echo "========================================="
 echo "Connect to VM and Apply Definitions"
 echo "========================================="
@@ -28,6 +30,24 @@ echo "📋 Configuration:"
 echo "  Resource Token: $RESOURCE_TOKEN"
 echo "  Location: $LOCATION"
 echo "  Resource Group: $RESOURCE_GROUP"
+echo ""
+
+# Resolve Featureform endpoint
+FEATUREFORM_HOST=$(az containerapp show -g "$RESOURCE_GROUP" -n "featureform-${RESOURCE_TOKEN}" --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || echo "")
+STATIC_IP=$(az containerapp env show -g "$RESOURCE_GROUP" -n "cae-${RESOURCE_TOKEN}" --query "properties.staticIp" -o tsv 2>/dev/null || echo "")
+
+if [ -n "$FEATUREFORM_HOST" ] && [ "$FEATUREFORM_HOST" != "null" ]; then
+  echo "✅ Featureform host detected: https://$FEATUREFORM_HOST"
+else
+  FEATUREFORM_HOST="featureform-${RESOURCE_TOKEN}.internal.${LOCATION}.azurecontainerapps.io"
+  echo "⚠️  Falling back to internal Featureform host: https://$FEATUREFORM_HOST"
+fi
+
+if [ -n "$STATIC_IP" ] && [ "$STATIC_IP" != "null" ]; then
+  echo "✅ Featureform static IP: $STATIC_IP"
+else
+  echo "⚠️  Could not determine static IP for Container Apps environment"
+fi
 echo ""
 
 # Get Redis password
@@ -86,7 +106,14 @@ echo "========================================="
 echo ""
 
 # Environment variables
-export FEATUREFORM_HOST="featureform-${RESOURCE_TOKEN}.internal.${LOCATION}.azurecontainerapps.io"
+export FEATUREFORM_HOST="__FEATUREFORM_HOST__"
+export FEATUREFORM_STATIC_IP="__FEATUREFORM_STATIC_IP__"
+if [ -n "$FEATUREFORM_STATIC_IP" ]; then
+  if ! grep -q "$FEATUREFORM_HOST" /etc/hosts; then
+    echo "🛠️  Adding hosts entry for $FEATUREFORM_HOST"
+    sudo sh -c "echo '${FEATUREFORM_STATIC_IP} ${FEATUREFORM_HOST}' >> /etc/hosts"
+  fi
+fi
 export REDIS_HOST="redis-${RESOURCE_TOKEN}.${LOCATION}.redisenterprise.cache.azure.net"
 export REDIS_PORT="10000"
 export REDIS_PASSWORD="${REDIS_PASSWORD}"
@@ -120,7 +147,7 @@ import featureform as ff
 import os
 
 try:
-    client = ff.Client(host=os.getenv("FEATUREFORM_HOST"), insecure=True)
+    client = ff.Client(host=os.getenv("FEATUREFORM_HOST"))
     features = client.list_features()
     print(f"✅ Registered {len(features)} features")
     if len(features) > 0:
@@ -141,12 +168,11 @@ EOFSCRIPT
 sed -i '' "s/__RESOURCE_TOKEN__/${RESOURCE_TOKEN}/g" "$TEMP_SCRIPT"
 sed -i '' "s/__REDIS_PASSWORD__/${REDIS_PASSWORD}/g" "$TEMP_SCRIPT"
 sed -i '' "s/__LOCATION__/${LOCATION}/g" "$TEMP_SCRIPT"
+sed -i '' "s/__FEATUREFORM_HOST__/${FEATUREFORM_HOST}/g" "$TEMP_SCRIPT"
+sed -i '' "s/__FEATUREFORM_STATIC_IP__/${STATIC_IP}/g" "$TEMP_SCRIPT"
 
 echo "🚀 Connecting to VM and running setup..."
 echo ""
-echo "📝 You will be prompted for the VM password: DebugVM2024!@#"
-echo ""
-
 # Copy script to VM and execute
 scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
   "$TEMP_SCRIPT" "azureuser@${VM_IP}:/tmp/apply-definitions.sh"

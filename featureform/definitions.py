@@ -35,8 +35,10 @@ if not all([REDIS_HOST, REDIS_PASSWORD]):
 
 print("\n🔧 Registering Redis provider...")
 
+PROVIDER_NAME = os.getenv("REDIS_PROVIDER_NAME", "azure-redis-online")
+
 redis = ff.register_redis(
-    name="azure-redis-online",
+    name=PROVIDER_NAME,
     description="Azure Redis Enterprise for online feature serving",
     host=REDIS_HOST,
     port=REDIS_PORT,
@@ -44,7 +46,7 @@ redis = ff.register_redis(
     db=0
 )
 
-print(f"✅ Redis provider registered: azure-redis-online")
+print(f"✅ Redis provider registered: {PROVIDER_NAME}")
 
 # ============================================================================
 # ENTITIES - Define entity types
@@ -74,8 +76,7 @@ print("\n🚀 Applying definitions to Featureform...")
 print(f"   Connecting to: {os.getenv('FEATUREFORM_HOST', 'localhost:7878')}")
 
 try:
-    # This will connect to the Featureform server and apply all definitions
-    # The @ff.entity and other decorators automatically register with Featureform
+    # The decorators trigger registration when executed within the Featureform client context
     print("\n✅ Definitions applied successfully!")
     print("\n" + "=" * 60)
     print("Feature Registration Complete")

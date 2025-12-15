@@ -90,7 +90,15 @@ class DocumentStore:
         self.chunk_overlap = chunk_overlap
         
         if SEARCH_AVAILABLE:
-            asyncio.create_task(self._create_index())
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+
+            if loop and loop.is_running():
+                loop.create_task(self._create_index())
+            else:
+                asyncio.run(self._create_index())
     
     async def _create_index(self) -> None:
         """Create RediSearch index for document vectors."""

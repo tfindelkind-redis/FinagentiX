@@ -37,16 +37,13 @@ from .dependencies import (
     get_contextual_memory,
     get_semantic_router,
     get_azure_openai_client,
+    get_tool_cache,
     get_document_store,
     get_rag_retriever,
 )
-from ..redis import SemanticCache, ContextualMemory, SemanticRouter, DocumentStore
+from ..redis import SemanticCache, ContextualMemory, SemanticRouter, DocumentStore, ToolCache
 from ..redis.rag_retriever import RAGRetriever
 from ..utils.metrics_collector import MetricsCollector
-from ..agents.orchestrations import SequentialOrchestration, ConcurrentOrchestration
-from ..agents.market_data_agent_sk import MarketDataAgentSK
-from ..utils.metrics_collector import MetricsCollector
-from ..utils.cost_tracking import get_cost_calculator
 from ..orchestration.workflows import (
     InvestmentAnalysisWorkflow,
     PortfolioReviewWorkflow,
@@ -127,6 +124,8 @@ async def query_enhanced(
     contextual_memory: ContextualMemory = Depends(get_contextual_memory),
     semantic_router: SemanticRouter = Depends(get_semantic_router),
     openai_client = Depends(get_azure_openai_client),
+    tool_cache: ToolCache = Depends(get_tool_cache),
+    document_store: DocumentStore = Depends(get_document_store),
 ) -> EnhancedQueryResponse:
     """
     Enhanced query endpoint with comprehensive metrics tracking
@@ -181,7 +180,11 @@ async def query_enhanced(
         )
         
         # Record cache check with metrics
-        cache_hit = cached_response.get("cache_hit", False) if cached_response else False
+        cache_hit = bool(
+            cached_response
+            and cached_response.get("cache_hit", False)
+            and cached_response.get("response")
+        )
         metrics.record_cache_check(
             layer_name="semantic_cache",
             hit=cache_hit,
@@ -240,47 +243,177 @@ async def query_enhanced(
         # Step 3: Load user context (with tracking)
         context_event_id = metrics.start_event("context_loading", "User Context")
         user_context = contextual_memory.get_context(request.user_id, include_history=True)
-        metrics.end_event(context_event_id, status="success")
+        user_history_size = len(user_context.get("history", [])) if isinstance(user_context, dict) else None
+        metrics.end_event(
+            context_event_id,
+            status="success",
+            metadata={"history_entries": user_history_size} if user_history_size is not None else None,
+        )
         
         # Step 4: Route query (with tracking)
         routing_event_id = metrics.start_event("routing", "Workflow Routing")
+        route = None
+        routing_status = "success"
         try:
-            route = semantic_router.find_route(request.query)
-            routing_time = metrics.end_event(routing_event_id, status="success")
+            route = semantic_router.find_route(
+                request.query,
+                query_embedding=query_embedding,
+            )
         except Exception as routing_error:
-            routing_time = metrics.end_event(routing_event_id, status="error")
-            route = None
+            routing_status = "error"
+            metrics.add_warning(f"router_error:{routing_error}")
+        routing_time = metrics.end_event(
+            routing_event_id,
+            status="success" if route and routing_status == "success" else routing_status,
+        )
+        metrics.record_cache_check(
+            layer_name="router_cache",
+            hit=route is not None,
+            similarity=route.get("similarity") if route else None,
+            query_time_ms=routing_time,
+            matched_query=route.get("matched_pattern") if route else None,
+            cost_saved=0.0,
+        )
         
-        # Step 5: Execute workflow with actual agents
-        workflow_event_id = metrics.start_event("workflow_execution", "Agent Workflow")
+        derived_ticker = request.ticker or _extract_ticker(request.query)
         
+        # Step 5: Retrieve supporting context (RAG search)
+        rag_context = None
+        rag_filters: Dict[str, Any] = {}
+        if derived_ticker:
+            rag_filters["ticker"] = derived_ticker
+        rag_event_id = metrics.start_event("rag_retrieval", "Document Context Retrieval")
         try:
-            # Create market data agent
-            market_agent = MarketDataAgentSK()
-            
-            # Use sequential orchestration for now (can be made dynamic based on route)
-            orchestration = SequentialOrchestration(
-                agents=[market_agent.agent],
-                metrics_collector=metrics
+            rag_results = await document_store.search(
+                query=request.query,
+                top_k=5,
+                filters=rag_filters if rag_filters else None,
             )
-            
-            # Execute the workflow
-            result = await orchestration.execute(
-                initial_query=request.query,
-                context=user_context
+            rag_context = {
+                "results": rag_results[:5],
+                "total_results": len(rag_results),
+                "filters": rag_filters,
+            }
+            metrics.end_event(
+                rag_event_id,
+                status="success",
+                metadata={"results_returned": len(rag_results)},
             )
-            
-            response_text = result.get("final_result", "No response generated")
-            workflow_name = route["workflow"] if route else "MarketAnalysisWorkflow"
-            
+        except Exception as rag_error:
+            rag_context = None
+            metrics.end_event(rag_event_id, status="error", metadata={"error": str(rag_error)})
+            metrics.add_warning(f"rag_error:{rag_error}")
+        
+        workflow_registry: Dict[str, Dict[str, Any]] = {
+            "InvestmentAnalysisWorkflow": {
+                "class": InvestmentAnalysisWorkflow,
+                "pattern": "concurrent",
+                "agents": ["market_data", "technical_analysis", "risk_analysis", "news_sentiment"],
+                "requires_ticker": True,
+            },
+            "QuickQuoteWorkflow": {
+                "class": QuickQuoteWorkflow,
+                "pattern": "sequential",
+                "agents": ["market_data"],
+                "requires_ticker": True,
+            },
+            "PortfolioReviewWorkflow": {
+                "class": PortfolioReviewWorkflow,
+                "pattern": "sequential",
+                "agents": ["portfolio", "risk_analysis"],
+                "requires_ticker": False,
+            },
+            "MarketResearchWorkflow": {
+                "class": MarketResearchWorkflow,
+                "pattern": "concurrent",
+                "agents": ["market_data", "news_sentiment", "technical_analysis"],
+                "requires_ticker": False,
+            },
+        }
+        workflow_aliases = {
+            "TechnicalAnalysisWorkflow": "InvestmentAnalysisWorkflow",
+            "RiskAssessmentWorkflow": "InvestmentAnalysisWorkflow",
+        }
+        
+        selected_workflow_key = route["workflow"] if route else None
+        if selected_workflow_key in workflow_aliases:
+            selected_workflow_key = workflow_aliases[selected_workflow_key]
+        
+        fallback_applied = False
+        if not selected_workflow_key or selected_workflow_key not in workflow_registry:
+            fallback_applied = True
+            selected_workflow_key = "InvestmentAnalysisWorkflow" if derived_ticker else "MarketResearchWorkflow"
+        
+        workflow_config = workflow_registry[selected_workflow_key]
+        if fallback_applied:
+            metrics.add_warning(f"workflow_fallback:{selected_workflow_key}")
+        
+        workflow_kwargs = {
+            "tool_cache": tool_cache,
+            "metrics_collector": metrics,
+            "redis_client": getattr(tool_cache, "redis", None),
+        }
+        workflow_instance = workflow_config["class"](**workflow_kwargs)
+        
+        params_dict = request.params or {}
+        execution_kwargs: Dict[str, Any] = {"rag_context": rag_context, "user_context": user_context}
+        if params_dict:
+            extra_params = {k: v for k, v in params_dict.items() if k not in {"portfolio_id", "tickers"}}
+            execution_kwargs.update(extra_params)
+        
+        workflow_event_id = metrics.start_event("workflow_execution", selected_workflow_key)
+        workflow_execution_status = "success"
+        result: Dict[str, Any] = {}
+        try:
+            if workflow_config.get("requires_ticker") and not derived_ticker:
+                workflow_execution_status = "error"
+                result = {
+                    "response": "Please provide a stock ticker (e.g., 'Analyze AAPL') so I can run a full analysis."
+                }
+            else:
+                if selected_workflow_key in {"InvestmentAnalysisWorkflow", "QuickQuoteWorkflow"}:
+                    execution_kwargs["ticker"] = derived_ticker
+                elif selected_workflow_key == "PortfolioReviewWorkflow":
+                    execution_kwargs["portfolio_id"] = params_dict.get("portfolio_id", "default")
+                elif selected_workflow_key == "MarketResearchWorkflow":
+                    execution_kwargs["query"] = request.query
+                    if params_dict.get("tickers"):
+                        execution_kwargs["tickers"] = params_dict["tickers"]
+                result = await workflow_instance.execute(**execution_kwargs)
+                if fallback_applied:
+                    result.setdefault("metadata", {})
+                    result["metadata"]["fallback"] = True
         except Exception as workflow_error:
-            print(f"Workflow execution error: {workflow_error}")
-            response_text = f"I encountered an error processing your request: {str(workflow_error)}"
-            workflow_name = "ErrorWorkflow"
+            workflow_execution_status = "error"
+            metrics.add_error(str(workflow_error))
+            result = {
+                "response": f"I encountered an error while running {selected_workflow_key}: {workflow_error}"
+            }
+        finally:
+            metrics.end_event(
+                workflow_event_id,
+                status=workflow_execution_status,
+                metadata={"workflow": selected_workflow_key},
+            )
+
+        response_text = _format_response(result)
+        workflow_name = selected_workflow_key
+        orchestration_pattern = workflow_config["pattern"]
+        selected_agents = workflow_config["agents"]
+
+        if query_embedding and selected_workflow_key:
+            route_source = route.get("matched_via") if route else ("fallback" if fallback_applied else "direct")
+            record_route_id = route.get("route_id") if route and route.get("route_id") else selected_workflow_key
+            semantic_router.record_route(
+                query=request.query,
+                query_embedding=query_embedding,
+                route_id=record_route_id,
+                workflow=selected_workflow_key,
+                agents=selected_agents,
+                source=route_source,
+            )
         
-        metrics.end_event(workflow_event_id, status="success")
-        
-        # Step 5: Cache the response
+        # Step 6: Cache the response
         cache_set_event_id = metrics.start_event("cache_set", "Cache Storage")
         semantic_cache.set(
             query=request.query,
@@ -298,8 +431,8 @@ async def query_enhanced(
         timeline = metrics.get_timeline_data()
         costs = metrics.calculate_costs(workflow_name)
         perf_metrics = metrics.get_performance_metrics(timeline['total_duration_ms'])
-        
-        print(f"DEBUG: About to create WorkflowExecution with routing_time_ms={routing_time}, type={type(routing_time)}")
+        agent_catalogue = sorted({agent for cfg in workflow_registry.values() for agent in cfg["agents"]})
+        overall_cache_hit = any(layer.get("hit") for layer in metrics.cache_checks)
         
         return EnhancedQueryResponse(
             query=request.query,
@@ -308,14 +441,14 @@ async def query_enhanced(
             query_id=metrics.query_id,
             workflow=WorkflowExecution(
                 workflow_name=workflow_name,
-                orchestration_pattern="sequential",
+                orchestration_pattern=orchestration_pattern,
                 routing_time_ms=routing_time,
-                agents_invoked_count=metrics.get_agent_count(),
-                agents_available_count=7
+                agents_invoked_count=len(selected_agents),
+                agents_available_count=len(agent_catalogue)
             ),
             agents=metrics.agent_executions,
             cache_layers=metrics.cache_checks,
-            overall_cache_hit=False,
+            overall_cache_hit=overall_cache_hit,
             cost=CostBreakdown(**costs),
             performance=PerformanceMetrics(**perf_metrics),
             session=SessionMetrics(
@@ -323,7 +456,7 @@ async def query_enhanced(
                 query_count=1,
                 avg_latency_ms=timeline['total_duration_ms'],
                 total_cost_usd=costs['total_cost_usd'],
-                cache_hit_rate=0.0
+                cache_hit_rate=100.0 if overall_cache_hit else 0.0
             ),
             timeline=ExecutionTimeline(**timeline)
         )
@@ -372,7 +505,12 @@ async def query(
             query_embedding=query_embedding
         )
         
-        if cached_response:
+        cache_hit = bool(
+            cached_response
+            and cached_response.get("cache_hit")
+            and cached_response.get("response")
+        )
+        if cache_hit:
             # Cache hit! Return cached response
             processing_time = (time.time() - start_time) * 1000
             
@@ -394,8 +532,12 @@ async def query(
         user_context = contextual_memory.get_context(request.user_id, include_history=True)
         
         # Step 4: Find workflow route
-        route = semantic_router.find_route(request.query)
+        route = semantic_router.find_route(
+            request.query,
+            query_embedding=query_embedding,
+        )
         
+        workflow_key = route["workflow"] if route else None
         workflow_name = None
         agents_used = []
         result = None
@@ -435,7 +577,8 @@ async def query(
             if ticker:
                 workflow = InvestmentAnalysisWorkflow()
                 result = await workflow.execute(ticker=ticker)
-                workflow_name = "InvestmentAnalysisWorkflow (fallback)"
+                workflow_key = "InvestmentAnalysisWorkflow"
+                workflow_name = f"{workflow_key} (fallback)"
                 agents_used = ["market_data", "technical_analysis", "risk_analysis", "news_sentiment"]
             else:
                 # Generic response
@@ -445,6 +588,18 @@ async def query(
         
         # Step 5: Format response
         response_text = _format_response(result)
+
+        if workflow_key and query_embedding:
+            route_source = route.get("matched_via") if route else "fallback"
+            record_route_id = route.get("route_id") if route and route.get("route_id") else workflow_key
+            semantic_router.record_route(
+                query=request.query,
+                query_embedding=query_embedding,
+                route_id=record_route_id,
+                workflow=workflow_key,
+                agents=agents_used,
+                source=route_source,
+            )
         
         # Step 6: Cache response
         semantic_cache.set(

@@ -480,12 +480,12 @@ if __name__ == "__main__":
 1. Install Semantic Kernel:
    pip install semantic-kernel[azure]
 
-2. Set environment variables:
-   export AZURE_OPENAI_ENDPOINT="https://openai-3ae172dc9e9da.openai.azure.com/"
-   export AZURE_OPENAI_KEY="your-key"
-   export REDIS_HOST="redis-3ae172dc9e9da.westus3.redis.azure.net"
-   export REDIS_PORT="10000"
-   export REDIS_PASSWORD="your-password"
+2. Set environment variables (see .env for canonical values):
+    export AZURE_OPENAI_ENDPOINT="https://<your-endpoint>.openai.azure.com/"
+    export AZURE_OPENAI_KEY="<your-api-key>"
+    export REDIS_HOST="<your-redis-hostname>"
+    export REDIS_PORT="<your-redis-port>"
+    export REDIS_PASSWORD="<your-redis-password>"
 
 3. Implement remaining agents:
    - Risk Assessment Agent

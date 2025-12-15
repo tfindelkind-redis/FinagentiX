@@ -22,6 +22,12 @@ fi
 
 LOCATION="$AZURE_LOCATION"
 RESOURCE_TOKEN=$(echo $RANDOM | md5sum | head -c 13 2>/dev/null || echo $RANDOM | md5 | head -c 13)
+DEPLOY_DATA_INGESTION=${DEPLOY_DATA_INGESTION:-false}
+BUILD_CONTAINER_IMAGES=${BUILD_CONTAINER_IMAGES:-true}
+BUILD_FRONTEND_IMAGE=${BUILD_FRONTEND_IMAGE:-true}
+REDEPLOY_STAGE3=${REDEPLOY_STAGE3:-false}
+REDEPLOY_STAGE4=${REDEPLOY_STAGE4:-false}
+REDEPLOY_STAGE5=${REDEPLOY_STAGE5:-false}
 
 echo "=========================================="
 echo "FinagentiX Infrastructure Deployment"
@@ -30,6 +36,12 @@ echo "Resource Group: $RESOURCE_GROUP"
 echo "Location: $LOCATION"
 echo "Environment: ${AZURE_ENV_NAME}"
 echo "Resource Token: $RESOURCE_TOKEN"
+echo "Deploy Data Ingestion App: $DEPLOY_DATA_INGESTION"
+echo "Build API Image: $BUILD_CONTAINER_IMAGES"
+echo "Build Frontend Image: $BUILD_FRONTEND_IMAGE"
+echo "Redeploy Stage3: $REDEPLOY_STAGE3"
+echo "Redeploy Stage4: $REDEPLOY_STAGE4"
+echo "Redeploy Stage5: $REDEPLOY_STAGE5"
 echo ""
 
 # Function to check deployment status
@@ -118,6 +130,8 @@ VNET_ID=$(echo "$STAGE0_OUTPUTS" | jq -r '.vnetId.value')
 PRIVATE_DNS_REDIS=$(echo "$STAGE0_OUTPUTS" | jq -r '.privateDnsZoneIdRedis.value')
 PRIVATE_DNS_STORAGE=$(echo "$STAGE0_OUTPUTS" | jq -r '.privateDnsZoneIdStorage.value')
 PRIVATE_DNS_OPENAI=$(echo "$STAGE0_OUTPUTS" | jq -r '.privateDnsZoneIdOpenAI.value')
+LOG_ANALYTICS_WORKSPACE_ID=$(echo "$STAGE0_OUTPUTS" | jq -r '.logAnalyticsWorkspaceId.value')
+APPLICATION_INSIGHTS_CONNECTION_STRING=$(echo "$STAGE0_OUTPUTS" | jq -r '.applicationInsightsConnectionString.value')
 
 echo "✅ Stage 0 outputs retrieved"
 echo ""
@@ -128,6 +142,7 @@ EXISTING_STAGE1A=$(az deployment group list -g "$RESOURCE_GROUP" --query "[?cont
 if [ -n "$EXISTING_STAGE1A" ] && [ "$EXISTING_STAGE1A" != "null" ]; then
     echo "ℹ️  Stage 1a already deployed: $EXISTING_STAGE1A"
     echo "   Skipping Stage 1a deployment..."
+    STAGE1A_DEPLOYMENT_NAME="$EXISTING_STAGE1A"
 else
     echo "💾 Stage 1a: Deploying Storage Account..."
     STAGE1A_DEPLOYMENT_NAME="stage1a-storage-$(date +%s)"
@@ -167,6 +182,7 @@ EXISTING_STAGE1B=$(az deployment group list -g "$RESOURCE_GROUP" --query "[?cont
 if [ -n "$EXISTING_STAGE1B" ] && [ "$EXISTING_STAGE1B" != "null" ]; then
     echo "ℹ️  Stage 1b already deployed: $EXISTING_STAGE1B"
     echo "   Skipping Stage 1b deployment..."
+    STAGE1B_DEPLOYMENT_NAME="$EXISTING_STAGE1B"
 else
     echo "🔴 Stage 1b: Deploying Azure Managed Redis (Balanced_B5)..."
     echo "⏱️  This will take 15-20 minutes..."
@@ -211,6 +227,7 @@ EXISTING_STAGE2=$(az deployment group list -g "$RESOURCE_GROUP" --query "[?conta
 if [ -n "$EXISTING_STAGE2" ] && [ "$EXISTING_STAGE2" != "null" ]; then
     echo "ℹ️  Stage 2 already deployed: $EXISTING_STAGE2"
     echo "   Skipping Stage 2 deployment..."
+    STAGE2_DEPLOYMENT_NAME="$EXISTING_STAGE2"
 else
     echo "🤖 Stage 2: Deploying Azure OpenAI..."
     STAGE2_DEPLOYMENT_NAME="stage2-ai-services-$(date +%s)"
@@ -245,6 +262,217 @@ else
 fi
 
 echo "✅ Azure OpenAI deployed"
+echo ""
+
+# Retrieve Stage 1 outputs
+echo "📋 Retrieving Stage 1 outputs..."
+STAGE1A_OUTPUTS=$(az deployment group show -g "$RESOURCE_GROUP" -n "$STAGE1A_DEPLOYMENT_NAME" --query "properties.outputs" -o json)
+STAGE1B_OUTPUTS=$(az deployment group show -g "$RESOURCE_GROUP" -n "$STAGE1B_DEPLOYMENT_NAME" --query "properties.outputs" -o json)
+
+STORAGE_ACCOUNT_NAME=$(echo "$STAGE1A_OUTPUTS" | jq -r '.storageAccountName.value')
+REDIS_HOST=$(echo "$STAGE1B_OUTPUTS" | jq -r '.redisHostName.value')
+REDIS_PORT=$(echo "$STAGE1B_OUTPUTS" | jq -r '.redisPort.value')
+
+REDIS_CLUSTER_ID=$(az redisenterprise show \
+    --resource-group "$RESOURCE_GROUP" \
+    --name "redis-${RESOURCE_TOKEN}" \
+    --query id -o tsv)
+
+REDIS_DATABASE_ID="${REDIS_CLUSTER_ID%$'\r'}/databases/default"
+
+REDIS_PASSWORD=$(az redisenterprise database list-keys \
+    --ids "$REDIS_DATABASE_ID" \
+    --query "primaryKey" -o tsv)
+
+echo "📋 Retrieving Stage 2 outputs..."
+STAGE2_OUTPUTS=$(az deployment group show -g "$RESOURCE_GROUP" -n "$STAGE2_DEPLOYMENT_NAME" --query "properties.outputs" -o json)
+OPENAI_ENDPOINT=$(echo "$STAGE2_OUTPUTS" | jq -r '.openaiEndpoint.value')
+OPENAI_RESOURCE_NAME=$(echo "$STAGE2_OUTPUTS" | jq -r '.openaiName.value')
+OPENAI_KEY=$(az cognitiveservices account keys list \
+    --name "$OPENAI_RESOURCE_NAME" \
+    --resource-group "$RESOURCE_GROUP" \
+    --query "key1" -o tsv)
+OPENAI_GPT4_DEPLOYMENT=$(echo "$STAGE2_OUTPUTS" | jq -r '.gpt4DeploymentName.value // empty')
+OPENAI_EMBEDDING_DEPLOYMENT=$(echo "$STAGE2_OUTPUTS" | jq -r '.embeddingDeploymentName.value // empty')
+OPENAI_API_VERSION="${AZURE_OPENAI_API_VERSION:-2024-08-01-preview}"
+
+if [ -z "$OPENAI_KEY" ] || [ "$OPENAI_KEY" = "null" ]; then
+    echo "❌ Unable to retrieve Azure OpenAI key"
+    exit 1
+fi
+
+# Stage 3: Container Apps environment and registry
+EXISTING_STAGE3=$(az deployment group list -g "$RESOURCE_GROUP" --query "[?contains(name, 'stage3-data-ingestion') && properties.provisioningState=='Succeeded'] | [0].name" -o tsv 2>/dev/null)
+
+if [ -n "$EXISTING_STAGE3" ] && [ "$EXISTING_STAGE3" != "null" ] && [ "$REDEPLOY_STAGE3" != "true" ]; then
+    echo "ℹ️  Stage 3 already deployed: $EXISTING_STAGE3"
+    echo "   Skipping Stage 3 deployment..."
+    STAGE3_DEPLOYMENT_NAME="$EXISTING_STAGE3"
+else
+    if [ "$REDEPLOY_STAGE3" = "true" ] && [ -n "$EXISTING_STAGE3" ] && [ "$EXISTING_STAGE3" != "null" ]; then
+        echo "♻️  Redeploying Stage 3 as requested..."
+    else
+        echo "🛠️  Stage 3: Deploying Container Apps environment and registry..."
+    fi
+    STAGE3_DEPLOYMENT_NAME="stage3-data-ingestion-$(date +%s)"
+
+    az deployment group create \
+        --resource-group "$RESOURCE_GROUP" \
+        --template-file "$INFRA_DIR/stages/stage3-data-ingestion.bicep" \
+        --parameters \
+            environmentName="${AZURE_ENV_NAME}" \
+            location="$LOCATION" \
+            resourceToken="$RESOURCE_TOKEN" \
+            containerAppsSubnetId="$CONTAINER_APPS_SUBNET_ID" \
+            logAnalyticsWorkspaceId="$LOG_ANALYTICS_WORKSPACE_ID" \
+            applicationInsightsConnectionString="$APPLICATION_INSIGHTS_CONNECTION_STRING" \
+            redisHost="$REDIS_HOST" \
+            redisPort="$REDIS_PORT" \
+            redisPassword="$REDIS_PASSWORD" \
+            storageAccountName="$STORAGE_ACCOUNT_NAME" \
+            openaiEndpoint="$OPENAI_ENDPOINT" \
+            openaiKey="$OPENAI_KEY" \
+            openaiGpt4Deployment="$OPENAI_GPT4_DEPLOYMENT" \
+            openaiEmbeddingDeployment="$OPENAI_EMBEDDING_DEPLOYMENT" \
+            openaiApiVersion="$OPENAI_API_VERSION" \
+            deployDataIngestionApp=$DEPLOY_DATA_INGESTION \
+        --name "$STAGE3_DEPLOYMENT_NAME" \
+        --no-prompt true \
+        --output table
+    echo "✅ Stage 3 deployed"
+fi
+
+STAGE3_OUTPUTS=$(az deployment group show -g "$RESOURCE_GROUP" -n "$STAGE3_DEPLOYMENT_NAME" --query "properties.outputs" -o json)
+CONTAINER_APPS_ENVIRONMENT_ID=$(echo "$STAGE3_OUTPUTS" | jq -r '.containerAppsEnvironmentId.value')
+CONTAINER_REGISTRY_NAME=$(echo "$STAGE3_OUTPUTS" | jq -r '.containerRegistryName.value')
+CONTAINER_REGISTRY_LOGIN_SERVER=$(echo "$STAGE3_OUTPUTS" | jq -r '.containerRegistryLoginServer.value')
+INGESTION_URL=$(echo "$STAGE3_OUTPUTS" | jq -r '.ingestionUrl.value // empty')
+
+echo "📦 Container Apps Environment: $CONTAINER_APPS_ENVIRONMENT_ID"
+echo "📦 Container Registry: $CONTAINER_REGISTRY_NAME"
+if [ -n "$INGESTION_URL" ]; then
+    echo "🛰️  Data Ingestion App: $INGESTION_URL"
+fi
+
+if [ "$BUILD_CONTAINER_IMAGES" = "true" ]; then
+    echo "🔨 Building container image for FinagentiX API..."
+    az acr build \
+        --registry "$CONTAINER_REGISTRY_NAME" \
+        --image finagentix/agent-api:latest \
+        --file docker/api.Dockerfile \
+        .
+else
+    echo "⏭️  Skipping container image build (BUILD_CONTAINER_IMAGES=false)"
+fi
+
+# Stage 4: Agent runtime container app
+EXISTING_STAGE4=$(az deployment group list -g "$RESOURCE_GROUP" --query "[?contains(name, 'stage4-agent-runtime') && properties.provisioningState=='Succeeded'] | [0].name" -o tsv 2>/dev/null)
+
+if [ -n "$EXISTING_STAGE4" ] && [ "$EXISTING_STAGE4" != "null" ] && [ "$REDEPLOY_STAGE4" != "true" ]; then
+    echo "ℹ️  Stage 4 already deployed: $EXISTING_STAGE4"
+    echo "   Skipping Stage 4 deployment..."
+else
+    if [ "$REDEPLOY_STAGE4" = "true" ] && [ -n "$EXISTING_STAGE4" ] && [ "$EXISTING_STAGE4" != "null" ]; then
+        echo "♻️  Redeploying Stage 4 as requested..."
+    else
+        echo "🎯 Stage 4: Deploying Agent API Container App..."
+    fi
+    STAGE4_DEPLOYMENT_NAME="stage4-agent-runtime-$(date +%s)"
+
+    az deployment group create \
+        --resource-group "$RESOURCE_GROUP" \
+        --template-file "$INFRA_DIR/stages/stage4-agent-runtime.bicep" \
+        --parameters \
+            environmentName="${AZURE_ENV_NAME}" \
+            location="$LOCATION" \
+            resourceToken="$RESOURCE_TOKEN" \
+            containerAppsSubnetId="$CONTAINER_APPS_SUBNET_ID" \
+            logAnalyticsWorkspaceId="$LOG_ANALYTICS_WORKSPACE_ID" \
+            applicationInsightsConnectionString="$APPLICATION_INSIGHTS_CONNECTION_STRING" \
+            redisHost="$REDIS_HOST" \
+            redisPort="$REDIS_PORT" \
+            redisPassword="$REDIS_PASSWORD" \
+            openaiEndpoint="$OPENAI_ENDPOINT" \
+            openaiKey="$OPENAI_KEY" \
+            openaiGpt4Deployment="$OPENAI_GPT4_DEPLOYMENT" \
+            openaiEmbeddingDeployment="$OPENAI_EMBEDDING_DEPLOYMENT" \
+            openaiApiVersion="$OPENAI_API_VERSION" \
+        --name "$STAGE4_DEPLOYMENT_NAME" \
+        --no-prompt true \
+        --output table
+
+    echo "✅ Stage 4 deployed"
+fi
+
+API_FQDN=$(az containerapp show \
+    --name "ca-agent-api-${RESOURCE_TOKEN}" \
+    --resource-group "$RESOURCE_GROUP" \
+    --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || echo "")
+
+if [ -n "$API_FQDN" ]; then
+    echo "🌐 Agent API available at: https://$API_FQDN"
+else
+    echo "⚠️  Unable to determine Agent API endpoint automatically."
+fi
+
+echo ""
+
+FRONTEND_API_URL="https://${API_FQDN:-ca-agent-api-${RESOURCE_TOKEN}.${LOCATION}.azurecontainerapps.io}"
+
+if [ "$BUILD_FRONTEND_IMAGE" = "true" ]; then
+    echo "🔨 Building container image for FinagentiX Frontend..."
+    az acr build \
+        --registry "$CONTAINER_REGISTRY_NAME" \
+        --image finagentix/frontend:latest \
+        --file docker/frontend.Dockerfile \
+        --build-arg VITE_API_URL="$FRONTEND_API_URL" \
+        .
+else
+    echo "⏭️  Skipping frontend image build (BUILD_FRONTEND_IMAGE=false)"
+fi
+
+# Stage 5: Web frontend container app
+EXISTING_STAGE5=$(az deployment group list -g "$RESOURCE_GROUP" --query "[?contains(name, 'stage5-web-frontend') && properties.provisioningState=='Succeeded'] | [0].name" -o tsv 2>/dev/null)
+
+if [ -n "$EXISTING_STAGE5" ] && [ "$EXISTING_STAGE5" != "null" ] && [ "$REDEPLOY_STAGE5" != "true" ]; then
+    echo "ℹ️  Stage 5 already deployed: $EXISTING_STAGE5"
+else
+    if [ "$REDEPLOY_STAGE5" = "true" ] && [ -n "$EXISTING_STAGE5" ] && [ "$EXISTING_STAGE5" != "null" ]; then
+        echo "♻️  Redeploying Stage 5 as requested..."
+    else
+        echo "🖥️  Stage 5: Deploying Web Frontend..."
+    fi
+    STAGE5_DEPLOYMENT_NAME="stage5-web-frontend-$(date +%s)"
+
+    az deployment group create \
+        --resource-group "$RESOURCE_GROUP" \
+        --template-file "$INFRA_DIR/stages/stage5-web-frontend.bicep" \
+        --parameters \
+            environmentName="${AZURE_ENV_NAME}" \
+            location="$LOCATION" \
+            resourceToken="$RESOURCE_TOKEN" \
+            containerAppsEnvironmentId="$CONTAINER_APPS_ENVIRONMENT_ID" \
+            containerRegistryName="$CONTAINER_REGISTRY_NAME" \
+            containerRegistryLoginServer="$CONTAINER_REGISTRY_LOGIN_SERVER" \
+            applicationInsightsConnectionString="$APPLICATION_INSIGHTS_CONNECTION_STRING" \
+            apiBaseUrl="$FRONTEND_API_URL" \
+        --name "$STAGE5_DEPLOYMENT_NAME" \
+        --no-prompt true \
+        --output table
+
+    echo "✅ Stage 5 deployed"
+fi
+
+FRONTEND_APP_NAME="ca-frontend-${RESOURCE_TOKEN}"
+FRONTEND_FQDN=$(az containerapp show \
+    --name "$FRONTEND_APP_NAME" \
+    --resource-group "$RESOURCE_GROUP" \
+    --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || echo "")
+
+if [ -n "$FRONTEND_FQDN" ]; then
+    echo "🖥️  Frontend available at: https://$FRONTEND_FQDN"
+fi
+
 echo ""
 
 # Stage 3: Featureform (Optional - Feature Store)
@@ -285,16 +513,10 @@ if az vm show -g "$RESOURCE_GROUP" -n "debug-vm-${RESOURCE_TOKEN}" &>/dev/null; 
     echo "📝 Apply Featureform Definitions"
     echo "=========================================="
     echo ""
-    read -p "Would you like to apply Featureform definitions now? (yes/no): " apply_defs
-    if [ "$apply_defs" = "yes" ]; then
-        echo "🚀 Running connect-and-apply script..."
-        "$SCRIPT_DIR/connect-and-apply.sh" || {
-            echo "⚠️  Failed to apply definitions automatically"
-            echo "You can run it manually later with:"
-            echo "   ./infra/scripts/connect-and-apply.sh"
-        }
-    else
-        echo "📋 To apply definitions later, run:"
+    echo "🚀 Applying Featureform definitions automatically..."
+    if ! "$SCRIPT_DIR/connect-and-apply.sh"; then
+        echo "⚠️  Failed to apply definitions automatically"
+        echo "   You can rerun the process with:"
         echo "   ./infra/scripts/connect-and-apply.sh"
     fi
 else

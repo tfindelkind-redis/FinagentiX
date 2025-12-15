@@ -2,7 +2,7 @@
 targetScope = 'resourceGroup'
 
 param location string = resourceGroup().location
-param resourceToken string = '545d8fdb508d4'
+param resourceToken string
 
 // Reference existing Redis
 resource redisCluster 'Microsoft.Cache/redisEnterprise@2024-03-01-preview' existing = {

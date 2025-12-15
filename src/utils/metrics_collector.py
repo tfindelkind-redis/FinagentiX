@@ -135,7 +135,11 @@ class MetricsCollector:
         status: str = "success",
         response: Optional[str] = None,
         error: Optional[str] = None,
-        tools_used: Optional[List[Dict[str, Any]]] = None
+        tools_used: Optional[List[Dict[str, Any]]] = None,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        temperature: float = 0.0,
+        max_tokens: int = 0
     ):
         """
         Record complete agent execution metrics
@@ -158,10 +162,14 @@ class MetricsCollector:
             "agent_id": agent_id,
             "agent_index": len(self.agent_executions),
             "duration_ms": duration_ms,
+            "start_time": (start_time or datetime.now()).isoformat(),
+            "end_time": (end_time or datetime.now()).isoformat(),
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
             "total_tokens": input_tokens + output_tokens,
             "model_used": model,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
             "cost_usd": cost,
             "status": status,
             "response": response,

@@ -40,6 +40,15 @@ param openaiEndpoint string
 @secure()
 param openaiKey string
 
+@description('Azure OpenAI GPT-4 deployment name')
+param openaiGpt4Deployment string
+
+@description('Azure OpenAI embedding deployment name')
+param openaiEmbeddingDeployment string
+
+@description('Azure OpenAI API version')
+param openaiApiVersion string = '2024-08-01-preview'
+
 // Get existing Container Apps Environment (created in Stage 3)
 resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-05-01' existing = {
   name: 'cae-${resourceToken}'
@@ -62,7 +71,7 @@ resource agentApiApp 'Microsoft.App/containerApps@2023-05-01' = {
       ingress: {
         external: true
         targetPort: 8000
-        transport: 'http2'
+        transport: 'auto'
         allowInsecure: false
         traffic: [
           {
@@ -128,8 +137,24 @@ resource agentApiApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: openaiEndpoint
             }
             {
-              name: 'AZURE_OPENAI_KEY'
+              name: 'AZURE_OPENAI_API_KEY'
               secretRef: 'openai-key'
+            }
+            {
+              name: 'AZURE_OPENAI_CHAT_DEPLOYMENT'
+              value: openaiGpt4Deployment
+            }
+            {
+              name: 'AZURE_OPENAI_GPT4_DEPLOYMENT'
+              value: openaiGpt4Deployment
+            }
+            {
+              name: 'AZURE_OPENAI_EMBEDDING_DEPLOYMENT'
+              value: openaiEmbeddingDeployment
+            }
+            {
+              name: 'AZURE_OPENAI_API_VERSION'
+              value: openaiApiVersion
             }
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
@@ -143,7 +168,7 @@ resource agentApiApp 'Microsoft.App/containerApps@2023-05-01' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: 1
         maxReplicas: 10
         rules: [
           {

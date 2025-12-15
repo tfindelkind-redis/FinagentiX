@@ -210,22 +210,20 @@ class ToolCache:
             print(f"❌ Error getting cache stats: {e}")
             return {}
     
-    def clear(self, tool_name: Optional[str] = None):
-        """
-        Clear cache entries
-        
-        Args:
-            tool_name: Specific tool name (all tools if None)
-        """
+    def clear(self, tool_name: Optional[str] = None) -> int:
+        """Clear cache entries and return the number of deleted items."""
         pattern = f"{self.prefix}{tool_name}:*" if tool_name else f"{self.prefix}*"
         
         try:
             keys = list(self.redis.scan_iter(pattern, count=1000))
+            cleared = len(keys)
             if keys:
                 self.redis.delete(*keys)
-            print(f"✅ Cleared {len(keys)} cache entries")
+            print(f"✅ Cleared {cleared} tool cache entries")
+            return cleared
         except Exception as e:
             print(f"❌ Error clearing cache: {e}")
+            return 0
 
 
 if __name__ == "__main__":

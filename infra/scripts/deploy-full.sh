@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Configuration
 export AZURE_ENV_NAME="${AZURE_ENV_NAME:-dev}"
 export AZURE_LOCATION="${AZURE_LOCATION:-westus3}"
-export AZURE_RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-rg-finagentix-${AZURE_ENV_NAME}}"
+export AZURE_RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-finagentix-${AZURE_ENV_NAME}-rg}"
 
 # Default: run all steps
 START_STEP=1

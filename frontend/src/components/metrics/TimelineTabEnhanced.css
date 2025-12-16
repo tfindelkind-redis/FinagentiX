@@ -1,0 +1,290 @@
+/* TimelineTabEnhanced.css - Enhanced timeline with Redis explanations */
+
+.timeline-tab-enhanced .timeline-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.timeline-tab-enhanced .show-explanations-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.timeline-tab-enhanced .show-explanations-toggle input {
+  cursor: pointer;
+}
+
+/* Summary Cards */
+.timeline-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.timeline-summary .summary-card {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.timeline-summary .summary-card.highlight {
+  background-color: rgba(16, 185, 129, 0.1);
+  border-color: var(--color-success);
+}
+
+.timeline-summary .summary-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background-color: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+}
+
+.timeline-summary .summary-card.highlight .summary-icon {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: var(--color-success);
+}
+
+.timeline-summary .summary-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-summary .summary-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.timeline-summary .summary-card.highlight .summary-value {
+  color: var(--color-success);
+}
+
+.timeline-summary .summary-label {
+  font-size: 0.625rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+/* Enhanced Timeline Events */
+.timeline-event.enhanced .timeline-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: var(--color-bg-secondary);
+  border: 2px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+}
+
+.timeline-event.enhanced .timeline-dot.cache_hit {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: var(--color-warning);
+}
+
+.timeline-event.enhanced .timeline-dot.agent_end,
+.timeline-event.enhanced .timeline-dot.cache_check {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: var(--color-success);
+}
+
+.timeline-event.enhanced .timeline-dot.routing,
+.timeline-event.enhanced .timeline-dot.agent_start {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: var(--color-primary);
+}
+
+/* Redis Pattern Badge */
+.redis-pattern-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 2px 8px;
+  background-color: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-top: var(--spacing-xs);
+}
+
+.redis-pattern-badge .pattern-name {
+  color: var(--color-text-muted);
+}
+
+/* Benefit Explanation */
+.benefit-explanation {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background-color: rgba(59, 130, 246, 0.1);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  color: var(--color-info);
+  line-height: 1.4;
+}
+
+.benefit-explanation svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Expand Details Button */
+.expand-details-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.625rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.expand-details-btn:hover {
+  background-color: var(--color-bg-tertiary);
+  border-color: var(--color-text-muted);
+  color: var(--color-text-primary);
+}
+
+/* Expanded Details */
+.expanded-details {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  background-color: var(--color-bg-tertiary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+/* Pattern Deep Dive */
+.pattern-deep-dive {
+  margin-bottom: var(--spacing-md);
+}
+
+.pattern-deep-dive h5 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.pattern-deep-dive .pattern-description {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin-bottom: var(--spacing-sm);
+}
+
+.pattern-deep-dive .how-it-works,
+.pattern-deep-dive .pattern-benefit {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+}
+
+.pattern-deep-dive .how-it-works strong,
+.pattern-deep-dive .pattern-benefit strong {
+  display: block;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: var(--spacing-xs);
+}
+
+.pattern-deep-dive .how-it-works p,
+.pattern-deep-dive .pattern-benefit p {
+  color: var(--color-text-primary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Event Duration */
+.timeline-event.enhanced .event-duration {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-sm);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* Redis Timeline Summary */
+.redis-timeline-summary {
+  margin-top: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.redis-timeline-summary h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.optimization-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+}
+
+.optimization-item {
+  padding: var(--spacing-md);
+  background-color: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+}
+
+.optimization-item strong {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.optimization-item p {
+  font-size: 0.625rem;
+  color: var(--color-text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .timeline-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .optimization-grid {
+    grid-template-columns: 1fr;
+  }
+}

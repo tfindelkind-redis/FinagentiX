@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { Send } from 'lucide-react'
 import { api } from '@/lib/api'
 import MessageList from './MessageList'
+import LearnMode from './LearnMode'
 import type { EnhancedQueryResponse } from '@/types/api'
 import './ChatPanel.css'
 
@@ -69,6 +70,11 @@ export default function ChatPanel({ sessionId, onResponseReceived }: ChatPanelPr
       </div>
 
       <MessageList messages={messages} isLoading={queryMutation.isPending} />
+
+      <LearnMode 
+        onSelectQuestion={(question) => setInput(question)}
+        isDisabled={queryMutation.isPending}
+      />
 
       <form onSubmit={handleSubmit} className="chat-input-form">
         <input

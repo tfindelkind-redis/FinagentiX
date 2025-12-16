@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { BarChart3, Clock, DollarSign, Network } from 'lucide-react'
 import type { EnhancedQueryResponse } from '@/types/api'
 import OverviewTab from './metrics/OverviewTab'
-import AgentsTab from './metrics/AgentsTab'
-import TimelineTab from './metrics/TimelineTab'
+import AgentsTabEnhanced from './metrics/AgentsTabEnhanced'
+import TimelineTabEnhanced from './metrics/TimelineTabEnhanced'
 import CostsTab from './metrics/CostsTab'
 import './MetricsPanel.css'
 
@@ -68,8 +68,8 @@ export default function MetricsPanel({ response }: MetricsPanelProps) {
 
       <div className="metrics-content">
         {activeTab === 'overview' && <OverviewTab response={response} />}
-        {activeTab === 'agents' && <AgentsTab response={response} />}
-        {activeTab === 'timeline' && <TimelineTab response={response} />}
+        {activeTab === 'agents' && <AgentsTabEnhanced response={response} />}
+        {activeTab === 'timeline' && <TimelineTabEnhanced response={response} />}
         {activeTab === 'costs' && <CostsTab response={response} />}
       </div>
     </div>

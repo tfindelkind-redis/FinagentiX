@@ -101,7 +101,6 @@ export SKIP_CONFIRM=1
 - **Risk Assessment Agent** - VaR, portfolio risk, position sizing
 - **Portfolio Management Agent** - Position tracking and rebalancing
 - **News & Research Agent** - Document Q&A via RAG
-- **Report Generation Agent** - Trading reports and summaries
 
 ## 💼 Tech Stack
 

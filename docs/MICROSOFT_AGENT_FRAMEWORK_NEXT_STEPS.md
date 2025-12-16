@@ -195,7 +195,6 @@ Update `DEPLOYMENT_COMPLETE.md` with:
 - [ ] Migrate Risk Assessment Agent
 - [ ] Migrate Technical Analysis Agent
 - [ ] Migrate Portfolio Management Agent
-- [ ] Migrate Report Generation Agent
 - [ ] Update Orchestrator for Semantic Kernel
 
 ### Phase 3: Orchestration (Week 4)

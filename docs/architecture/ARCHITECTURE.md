@@ -327,7 +327,6 @@ FinagentiX leverages the **Redis AI Vision** architecture to build a production-
 ### **Phase 5: Advanced Agents** (Weeks 9-10)
 - [ ] Risk Assessment Agent
 - [ ] Portfolio Management Agent
-- [ ] Report Generation Agent
 - [ ] Multi-agent orchestration
 - [ ] Quantization & alerts system
 

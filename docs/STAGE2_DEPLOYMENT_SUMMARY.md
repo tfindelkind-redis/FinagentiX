@@ -37,7 +37,6 @@
 **Use Cases**:
 - Multi-agent orchestration with Microsoft AutoGen
 - Trading recommendations and analysis
-- Report generation
 - Sentiment analysis from news and SEC filings
 - Risk assessment calculations
 

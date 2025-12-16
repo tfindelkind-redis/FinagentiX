@@ -392,7 +392,7 @@ Return: Top 5 most relevant document chunks
 Agent uses chunks as context for response generation
 ```
 
-**Use Case:** News & Research Agent, Report Generation Agent
+**Use Case:** News & Research Agent
 
 ---
 

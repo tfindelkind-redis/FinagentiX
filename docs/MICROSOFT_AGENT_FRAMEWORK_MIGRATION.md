@@ -166,10 +166,6 @@ orchestration = SequentialOrchestration(
    - Pattern: ChatCompletionAgent with state management
    - Tools: Track positions, rebalance, optimize allocation
 
-7. **Report Generation Agent**
-   - Pattern: ChatCompletionAgent with structured output
-   - Tools: Format reports, generate summaries, create visualizations
-
 **Migration Template for Each Agent:**
 
 ```python
@@ -550,7 +546,6 @@ exporter.track_metric("agent.cost_savings", cost_saved)
 - [ ] Migrate Risk Assessment Agent
 - [ ] Migrate Technical Analysis Agent
 - [ ] Migrate Portfolio Management Agent
-- [ ] Migrate Report Generation Agent
 - [ ] Update Orchestrator Agent for Semantic Kernel
 
 ### Phase 3: Orchestration

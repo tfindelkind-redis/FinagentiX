@@ -197,7 +197,6 @@ A **real-time AI trading agent system** that combines multiple specialized agent
 - **Use Cases**:
   - Multi-agent orchestration with Microsoft AutoGen
   - Trading recommendations and analysis
-  - Report generation
   - Sentiment analysis
   - Risk assessment
 - **Status**: ✅ Deployed and ready

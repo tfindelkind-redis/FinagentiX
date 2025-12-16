@@ -8,13 +8,13 @@
 
 | Category | Documented (Target) | Implemented | Coverage |
 |----------|---------------------|-------------|----------|
-| **AI Agents** | 8 agents | 7+ agents | ✅ ~90% |
+| **AI Agents** | 7 agents | 7 agents | ✅ 100% |
 | **Redis AI Vision** | 5 components | 5 components | ✅ 100% |
 | **Orchestration Workflows** | 4 workflows | 4 workflows | ✅ 100% |
 | **Agent Plugins** | 5 plugins | 5 plugins | ✅ 100% |
 | **API Endpoints** | 15+ endpoints | 15+ endpoints | ✅ 100% |
 | **Tests** | Full coverage | 6 test files | ⚠️ Partial |
-| **Embedding Pipeline** | Complete | Blocked | ❌ Pending |
+| **Embedding Pipeline** | Complete | Partial | ⚠️ In Progress |
 
 ---
 
@@ -168,40 +168,23 @@
 
 ## ❌ MISSING / INCOMPLETE COMPONENTS
 
-### 1. Report Generation Agent
-- **Status:** ❌ Not implemented
-- **Architecture Reference:** Listed as 8th agent in docs
-- **Purpose:** Generate trading reports and summaries
-- **Priority:** Medium
-
-### 2. Quantization/Alerts System
+### 1. Quantization/Alerts System
 - **Status:** ❌ Not implemented
 - **Architecture Reference:** Section 5 in ARCHITECTURE.md
 - **Purpose:** Real-time price alerts, risk limit breaches, workflow triggers
 - **Priority:** Medium
 - **Redis Features Needed:** Sorted Sets, Pub/Sub, Streams
 
-### 3. Embedding Pipeline Execution
-- **Status:** ❌ Blocked (Redis connectivity)
-- **Issue:** Script configured for TLS but pointing to localhost:6379
-- **Fix Required:** Update .env with Azure Managed Redis credentials
-  ```
-  REDIS_HOST=<your-azure-redis>.redis.cache.azure.com
-  REDIS_PORT=10000
-  REDIS_SSL=true
-  REDIS_PASSWORD=<your-access-key>
-  ```
-
-### 4. WebSocket Support
+### 2. WebSocket Support
 - **Status:** ⚠️ Documented but not implemented
 - **Architecture Reference:** API layer mentions WebSocket
 - **Current State:** REST-only
 
-### 5. Full Test Suite
+### 3. Full Test Suite
 - **Status:** ⚠️ Partial (43/109 passing)
 - **Missing:** Tests for redis components beyond semantic_cache, workflow tests, integration tests
 
-### 6. Production Monitoring
+### 4. Production Monitoring
 - **Status:** ⚠️ Partial
 - **Implemented:** Health checks, basic stats endpoints
 - **Missing:** Prometheus/Grafana integration, OpenTelemetry instrumentation
@@ -220,7 +203,6 @@
 | 5. Risk Assessment Agent | ✅ | ✅ `risk_assessment_sk.py` |
 | 6. Portfolio Management Agent | ✅ | ✅ `portfolio_management_sk.py` |
 | 7. News & Research Agent | ✅ | ✅ `news_research_sk.py` |
-| 8. Report Generation Agent | ✅ | ❌ Missing |
 
 ### Documented Redis Components:
 | Component | Documented | Implemented | Verified |
@@ -262,23 +244,18 @@
 
 ### Medium Priority:
 
-4. **Implement Report Generation Agent**
-   - Create `src/agents/report_generation_sk.py`
-   - Add to orchestrator workflow registry
-   - Create corresponding plugin
-
-5. **Implement Quantization/Alerts**
+4. **Implement Quantization/Alerts**
    - Create `src/redis/alerts.py`
    - Use Redis Sorted Sets for thresholds
    - Add Pub/Sub for real-time notifications
 
 ### Lower Priority:
 
-6. **Add WebSocket Support**
+5. **Add WebSocket Support**
    - Extend FastAPI with WebSocket endpoints
    - Real-time quote streaming
 
-7. **Production Monitoring**
+6. **Production Monitoring**
    - Add OpenTelemetry instrumentation
    - Configure Prometheus metrics export
    - Set up Grafana dashboards
@@ -309,13 +286,12 @@
 **FinagentiX is ~90% complete** relative to its documented architecture:
 
 - ✅ All 5 Redis AI Vision components implemented
-- ✅ 7 of 8 agents implemented
+- ✅ All 7 agents implemented
 - ✅ All 4 orchestration workflows implemented
 - ✅ All 5 agent plugins implemented
 - ✅ FastAPI application complete with 15+ endpoints
 - ✅ Embedding pipeline script enhanced with CLI
-- ⚠️ Embedding execution blocked by Redis config
-- ❌ Report Generation Agent missing
+- ⚠️ Embedding execution partially complete (326 SEC, 120 news)
 - ❌ Quantization/Alerts system missing
 
-**Next Step:** Fix Redis connectivity in `.env` to unblock embedding pipeline and enable end-to-end testing.
+**Next Step:** Complete embedding generation for all 28 tickers and fix failing tests.

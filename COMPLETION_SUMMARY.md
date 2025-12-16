@@ -33,7 +33,6 @@ You now have a **complete, production-ready FastAPI application** with all the R
    - ✅ Risk Assessment Agent
    - ✅ Portfolio Management Agent
    - ✅ News Research Agent
-   - ❌ Report Generation Agent (not implemented)
 
 5. **Interactive CLI** (`cli.py`)
    - ✅ Beautiful rich text interface
@@ -274,7 +273,6 @@ You've built a system that:
 ### High Priority
 | Item | Status | Notes |
 |------|--------|-------|
-| **Report Generation Agent** | ❌ Not implemented | 8th agent from architecture |
 | **Complete Embeddings** | ⚠️ Partial | Only ~10 tickers processed, need all 28 |
 | **Test Suite** | ⚠️ 43/109 passing | Need to fix failing tests |
 

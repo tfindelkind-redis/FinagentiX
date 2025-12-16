@@ -65,7 +65,6 @@ This document defines the complete Azure infrastructure for FinagentiX, deployed
 - Query embeddings for semantic search
 - Document embeddings for RAG
 - Sentiment analysis (via GPT-4)
-- Report generation
 
 ---
 

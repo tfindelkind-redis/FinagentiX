@@ -492,7 +492,6 @@ if __name__ == "__main__":
    - Technical Analysis Agent
    - Fundamental Analysis Agent
    - Portfolio Management Agent
-   - Report Generation Agent
 
 4. Add advanced features:
    - OpenTelemetry observability

@@ -260,6 +260,192 @@ class MarketDataPlugin:
                 "error": str(e),
                 "message": f"Error calculating price change for {ticker.upper()}: {str(e)}"
             }
+
+    @kernel_function(
+        name="get_technical_indicators",
+        description="Calculate technical indicators (SMA, EMA, RSI, MACD, Bollinger Bands) for a ticker."
+    )
+    async def get_technical_indicators(
+        self,
+        ticker: str,
+        metric: str = "close",
+        short_window: int = 20,
+        long_window: int = 50,
+        rsi_period: int = 14,
+    ) -> Dict[str, Any]:
+        """Compute a collection of technical indicators from historical data."""
+
+        def compute_sma(values: List[float], window: int) -> Optional[float]:
+            if not values:
+                return None
+            window = min(window, len(values))
+            if window == 0:
+                return None
+            return sum(values[-window:]) / window
+
+        def compute_ema_series(values: List[float], window: int) -> List[float]:
+            if len(values) < window or window <= 1:
+                return []
+            smoothing = 2 / (window + 1)
+            ema_values: List[float] = []
+            ema = sum(values[:window]) / window
+            ema_values.append(ema)
+            for price in values[window:]:
+                ema = (price - ema) * smoothing + ema
+                ema_values.append(ema)
+            return ema_values
+
+        def compute_rsi(values: List[float], period: int) -> Optional[float]:
+            if len(values) <= period:
+                return None
+            gains: List[float] = []
+            losses: List[float] = []
+            for i in range(1, len(values)):
+                delta = values[i] - values[i - 1]
+                if delta > 0:
+                    gains.append(delta)
+                    losses.append(0.0)
+                else:
+                    gains.append(0.0)
+                    losses.append(abs(delta))
+            gains_window = gains[-period:]
+            losses_window = losses[-period:]
+            if len(gains_window) < period or len(losses_window) < period:
+                return None
+            avg_gain = sum(gains_window) / period
+            avg_loss = sum(losses_window) / period
+            if avg_loss == 0:
+                return 100.0
+            rs = avg_gain / avg_loss
+            return 100 - (100 / (1 + rs))
+
+        def compute_bollinger(values: List[float], window: int) -> Optional[Dict[str, float]]:
+            if len(values) < window:
+                return None
+            recent = values[-window:]
+            mid = sum(recent) / window
+            variance = sum((price - mid) ** 2 for price in recent) / window
+            std_dev = variance ** 0.5
+            return {
+                "middle": mid,
+                "upper": mid + (2 * std_dev),
+                "lower": mid - (2 * std_dev),
+            }
+
+        try:
+            lookback_days = max(long_window * 2, 120)
+            history = await self.get_price_history(ticker, days=lookback_days, metric=metric)
+            if not history.get("success"):
+                return history
+
+            data_points = history.get("data") or []
+            values = [point["value"] for point in data_points if "value" in point]
+            if len(values) < max(long_window, rsi_period + 1):
+                return {
+                    "ticker": ticker.upper(),
+                    "metric": metric,
+                    "success": False,
+                    "error": "insufficient_data",
+                    "message": f"Not enough data to compute indicators for {ticker.upper()}"
+                }
+
+            latest_price = values[-1]
+            sma_short = compute_sma(values, short_window)
+            sma_long = compute_sma(values, long_window)
+            ema_short_series = compute_ema_series(values, 12)
+            ema_long_series = compute_ema_series(values, 26)
+            ema_short = ema_short_series[-1] if ema_short_series else None
+            ema_long = ema_long_series[-1] if ema_long_series else None
+
+            macd_series: List[float] = []
+            if ema_short_series and ema_long_series:
+                overlap = min(len(ema_short_series), len(ema_long_series))
+                macd_series = [
+                    ema_short_series[-overlap + idx] - ema_long_series[-overlap + idx]
+                    for idx in range(overlap)
+                ]
+            macd_line = macd_series[-1] if macd_series else None
+            signal_series = compute_ema_series(macd_series, 9) if macd_series else []
+            signal_line = signal_series[-1] if signal_series else None
+            histogram = macd_line - signal_line if macd_line is not None and signal_line is not None else None
+
+            rsi = compute_rsi(values, rsi_period)
+            bollinger = compute_bollinger(values, 20)
+
+            support_window = min(30, len(values))
+            support_range = values[-support_window:]
+            support = min(support_range) if support_range else None
+            resistance = max(support_range) if support_range else None
+
+            trend = "neutral"
+            if sma_short and sma_long:
+                if abs(sma_short - sma_long) / sma_long < 0.01:
+                    trend = "neutral"
+                elif sma_short > sma_long:
+                    trend = "bullish"
+                else:
+                    trend = "bearish"
+
+            momentum = "neutral"
+            if rsi is not None:
+                if rsi >= 70:
+                    momentum = "overbought"
+                elif rsi <= 30:
+                    momentum = "oversold"
+                elif 55 <= rsi < 70:
+                    momentum = "positive"
+                elif 30 < rsi <= 45:
+                    momentum = "negative"
+
+            macd_note = None
+            if macd_line is not None and signal_line is not None:
+                if macd_line > signal_line:
+                    macd_note = "MACD above signal"
+                elif macd_line < signal_line:
+                    macd_note = "MACD below signal"
+
+            summary_parts = [f"Trend {trend}"]
+            if momentum != "neutral":
+                summary_parts.append(f"Momentum {momentum}")
+            if macd_note:
+                summary_parts.append(macd_note)
+            summary = ", ".join(summary_parts)
+
+            return {
+                "ticker": ticker.upper(),
+                "metric": metric,
+                "success": True,
+                "latest_price": latest_price,
+                "sma": {
+                    "short": sma_short,
+                    "long": sma_long,
+                },
+                "ema": {
+                    "short": ema_short,
+                    "long": ema_long,
+                },
+                "macd": {
+                    "line": macd_line,
+                    "signal": signal_line,
+                    "histogram": histogram,
+                },
+                "rsi": rsi,
+                "bollinger": bollinger,
+                "support": support,
+                "resistance": resistance,
+                "trend": trend,
+                "momentum": momentum,
+                "message": summary,
+            }
+
+        except Exception as e:
+            return {
+                "ticker": ticker.upper(),
+                "metric": metric,
+                "success": False,
+                "error": str(e),
+                "message": f"Error computing indicators for {ticker.upper()}: {str(e)}"
+            }
     
     @kernel_function(
         name="get_multiple_tickers",

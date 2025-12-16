@@ -289,6 +289,87 @@ class TestGetVolumeAnalysis:
         assert result["volume_trend_pct"] < 0
 
 
+class TestGetTechnicalIndicators:
+    """Tests for get_technical_indicators function"""
+
+    @pytest.mark.asyncio
+    async def test_get_technical_indicators_success(self, plugin, monkeypatch):
+        """Test successful indicator computation"""
+
+        values = [float(i) for i in range(1, 201)]
+        history_response = {
+            "success": True,
+            "data": [
+                {
+                    "timestamp": 1_700_000_000_000 + idx,
+                    "date": "2024-01-01",
+                    "value": value,
+                }
+                for idx, value in enumerate(values)
+            ],
+        }
+
+        async def fake_history(ticker, days, metric):
+            return history_response
+
+        monkeypatch.setattr(plugin, "get_price_history", fake_history)
+
+        result = await plugin.get_technical_indicators("AAPL")
+
+        assert result["success"] is True
+        assert result["trend"] == "bullish"
+        assert pytest.approx(result["sma"]["short"], rel=1e-5) == 190.5
+        assert pytest.approx(result["sma"]["long"], rel=1e-5) == 175.5
+        assert result["bollinger"]["upper"] > result["bollinger"]["lower"]
+        assert result["support"] == pytest.approx(171.0)
+        assert result["resistance"] == pytest.approx(200.0)
+        assert "Trend bullish" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_get_technical_indicators_insufficient_data(self, plugin, monkeypatch):
+        """Test insufficient history handling"""
+
+        history_response = {
+            "success": True,
+            "data": [
+                {
+                    "timestamp": 1_700_000_000_000,
+                    "date": "2024-01-01",
+                    "value": 100.0,
+                }
+            ],
+        }
+
+        async def fake_history(ticker, days, metric):
+            return history_response
+
+        monkeypatch.setattr(plugin, "get_price_history", fake_history)
+
+        result = await plugin.get_technical_indicators("AAPL")
+
+        assert result["success"] is False
+        assert result["error"] == "insufficient_data"
+
+    @pytest.mark.asyncio
+    async def test_get_technical_indicators_propagates_failure(self, plugin, monkeypatch):
+        """Test that history failure is surfaced"""
+
+        history_response = {
+            "success": False,
+            "error": "not_found",
+            "message": "No data",
+        }
+
+        async def fake_history(ticker, days, metric):
+            return history_response
+
+        monkeypatch.setattr(plugin, "get_price_history", fake_history)
+
+        result = await plugin.get_technical_indicators("MSFT")
+
+        assert result["success"] is False
+        assert result["error"] == "not_found"
+
 class TestErrorHandling:
     """Tests for error handling"""
     

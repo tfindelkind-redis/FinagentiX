@@ -6,10 +6,11 @@ This script reads SEC filings and news articles directly from Azure Blob Storage
 generates embeddings using Azure OpenAI, and stores them in Redis with vector indexes.
 """
 
+import argparse
 import os
 import json
 import hashlib
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 import time
 from datetime import datetime
@@ -304,8 +305,11 @@ class EmbeddingPipeline:
         
         return text
     
-    def chunk_text(self, text: str, max_chars: int = 24000) -> List[str]:
-        """Split text into chunks (safe margin for 8K token limit, ~6K tokens)"""
+    def chunk_text(self, text: str, max_chars: Optional[int] = None) -> List[str]:
+        """Split text into chunks, respecting the configured token budget."""
+        if max_chars is None:
+            max_chars = int(self.config.max_chunk_tokens * 3.5)
+
         if len(text) <= max_chars:
             return [text]
         
@@ -328,9 +332,54 @@ class EmbeddingPipeline:
             chunks.append(' '.join(current_chunk))
         
         return chunks
+
+    @staticmethod
+    def _status_key_sec(ticker: str, filing_type: str) -> str:
+        return f"pipeline:sec_status:{ticker}:{filing_type}"
+
+    @staticmethod
+    def _status_key_news(ticker: str) -> str:
+        return f"pipeline:news_status:{ticker}"
+
+    def _delete_documents(self, pattern: str) -> int:
+        """Remove existing JSON documents matching pattern."""
+        removed = 0
+        keys = list(self.redis_client.scan_iter(match=pattern))
+        for key in keys:
+            self.redis_client.delete(key)
+            removed += 1
+        return removed
+
+    def _record_status(self, key: str, details: Dict[str, Any]) -> None:
+        payload = json.dumps({
+            "processed_at": datetime.utcnow().isoformat(),
+            **details,
+        })
+        self.redis_client.set(key, payload)
+
+    def _status_exists(self, key: str) -> bool:
+        return self.redis_client.exists(key) > 0
     
-    def process_sec_filing(self, ticker: str, filing_type: str) -> int:
-        """Process a single SEC filing"""
+    def process_sec_filing(
+        self,
+        ticker: str,
+        filing_type: str,
+        *,
+        resume: bool = False,
+        refresh: bool = False,
+    ) -> int:
+        """Process a single SEC filing and store chunks in Redis."""
+        status_key = self._status_key_sec(ticker, filing_type)
+
+        if refresh:
+            cleared = self._delete_documents(f"sec:{ticker}:{filing_type}:*")
+            if cleared:
+                print(f"    ♻️  Cleared {cleared} existing {filing_type} chunks for {ticker}")
+            self.redis_client.delete(status_key)
+        elif resume and self._status_exists(status_key):
+            print(f"    ⏭️  Skipping {filing_type}; status key present (resume enabled)")
+            return 0
+
         filing_data = self.storage.read_sec_filing(ticker, filing_type)
         if not filing_data:
             return 0
@@ -339,6 +388,8 @@ class EmbeddingPipeline:
         chunks = self.chunk_text(text)
         
         filing_date = filing_data['metadata'].get('filing_date', 'unknown')
+
+        processed = 0
         
         for idx, chunk in enumerate(chunks):
             if len(chunk.strip()) < 200:
@@ -360,11 +411,32 @@ class EmbeddingPipeline:
             }
             
             self.redis_client.json().set(doc_id, '$', doc_data)
+            processed += 1
         
-        return len(chunks)
+        if processed:
+            self._record_status(status_key, {"chunks": processed, "filing_date": filing_date})
+        
+        return processed
     
-    def process_news_articles(self, ticker: str) -> int:
-        """Process news articles for a ticker"""
+    def process_news_articles(
+        self,
+        ticker: str,
+        *,
+        resume: bool = False,
+        refresh: bool = False,
+    ) -> int:
+        """Process news articles for a ticker."""
+        status_key = self._status_key_news(ticker)
+
+        if refresh:
+            cleared = self._delete_documents(f"news:{ticker}:*")
+            if cleared:
+                print(f"    ♻️  Cleared {cleared} existing news articles for {ticker}")
+            self.redis_client.delete(status_key)
+        elif resume and self._status_exists(status_key):
+            print("    ⏭️  Skipping news; status key present (resume enabled)")
+            return 0
+
         articles = self.storage.read_news_articles(ticker)
         count = 0
         
@@ -392,17 +464,30 @@ class EmbeddingPipeline:
             
             self.redis_client.json().set(doc_id, '$', doc_data)
             count += 1
+
+        if count:
+            self._record_status(status_key, {"articles": count})
         
         return count
     
-    def process_all_data(self, limit_tickers: int = None):
-        """Process all SEC filings and news articles"""
-        tickers = self.storage.list_tickers('sec-filings')
+    def process_all_data(
+        self,
+        *,
+        tickers: Optional[List[str]] = None,
+        limit_tickers: Optional[int] = None,
+        resume: bool = False,
+        refresh: bool = False,
+        skip_sec: bool = False,
+        skip_news: bool = False,
+    ) -> None:
+        """Process SEC filings and news articles for the requested tickers."""
+        if tickers is None:
+            tickers = self.storage.list_tickers('sec-filings')
         
         if limit_tickers:
             tickers = tickers[:limit_tickers]
         
-        print(f"\n📊 Processing {len(tickers)} tickers...")
+        print(f"\n📊 Processing {len(tickers)} ticker(s)...")
         
         total_sec_chunks = 0
         total_news = 0
@@ -410,25 +495,38 @@ class EmbeddingPipeline:
         for ticker in tickers:
             print(f"\n  Processing {ticker}...")
             
-            # SEC filings
-            for filing_type in ['10-K', '10-Q']:
-                try:
-                    chunks = self.process_sec_filing(ticker, filing_type)
-                    total_sec_chunks += chunks
-                    print(f"    ✅ {filing_type}: {chunks} chunks")
-                except Exception as e:
-                    print(f"    ❌ {filing_type}: {str(e)}")
+            if not skip_sec:
+                for filing_type in ['10-K', '10-Q']:
+                    try:
+                        chunks = self.process_sec_filing(
+                            ticker,
+                            filing_type,
+                            resume=resume,
+                            refresh=refresh,
+                        )
+                        total_sec_chunks += chunks
+                        print(f"    ✅ {filing_type}: {chunks} chunks")
+                    except Exception as e:
+                        print(f"    ❌ {filing_type}: {str(e)}")
+            else:
+                print("    ⏭️  Skipping SEC filings (per options)")
             
-            # News articles
-            try:
-                count = self.process_news_articles(ticker)
-                total_news += count
-                print(f"    ✅ News: {count} articles")
-            except Exception as e:
-                print(f"    ❌ News: {str(e)}")
+            if not skip_news:
+                try:
+                    count = self.process_news_articles(
+                        ticker,
+                        resume=resume,
+                        refresh=refresh,
+                    )
+                    total_news += count
+                    print(f"    ✅ News: {count} articles")
+                except Exception as e:
+                    print(f"    ❌ News: {str(e)}")
+            else:
+                print("    ⏭️  Skipping news articles (per options)")
         
         print(f"\n" + "=" * 60)
-        print(f"✅ Processing complete!")
+        print("✅ Processing complete!")
         print(f"   SEC filings: {total_sec_chunks} chunks")
         print(f"   News articles: {total_news} articles")
         print("=" * 60)
@@ -436,6 +534,50 @@ class EmbeddingPipeline:
 
 def main():
     """Main execution"""
+    parser = argparse.ArgumentParser(description="Generate embeddings and index them in Redis")
+    parser.add_argument(
+        "--tickers",
+        nargs="+",
+        help="Limit processing to specific tickers (e.g., --tickers AAPL MSFT)",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        help="Process only the first N tickers discovered in storage",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Skip tickers with existing status keys to resume a previous run",
+    )
+    parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="Delete existing documents before reprocessing (overrides resume)",
+    )
+    parser.add_argument(
+        "--skip-sec",
+        action="store_true",
+        help="Skip SEC filing ingestion",
+    )
+    parser.add_argument(
+        "--skip-news",
+        action="store_true",
+        help="Skip news article ingestion",
+    )
+    parser.add_argument(
+        "--rate-limit",
+        type=float,
+        help="Override rate limit delay between embedding requests (seconds)",
+    )
+    parser.add_argument(
+        "--max-tokens",
+        type=int,
+        help="Override maximum token budget per chunk (default: 8000)",
+    )
+
+    args = parser.parse_args()
+
     print("=" * 60)
     print("FinagentiX - Embedding Generation from Azure Storage")
     print("=" * 60)
@@ -451,6 +593,11 @@ def main():
         embedding_deployment=require_env('AZURE_OPENAI_EMBEDDING_DEPLOYMENT'),
         api_version=require_env('AZURE_OPENAI_API_VERSION')
     )
+
+    if args.rate_limit is not None:
+        config.rate_limit_delay = max(args.rate_limit, 0.0)
+    if args.max_tokens is not None:
+        config.max_chunk_tokens = max(args.max_tokens, 1)
     
     # Get storage key if not provided
     if not config.storage_account_key:
@@ -469,9 +616,17 @@ def main():
     print("\n📊 Creating vector indexes...")
     pipeline.create_indexes()
     
-    # Process first 3 tickers as a test
-    print("\n🚀 Starting embedding generation (first 3 tickers)...")
-    pipeline.process_all_data(limit_tickers=3)
+    selected_tickers = [ticker.upper() for ticker in args.tickers] if args.tickers else None
+
+    print("\n🚀 Starting embedding generation...")
+    pipeline.process_all_data(
+        tickers=selected_tickers,
+        limit_tickers=args.limit,
+        resume=args.resume,
+        refresh=args.refresh,
+        skip_sec=args.skip_sec,
+        skip_news=args.skip_news,
+    )
 
 
 if __name__ == "__main__":

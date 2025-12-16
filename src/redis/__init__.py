@@ -9,6 +9,7 @@ from .contextual_memory import ContextualMemory
 from .semantic_routing import SemanticRouter
 from .tool_cache import ToolCache
 from .document_store import DocumentStore
+from .workflow_store import WorkflowOutcomeStore
 
 __all__ = [
     "get_redis_client",
@@ -17,5 +18,6 @@ __all__ = [
     "SemanticRouter",
     "ToolCache",
     "DocumentStore",
+    "WorkflowOutcomeStore",
 ]
 

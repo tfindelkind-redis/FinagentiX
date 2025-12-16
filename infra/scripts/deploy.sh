@@ -497,6 +497,12 @@ echo "=========================================="
 echo "✅ Infrastructure Deployment Complete!"
 echo "=========================================="
 echo ""
+
+# Update .env with all deployed resource values
+echo "📄 Updating .env with deployed resource values..."
+"$SCRIPT_DIR/update-env.sh" --all
+
+echo ""
 echo "📊 Current deployments:"
 az deployment group list --resource-group "$RESOURCE_GROUP" --query "[].{Name:name, State:properties.provisioningState}" -o table
 echo ""

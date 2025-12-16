@@ -175,6 +175,11 @@ if [ "$START_STEP" -le 1 ] && [ "$END_STEP" -ge 1 ]; then
     fi
     
     get_deployment_info
+    
+    # Update .env with deployed infrastructure values
+    echo "📄 Updating .env with infrastructure values..."
+    "$SCRIPT_DIR/update-env.sh" --all
+    
     echo "✅ Step 1 complete"
 fi
 
@@ -199,6 +204,11 @@ if [ "$START_STEP" -le 3 ] && [ "$END_STEP" -ge 3 ]; then
     echo "Step 3/6: Deploying Debug VM"
     echo "=========================================="
     "$SCRIPT_DIR/deploy-debug-vm.sh"
+    
+    # Update .env with VM IP
+    echo "📄 Updating .env with VM IP..."
+    "$SCRIPT_DIR/update-env.sh" --vm
+    
     echo "✅ Step 3 complete"
 fi
 

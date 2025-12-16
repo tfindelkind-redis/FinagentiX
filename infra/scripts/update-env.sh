@@ -228,6 +228,99 @@ update_vm() {
     fi
 }
 
+# Update Container Registry variables
+update_container_registry() {
+    echo ""
+    echo "📦 Updating Container Registry Variables..."
+    
+    local acr_name=$(az acr list -g "$AZURE_RESOURCE_GROUP" --query "[0].name" -o tsv 2>/dev/null)
+    
+    if [ -z "$acr_name" ] || [ "$acr_name" = "null" ]; then
+        echo -e "${YELLOW}⚠️  No Container Registry found in resource group${NC}"
+        return 1
+    fi
+    
+    echo "   Found Container Registry: $acr_name"
+    
+    local acr_login_server=$(az acr show -n "$acr_name" --query "loginServer" -o tsv 2>/dev/null)
+    
+    update_env_var "AZURE_CONTAINER_REGISTRY_NAME" "$acr_name"
+    update_env_var "AZURE_CONTAINER_REGISTRY_LOGIN_SERVER" "$acr_login_server"
+}
+
+# Update Container Apps variables
+update_container_apps() {
+    echo ""
+    echo "🚀 Updating Container Apps Variables..."
+    
+    # Get Container Apps Environment
+    local cae_name=$(az containerapp env list -g "$AZURE_RESOURCE_GROUP" --query "[0].name" -o tsv 2>/dev/null)
+    
+    if [ -z "$cae_name" ] || [ "$cae_name" = "null" ]; then
+        echo -e "${YELLOW}⚠️  No Container Apps Environment found in resource group${NC}"
+        return 1
+    fi
+    
+    echo "   Found Container Apps Environment: $cae_name"
+    
+    local cae_default_domain=$(az containerapp env show -g "$AZURE_RESOURCE_GROUP" -n "$cae_name" \
+        --query "properties.defaultDomain" -o tsv 2>/dev/null)
+    local cae_static_ip=$(az containerapp env show -g "$AZURE_RESOURCE_GROUP" -n "$cae_name" \
+        --query "properties.staticIp" -o tsv 2>/dev/null)
+    
+    update_env_var "AZURE_CONTAINER_APPS_ENVIRONMENT" "$cae_name"
+    update_env_var "AZURE_CONTAINER_APPS_DOMAIN" "$cae_default_domain"
+    update_env_var "AZURE_CONTAINER_APPS_STATIC_IP" "$cae_static_ip"
+    
+    # Get Frontend Container App
+    local frontend_app=$(az containerapp list -g "$AZURE_RESOURCE_GROUP" \
+        --query "[?contains(name, 'frontend')].name | [0]" -o tsv 2>/dev/null)
+    
+    if [ -n "$frontend_app" ] && [ "$frontend_app" != "null" ]; then
+        echo "   Found Frontend App: $frontend_app"
+        local frontend_fqdn=$(az containerapp show -g "$AZURE_RESOURCE_GROUP" -n "$frontend_app" \
+            --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null)
+        local frontend_port=$(az containerapp show -g "$AZURE_RESOURCE_GROUP" -n "$frontend_app" \
+            --query "properties.configuration.ingress.targetPort" -o tsv 2>/dev/null)
+        
+        update_env_var "AZURE_FRONTEND_APP_NAME" "$frontend_app"
+        update_env_var "AZURE_FRONTEND_FQDN" "$frontend_fqdn"
+        update_env_var "AZURE_FRONTEND_URL" "https://$frontend_fqdn"
+        update_env_var "AZURE_FRONTEND_PORT" "${frontend_port:-80}"
+    fi
+    
+    # Get API Container App
+    local api_app=$(az containerapp list -g "$AZURE_RESOURCE_GROUP" \
+        --query "[?contains(name, 'agent-api')].name | [0]" -o tsv 2>/dev/null)
+    
+    if [ -n "$api_app" ] && [ "$api_app" != "null" ]; then
+        echo "   Found API App: $api_app"
+        local api_fqdn=$(az containerapp show -g "$AZURE_RESOURCE_GROUP" -n "$api_app" \
+            --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null)
+        local api_port=$(az containerapp show -g "$AZURE_RESOURCE_GROUP" -n "$api_app" \
+            --query "properties.configuration.ingress.targetPort" -o tsv 2>/dev/null)
+        
+        update_env_var "AZURE_API_APP_NAME" "$api_app"
+        update_env_var "AZURE_API_FQDN" "$api_fqdn"
+        update_env_var "AZURE_API_URL" "https://$api_fqdn"
+        update_env_var "AZURE_API_PORT" "${api_port:-8000}"
+    fi
+    
+    # Get Featureform Container App (if exists)
+    local featureform_app=$(az containerapp list -g "$AZURE_RESOURCE_GROUP" \
+        --query "[?contains(name, 'featureform')].name | [0]" -o tsv 2>/dev/null)
+    
+    if [ -n "$featureform_app" ] && [ "$featureform_app" != "null" ]; then
+        echo "   Found Featureform App: $featureform_app"
+        local featureform_fqdn=$(az containerapp show -g "$AZURE_RESOURCE_GROUP" -n "$featureform_app" \
+            --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null)
+        
+        update_env_var "AZURE_FEATUREFORM_APP_NAME" "$featureform_app"
+        update_env_var "AZURE_FEATUREFORM_FQDN" "$featureform_fqdn"
+        update_env_var "AZURE_FEATUREFORM_URL" "https://$featureform_fqdn"
+    fi
+}
+
 # Update all variables
 update_all() {
     echo "=========================================="
@@ -244,6 +337,8 @@ update_all() {
     update_openai
     update_storage
     update_vm
+    update_container_registry
+    update_container_apps
     
     echo ""
     echo "=========================================="
@@ -273,6 +368,14 @@ case "${1:-all}" in
         ensure_env_file
         update_vm
         ;;
+    --container-registry|--acr|-c)
+        ensure_env_file
+        update_container_registry
+        ;;
+    --container-apps|--apps|-p)
+        ensure_env_file
+        update_container_apps
+        ;;
     --all|-a|all)
         update_all
         ;;
@@ -282,13 +385,15 @@ case "${1:-all}" in
         echo "Update .env file with deployed Azure resource values"
         echo ""
         echo "Options:"
-        echo "  --all, -a          Update all variables (default)"
-        echo "  --infrastructure, -i  Update infrastructure variables only"
-        echo "  --redis, -r        Update Redis variables only"
-        echo "  --openai, -o       Update Azure OpenAI variables only"
-        echo "  --storage, -s      Update Storage variables only"
-        echo "  --vm, -v           Update VM variables only"
-        echo "  --help, -h         Show this help message"
+        echo "  --all, -a              Update all variables (default)"
+        echo "  --infrastructure, -i   Update infrastructure variables only"
+        echo "  --redis, -r            Update Redis variables only"
+        echo "  --openai, -o           Update Azure OpenAI variables only"
+        echo "  --storage, -s          Update Storage variables only"
+        echo "  --vm, -v               Update VM variables only"
+        echo "  --container-registry, --acr, -c  Update Container Registry variables"
+        echo "  --container-apps, --apps, -p     Update Container Apps variables"
+        echo "  --help, -h             Show this help message"
         ;;
     *)
         echo "Unknown option: $1"

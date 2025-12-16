@@ -160,7 +160,7 @@ class EmbeddingPipeline:
             password=config.redis_password,
             decode_responses=False,
             ssl=True,
-            ssl_cert_reqs='required'
+            ssl_cert_reqs=None  # Azure Redis Enterprise uses managed certs
         )
         
         self.storage = AzureStorageReader(

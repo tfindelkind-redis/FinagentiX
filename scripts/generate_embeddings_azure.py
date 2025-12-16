@@ -58,7 +58,7 @@ class Config:
     embedding_deployment: str = 'text-embedding-3-large'
     api_version: str = '2024-08-01-preview'
     embedding_dim: int = 3072
-    max_chunk_tokens: int = 8000
+    max_chunk_tokens: int = 6000  # Reduced from 8000 for safety margin
     rate_limit_delay: float = 0.1
 
 
@@ -282,8 +282,8 @@ class EmbeddingPipeline:
         time.sleep(self.config.rate_limit_delay)
         
         # text-embedding-3-large supports up to 8191 tokens
-        # Rough estimate: 1 token ≈ 4 characters
-        max_chars = 8000 * 4  # 32,000 chars ≈ 8000 tokens
+        # Use conservative estimate: 1 token ≈ 3.5 characters (safer margin)
+        max_chars = int(self.config.max_chunk_tokens * 3.5)
         
         response = self.openai_client.embeddings.create(
             input=text[:max_chars],

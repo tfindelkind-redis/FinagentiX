@@ -17,6 +17,7 @@ You now have a **complete, production-ready FastAPI application** with all the R
    - ✅ Contextual Memory (user profiles & conversation history)
    - ✅ Semantic Routing (workflow shortcuts)
    - ✅ Tool Cache (agent output caching)
+   - ✅ Document Store & RAG Retriever
 
 3. **Orchestration Workflows** (`src/orchestration/`)
    - ✅ Investment Analysis Workflow
@@ -24,59 +25,73 @@ You now have a **complete, production-ready FastAPI application** with all the R
    - ✅ Market Research Workflow
    - ✅ Quick Quote Workflow
 
-4. **Interactive CLI** (`cli.py`)
+4. **AI Agents** (`src/agents/`)
+   - ✅ Orchestrator Agent
+   - ✅ Market Data Agent
+   - ✅ Technical Analysis Agent
+   - ✅ Sentiment Analysis Agent
+   - ✅ Risk Assessment Agent
+   - ✅ Portfolio Management Agent
+   - ✅ News Research Agent
+   - ❌ Report Generation Agent (not implemented)
+
+5. **Interactive CLI** (`cli.py`)
    - ✅ Beautiful rich text interface
    - ✅ Interactive and single-query modes
    - ✅ Real-time stats display
 
-5. **Documentation & Scripts**
+6. **Infrastructure & Deployment**
+   - ✅ Azure Bicep templates (`infra/`)
+   - ✅ 6-step deployment script (`deploy-full.sh`)
+   - ✅ Auto-update .env script (`update-env.sh`)
+   - ✅ Embedding generation pipeline with progress tracking
+
+7. **Documentation & Scripts**
    - ✅ APPLICATION_GUIDE.md (complete usage guide)
+   - ✅ IMPLEMENTATION_AUDIT.md (detailed audit)
    - ✅ start_server.sh (automated startup)
    - ✅ test_setup.py (system verification)
 
-## 🚀 Next Steps
+---
 
-### 1. Configure Redis Connection
+## 📊 Current Deployment Status
 
-Update `.env` with your Redis credentials:
+### Azure Resources (finagentix-dev-rg)
 
+| Resource | Status | Details |
+|----------|--------|---------|
+| **Azure Managed Redis** | ✅ Running | `redis-3ae172dc9e9da.westus3.redis.azure.net:10000` |
+| **Azure OpenAI** | ✅ Running | GPT-4o + text-embedding-3-large |
+| **Azure Storage** | ✅ Running | SEC filings, news articles, stock data |
+| **Debug VM** | ✅ Running | 4.227.91.227 |
+
+### Embeddings Status
+
+| Index | Documents | Status |
+|-------|-----------|--------|
+| `idx:sec_filings` | 326 chunks | ✅ Partial (need more tickers) |
+| `idx:news_articles` | 120 articles | ✅ Partial (need more tickers) |
+| `idx:semantic_cache` | Created | ✅ Ready |
+| `idx:semantic_routes` | Created | ✅ Ready |
+
+**Total Redis Keys:** 1,499
+
+---
+
+## 🚀 Quick Start
+
+### 1. Update .env (Automatic)
+
+Run the update script to pull Azure resource values:
 ```bash
-# Use local Redis for testing
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
-REDIS_SSL=false
-
-# OR use Azure Redis Enterprise (if accessible)
-REDIS_HOST=redis-<RESOURCE_ID>.eastus.redis.azure.net
-REDIS_PORT=10000
-REDIS_PASSWORD=your-password-here
-REDIS_SSL=true
+./infra/scripts/update-env.sh --all
 ```
 
-**Note:** The Azure Redis hostname appears to be inaccessible. You have two options:
-
-**Option A: Use Local Redis (Quick Testing)**
-```bash
-# Install Redis locally
-brew install redis  # macOS
-# or
-sudo apt install redis  # Linux
-
-# Start Redis
-redis-server
-
-# Update .env
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
-REDIS_SSL=false
-```
-
-**Option B: Fix Azure Redis Access**
-- Check if you're connected to Azure VPN or need private endpoint access
-- Verify Redis password in `.env`
-- Check firewall rules in Azure Portal
+This automatically retrieves:
+- Redis host, port, password from Azure Managed Redis
+- Azure OpenAI endpoint and API key
+- Storage account connection string
+- Debug VM public IP
 
 ### 2. Start the Application
 
@@ -110,6 +125,8 @@ Try the `/api/query` endpoint:
   "user_id": "test_user"
 }
 ```
+
+---
 
 ## 📊 Architecture Overview
 
@@ -252,16 +269,65 @@ You've built a system that:
 6. **Scales horizontally** (stateless API, Redis state)
 7. **Provides rich insights** through multi-agent collaboration
 
-## 🚧 Optional Enhancements
+## 🚧 What's Still Missing
 
-When you're ready to take it further:
+### High Priority
+| Item | Status | Notes |
+|------|--------|-------|
+| **Report Generation Agent** | ❌ Not implemented | 8th agent from architecture |
+| **Complete Embeddings** | ⚠️ Partial | Only ~10 tickers processed, need all 28 |
+| **Test Suite** | ⚠️ 43/109 passing | Need to fix failing tests |
 
-1. **WebSocket Support** - Real-time streaming responses
-2. **RAG Integration** - Search through 225MB of SEC filings
-3. **Authentication** - User accounts and API keys
-4. **Production Deploy** - Azure Container Apps
-5. **Monitoring** - Application Insights integration
-6. **Enhanced Workflows** - More sophisticated synthesis with LLM
+### Medium Priority
+| Item | Status | Notes |
+|------|--------|-------|
+| **Quantization/Alerts System** | ❌ Not implemented | Real-time price alerts, risk breaches |
+| **WebSocket Support** | ❌ Not implemented | Streaming responses |
+
+### Lower Priority
+| Item | Status | Notes |
+|------|--------|-------|
+| **Production Monitoring** | ⚠️ Partial | Need Prometheus/Grafana |
+| **Authentication** | ❌ Not implemented | User accounts, API keys |
+
+---
+
+## 🔧 Deployment Commands
+
+### Full Deployment (from scratch)
+```bash
+./infra/scripts/deploy-full.sh
+```
+
+### Selective Step Execution
+```bash
+# Run specific step
+./infra/scripts/deploy-full.sh --step 6    # Generate embeddings only
+
+# Run range of steps
+./infra/scripts/deploy-full.sh --from 4    # Steps 4, 5, 6
+./infra/scripts/deploy-full.sh --from 3 --to 5  # Steps 3, 4, 5
+
+# Clean redeploy
+./infra/scripts/deploy-full.sh --clean     # Delete and recreate everything
+```
+
+### Steps Reference
+1. **Infrastructure** - VNet, Redis, OpenAI, Storage
+2. **Featureform** - Feature store deployment
+3. **Debug VM** - Development/testing VM
+4. **Upload Data** - SEC filings, news, stock data to Azure Storage
+5. **Apply Featureform** - Feature definitions
+6. **Generate Embeddings** - Vector embeddings in Redis
+
+### Update .env from Azure
+```bash
+./infra/scripts/update-env.sh --all      # All resources
+./infra/scripts/update-env.sh --redis    # Redis only
+./infra/scripts/update-env.sh --openai   # OpenAI only
+```
+
+---
 
 ## 💡 Key Takeaway
 

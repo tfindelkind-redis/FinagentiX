@@ -24,6 +24,7 @@ export default function LearnMode({ onSelectQuestion, isDisabled }: LearnModePro
   const handleQuestionClick = (question: LearnModeQuestion) => {
     if (!isDisabled) {
       onSelectQuestion(question.question)
+      setIsExpanded(false) // Close the panel after selection
     }
   }
 

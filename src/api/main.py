@@ -641,28 +641,49 @@ async def query(
 
 def _extract_ticker(query: str) -> Optional[str]:
     """Extract stock ticker from query text"""
-    # Simple ticker extraction (can be enhanced)
     import re
+    
+    # Known tickers we support (expanded list)
+    KNOWN_TICKERS = {
+        "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "META", "TSLA", "NVDA",
+        "AMD", "INTC", "NFLX", "DIS", "BA", "JPM", "GS", "V", "MA",
+        "WMT", "TGT", "COST", "HD", "NKE", "SBUX", "MCD", "KO", "PEP",
+        "JNJ", "PFE", "UNH", "CVS", "ABBV", "MRK", "LLY", "BMY",
+        "XOM", "CVX", "COP", "SLB", "OXY",
+        "SPY", "QQQ", "DIA", "IWM", "VTI",
+    }
     
     # Look for common ticker patterns
     patterns = [
         r'\b([A-Z]{1,5})\b(?:\s+stock|\s+shares?)',  # "AAPL stock"
         r'(?:ticker|symbol)\s+([A-Z]{1,5})\b',  # "ticker AAPL"
         r'\$([A-Z]{1,5})\b',  # "$AAPL"
+        r'(?:price\s+of|analyze|about)\s+([A-Z]{1,5})\b',  # "price of AAPL"
     ]
     
+    query_upper = query.upper()
     for pattern in patterns:
-        match = re.search(pattern, query.upper())
+        match = re.search(pattern, query_upper)
         if match:
-            return match.group(1)
+            ticker = match.group(1)
+            if ticker in KNOWN_TICKERS:
+                return ticker
     
-    # Check for standalone uppercase words (might be ticker)
-    words = query.upper().split()
+    # Check for standalone words that match known tickers (strip punctuation first)
+    words = query_upper.split()
     for word in words:
-        if len(word) >= 2 and len(word) <= 5 and word.isalpha():
-            # Common tickers
-            if word in ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA"]:
-                return word
+        # Strip common punctuation from word boundaries
+        clean_word = word.strip("?.,!;:'\"()[]")
+        if clean_word in KNOWN_TICKERS:
+            return clean_word
+    
+    # Last resort: look for any word that looks like a ticker
+    for word in words:
+        clean_word = word.strip("?.,!;:'\"()[]")
+        if len(clean_word) >= 1 and len(clean_word) <= 5 and clean_word.isalpha():
+            # All uppercase, reasonable length - likely a ticker
+            if clean_word.isupper() and clean_word not in {"A", "I", "THE", "OF", "AND", "FOR", "IS", "IT", "MY", "TO", "IN", "AT"}:
+                return clean_word
     
     return None
 

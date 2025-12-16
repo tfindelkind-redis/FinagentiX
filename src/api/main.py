@@ -851,6 +851,75 @@ async def get_cache_metrics(
     }
 
 
+class CacheClearRequest(BaseModel):
+    """Request model for cache clearing"""
+    pattern: Optional[str] = None
+
+
+@app.post("/api/cache/semantic/clear")
+async def clear_semantic_cache_endpoint(
+    request: CacheClearRequest = CacheClearRequest(),
+    semantic_cache: SemanticCache = Depends(get_semantic_cache),
+) -> Dict[str, Any]:
+    """
+    Clear semantic cache entries
+    
+    Args:
+        pattern: Optional pattern to match cache keys (default: clear all)
+    
+    Returns:
+        Number of entries cleared
+    """
+    try:
+        cleared = semantic_cache.clear(request.pattern)
+        return {
+            "success": True,
+            "cleared_count": cleared,
+            "pattern": request.pattern or "*",
+            "message": f"Cleared {cleared} semantic cache entries"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "cleared_count": 0,
+            "error": str(e)
+        }
+
+
+@app.post("/api/cache/tool/clear")
+async def clear_tool_cache_endpoint(
+    request: CacheClearRequest = CacheClearRequest(),
+    tool_cache: ToolCache = Depends(get_tool_cache),
+) -> Dict[str, Any]:
+    """
+    Clear tool cache entries
+    
+    Args:
+        pattern: Optional tool name pattern to match (default: clear all)
+    
+    Returns:
+        Number of entries cleared
+    """
+    try:
+        if request.pattern:
+            tool_cache.invalidate_pattern(f"*{request.pattern}*")
+            cleared = -1  # Pattern-based invalidation doesn't return count
+        else:
+            cleared = tool_cache.clear()
+        return {
+            "success": True,
+            "cleared_count": cleared,
+            "pattern": request.pattern or "*",
+            "message": "Tool cache cleared successfully"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "cleared_count": 0,
+            "error": str(e)
+        }
+
+
 @app.get("/api/metrics/performance")
 async def get_performance_metrics() -> Dict[str, Any]:
     """

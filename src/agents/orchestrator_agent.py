@@ -2,17 +2,42 @@
 
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from src.agents.base_agent import BaseAgent
 from src.agents.synthesis_agent import SynthesisAgent
-from src.orchestration.workflows import (
-    InvestmentAnalysisWorkflow,
-    MarketResearchWorkflow,
-    PortfolioReviewWorkflow,
-    QuickQuoteWorkflow,
-)
 from src.redis import SemanticRouter, ToolCache, WorkflowOutcomeStore
+
+# Lazy import to avoid circular dependency with orchestration.workflows
+# The workflows module imports from agents.plugins which imports agents/__init__.py
+# which imports this module
+if TYPE_CHECKING:
+    from src.orchestration.workflows import (
+        InvestmentAnalysisWorkflow,
+        MarketResearchWorkflow,
+        PortfolioReviewWorkflow,
+        QuickQuoteWorkflow,
+    )
+
+_workflow_classes = None
+
+def _get_workflow_classes():
+    """Lazy load workflow classes to avoid circular imports."""
+    global _workflow_classes
+    if _workflow_classes is None:
+        from src.orchestration.workflows import (
+            InvestmentAnalysisWorkflow,
+            MarketResearchWorkflow,
+            PortfolioReviewWorkflow,
+            QuickQuoteWorkflow,
+        )
+        _workflow_classes = {
+            "InvestmentAnalysisWorkflow": InvestmentAnalysisWorkflow,
+            "MarketResearchWorkflow": MarketResearchWorkflow,
+            "PortfolioReviewWorkflow": PortfolioReviewWorkflow,
+            "QuickQuoteWorkflow": QuickQuoteWorkflow,
+        }
+    return _workflow_classes
 
 
 class OrchestratorAgent(BaseAgent):
@@ -63,41 +88,49 @@ Always check caches first to minimize costs and latency.
         self.tool_cache = ToolCache()
         self.synthesis_agent = SynthesisAgent()
         self._workflow_outcome_store: Optional[WorkflowOutcomeStore] = None
-        self.workflow_registry: Dict[str, Dict[str, Any]] = {
-            "InvestmentAnalysisWorkflow": {
-                "class": InvestmentAnalysisWorkflow,
-                "pattern": "concurrent",
-                "agents": [
-                    "market_data",
-                    "technical_analysis",
-                    "risk_analysis",
-                    "news_sentiment",
-                ],
-                "requires_ticker": True,
-            },
-            "QuickQuoteWorkflow": {
-                "class": QuickQuoteWorkflow,
-                "pattern": "sequential",
-                "agents": ["market_data"],
-                "requires_ticker": True,
-            },
-            "PortfolioReviewWorkflow": {
-                "class": PortfolioReviewWorkflow,
-                "pattern": "sequential",
-                "agents": ["portfolio", "risk_analysis"],
-                "requires_ticker": False,
-            },
-            "MarketResearchWorkflow": {
-                "class": MarketResearchWorkflow,
-                "pattern": "concurrent",
-                "agents": ["market_data", "news_sentiment", "technical_analysis"],
-                "requires_ticker": False,
-            },
-        }
+        self._workflow_registry: Optional[Dict[str, Dict[str, Any]]] = None
         self.workflow_aliases = {
             "TechnicalAnalysisWorkflow": "InvestmentAnalysisWorkflow",
             "RiskAssessmentWorkflow": "InvestmentAnalysisWorkflow",
         }
+    
+    @property
+    def workflow_registry(self) -> Dict[str, Dict[str, Any]]:
+        """Lazy-loaded workflow registry to avoid circular imports."""
+        if self._workflow_registry is None:
+            wf_classes = _get_workflow_classes()
+            self._workflow_registry = {
+                "InvestmentAnalysisWorkflow": {
+                    "class": wf_classes["InvestmentAnalysisWorkflow"],
+                    "pattern": "concurrent",
+                    "agents": [
+                        "market_data",
+                        "technical_analysis",
+                        "risk_analysis",
+                        "news_sentiment",
+                    ],
+                    "requires_ticker": True,
+                },
+                "QuickQuoteWorkflow": {
+                    "class": wf_classes["QuickQuoteWorkflow"],
+                    "pattern": "sequential",
+                    "agents": ["market_data"],
+                    "requires_ticker": True,
+                },
+                "PortfolioReviewWorkflow": {
+                    "class": wf_classes["PortfolioReviewWorkflow"],
+                    "pattern": "sequential",
+                    "agents": ["portfolio", "risk_analysis"],
+                    "requires_ticker": False,
+                },
+                "MarketResearchWorkflow": {
+                    "class": wf_classes["MarketResearchWorkflow"],
+                    "pattern": "concurrent",
+                    "agents": ["market_data", "news_sentiment", "technical_analysis"],
+                    "requires_ticker": False,
+                },
+            }
+        return self._workflow_registry
     
     @property
     def workflow_outcomes(self) -> WorkflowOutcomeStore:

@@ -70,6 +70,17 @@ echo "=========================================="
 
 echo ""
 echo "=========================================="
+echo "Step 4: Uploading Data to Azure Storage"
+echo "=========================================="
+if [ -d "$SCRIPT_DIR/../../data" ]; then
+    "$SCRIPT_DIR/upload-data.sh"
+else
+    echo "⚠️  Skipping data upload - no local data/ directory found"
+    echo "   To upload data later, run: ./infra/scripts/upload-data.sh"
+fi
+
+echo ""
+echo "=========================================="
 echo "✅ Full Deployment Complete!"
 echo "=========================================="
 echo ""
@@ -119,6 +130,35 @@ else
     echo "1. SSH to VM: ssh azureuser@${VM_PUBLIC_IP}"
     echo "2. On the VM, run:"
     echo "   curl -s https://raw.githubusercontent.com/tfindelkind-redis/FinagentiX/main/infra/scripts/apply-definitions-on-vm.sh | bash -s $RESOURCE_TOKEN '$REDIS_PASSWORD' $AZURE_LOCATION"
+fi
+echo ""
+
+# Step 5: Generate Embeddings
+echo ""
+echo "=========================================="
+echo "📝 Generate Embeddings"
+echo "=========================================="
+echo ""
+read -p "Generate embeddings now? (yes/no): " gen_embeddings
+if [ "$gen_embeddings" = "yes" ]; then
+    echo "🧮 Running embedding generation (this may take 10-30 minutes)..."
+    "$SCRIPT_DIR/generate-embeddings.sh" --resume || {
+        echo "⚠️  Automatic embedding generation failed."
+        echo ""
+        echo "To generate embeddings manually:"
+        echo "1. SSH to VM: ssh azureuser@${VM_PUBLIC_IP}"
+        echo "2. cd ~/FinagentiX && source .venv/bin/activate"
+        echo "3. python scripts/generate_embeddings_azure.py --resume"
+    }
+else
+    echo "📋 To generate embeddings later, run:"
+    echo "   ./infra/scripts/generate-embeddings.sh"
+    echo ""
+    echo "   Options:"
+    echo "   --resume    Resume from last checkpoint"
+    echo "   --refresh   Delete and regenerate all embeddings"
+    echo "   --tickers   Process specific tickers (e.g., --tickers AAPL MSFT)"
+    echo "   --limit     Process first N tickers (e.g., --limit 5)"
 fi
 echo ""
 

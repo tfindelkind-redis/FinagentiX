@@ -729,6 +729,8 @@ def _extract_ticker(query: str) -> Optional[str]:
         "COMPREHENSIVE", "PORTFOLIO", "REVIEW", "PERFORMANCE", "SUGGEST", "REBALANCING",
         "RSI", "MACD", "BOLLINGER", "BANDS", "CALCULATE", "SEMICONDUCTOR", "CHIP",
         "OPINIONS", "OPINION", "ANALYST", "PLEASE", "THANK", "THANKS", "WOULD", "COULD",
+        "VIEWS", "VIEW", "OUTLOOK", "SUMMARIZE", "SUMMARY", "DESCRIBE", "EXPLAIN",
+        "GIVE", "PROVIDE", "INFO", "INFORMATION", "DATA", "DETAILS", "TREND",
     }
     
     query_upper = query.upper()

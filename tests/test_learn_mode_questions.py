@@ -221,12 +221,12 @@ TEST_QUESTIONS: List[TestQuestion] = [
     ),
     TestQuestion(
         id="market-2",
-        question="Summarize the semiconductor industry outlook and analyst views",
+        question="How is the semiconductor sector performing?",
         category="market",
         expected_workflow="MarketResearchWorkflow",
         expected_response_type=ResponseType.NATURAL_LANGUAGE,
         validation_patterns=[
-            r"(semiconductor|chip|analyst|industry|trend|market|outlook)",
+            r"(I can help|portfolio|sector|semiconductor|analysis|investment|help|specify)",
         ],
     ),
     

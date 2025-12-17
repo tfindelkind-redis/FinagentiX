@@ -3,7 +3,7 @@
   "passed": 16,
   "failed": 1,
   "pass_rate": 94.11764705882352,
-  "avg_response_time_ms": 780.6822107056231,
+  "avg_response_time_ms": 749.716833293753,
   "by_category": {
     "quick": {
       "passed": 5,
@@ -42,7 +42,7 @@
       "id": "quick-1",
       "passed": true,
       "workflow": "QuickQuoteWorkflow",
-      "time_ms": 1737.5895000004675,
+      "time_ms": 773.408749999362,
       "errors": [],
       "response_preview": "\ud83d\udcc8 **AAPL** is currently trading at **$278.78** (as of 2025-12-05)."
     },
@@ -50,7 +50,7 @@
       "id": "quick-2",
       "passed": true,
       "workflow": "QuickQuoteWorkflow",
-      "time_ms": 799.798792002548,
+      "time_ms": 671.6607909984305,
       "errors": [],
       "response_preview": "\ud83d\udcc8 **TSLA** is currently trading at **$455.00** (as of 2025-12-05)."
     },
@@ -58,7 +58,7 @@
       "id": "quick-3",
       "passed": true,
       "workflow": "QuickQuoteWorkflow",
-      "time_ms": 1149.3365419992188,
+      "time_ms": 1794.2131669988157,
       "errors": [],
       "response_preview": "\ud83d\udcc8 **MSFT** is currently trading at **$483.16** (as of 2025-12-05)."
     },
@@ -66,7 +66,7 @@
       "id": "quick-4",
       "passed": true,
       "workflow": "QuickQuoteWorkflow",
-      "time_ms": 682.620625000709,
+      "time_ms": 643.4264580020681,
       "errors": [],
       "response_preview": "\ud83d\udcc8 **AAPL** is currently trading at **$278.78** (as of 2025-12-05)."
     },
@@ -74,7 +74,7 @@
       "id": "invest-1",
       "passed": true,
       "workflow": "InvestmentAnalysisWorkflow",
-      "time_ms": 694.7237079984916,
+      "time_ms": 733.4398329985561,
       "errors": [],
       "response_preview": "Investment Analysis for NVDA:\n\nRecommendation: BUY\nConfidence: moderate\nSignals: bullish_trend\n\nBased on technical analysis, risk metrics, and sentiment, recommend BUY for NVDA"
     },
@@ -82,7 +82,7 @@
       "id": "invest-2",
       "passed": true,
       "workflow": "InvestmentAnalysisWorkflow",
-      "time_ms": 693.8134169977275,
+      "time_ms": 696.0844999994151,
       "errors": [],
       "response_preview": "Investment Analysis for MSFT:\n\nRecommendation: BUY\nConfidence: moderate\nSignals: bullish_trend\n\nBased on technical analysis, risk metrics, and sentiment, recommend BUY for MSFT"
     },
@@ -90,7 +90,7 @@
       "id": "invest-3",
       "passed": true,
       "workflow": "InvestmentAnalysisWorkflow",
-      "time_ms": 816.4977499982342,
+      "time_ms": 680.3443329990841,
       "errors": [],
       "response_preview": "Investment Analysis for AMD:\n\nRecommendation: HOLD\nConfidence: low\nSignals: \n\nBased on technical analysis, risk metrics, and sentiment, recommend HOLD for AMD"
     },
@@ -98,7 +98,7 @@
       "id": "tech-1",
       "passed": true,
       "workflow": "InvestmentAnalysisWorkflow",
-      "time_ms": 678.4579590021167,
+      "time_ms": 709.7884169997997,
       "errors": [],
       "response_preview": "Investment Analysis for AAPL:\n\nRecommendation: BUY\nConfidence: moderate\nSignals: bullish_trend\n\nBased on technical analysis, risk metrics, and sentiment, recommend BUY for AAPL"
     },
@@ -106,7 +106,7 @@
       "id": "tech-2",
       "passed": true,
       "workflow": "InvestmentAnalysisWorkflow",
-      "time_ms": 714.5617499991204,
+      "time_ms": 692.8662499994971,
       "errors": [],
       "response_preview": "Investment Analysis for GOOGL:\n\nRecommendation: BUY\nConfidence: moderate\nSignals: bullish_trend\n\nBased on technical analysis, risk metrics, and sentiment, recommend BUY for GOOGL"
     },
@@ -114,7 +114,7 @@
       "id": "risk-1",
       "passed": true,
       "workflow": "InvestmentAnalysisWorkflow",
-      "time_ms": 652.8749159988365,
+      "time_ms": 739.8104590029106,
       "errors": [],
       "response_preview": "Investment Analysis for AMD:\n\nRecommendation: HOLD\nConfidence: low\nSignals: \n\nBased on technical analysis, risk metrics, and sentiment, recommend HOLD for AMD"
     },
@@ -122,7 +122,7 @@
       "id": "risk-2",
       "passed": true,
       "workflow": "InvestmentAnalysisWorkflow",
-      "time_ms": 662.198250000074,
+      "time_ms": 669.7143330020481,
       "errors": [],
       "response_preview": "Investment Analysis for AMZN:\n\nRecommendation: BUY\nConfidence: moderate\nSignals: bullish_trend\n\nBased on technical analysis, risk metrics, and sentiment, recommend BUY for AMZN"
     },
@@ -130,7 +130,7 @@
       "id": "portfolio-1",
       "passed": true,
       "workflow": "PortfolioReviewWorkflow",
-      "time_ms": 630.5017909980961,
+      "time_ms": 647.5176250023651,
       "errors": [],
       "response_preview": "Portfolio Review:\n\nTotal Value: $0.00\nNumber of Positions: 0\n"
     },
@@ -138,7 +138,7 @@
       "id": "market-1",
       "passed": true,
       "workflow": "InvestmentAnalysisWorkflow",
-      "time_ms": 718.8383329994394,
+      "time_ms": 666.1920419937815,
       "errors": [],
       "response_preview": "Investment Analysis for TECH:\n\nRecommendation: HOLD\nConfidence: low\nSignals: \n\nBased on technical analysis, risk metrics, and sentiment, recommend HOLD for TECH"
     },
@@ -146,17 +146,17 @@
       "id": "market-2",
       "passed": false,
       "workflow": "InvestmentAnalysisWorkflow",
-      "time_ms": 718.2028330025787,
+      "time_ms": 666.7399999932968,
       "errors": [
-        "Pattern not found: (semiconductor|chip|analyst|industry|trend|market)"
+        "Pattern not found: (semiconductor|chip|analyst|industry|trend|market|outlook)"
       ],
-      "response_preview": "Investment Analysis for ME:\n\nRecommendation: HOLD\nConfidence: low\nSignals: \n\nBased on technical analysis, risk metrics, and sentiment, recommend HOLD for ME"
+      "response_preview": "Investment Analysis for VIEWS:\n\nRecommendation: HOLD\nConfidence: low\nSignals: \n\nBased on technical analysis, risk metrics, and sentiment, recommend HOLD for VIEWS"
     },
     {
       "id": "news-1",
       "passed": true,
       "workflow": "InvestmentAnalysisWorkflow",
-      "time_ms": 658.5072499983653,
+      "time_ms": 655.5903330008732,
       "errors": [],
       "response_preview": "Investment Analysis for AAPL:\n\nRecommendation: BUY\nConfidence: moderate\nSignals: bullish_trend\n\nBased on technical analysis, risk metrics, and sentiment, recommend BUY for AAPL"
     },
@@ -164,7 +164,7 @@
       "id": "cache-demo-1",
       "passed": true,
       "workflow": "CachedResponse",
-      "time_ms": 546.8523749987071,
+      "time_ms": 551.2512500063167,
       "errors": [],
       "response_preview": "\ud83d\udcc8 **AAPL** is currently trading at **$278.78** (as of 2025-12-05)."
     },
@@ -172,7 +172,7 @@
       "id": "cache-demo-2",
       "passed": true,
       "workflow": "InvestmentAnalysisWorkflow",
-      "time_ms": 716.2217910008621,
+      "time_ms": 753.13762499718,
       "errors": [],
       "response_preview": "Investment Analysis for MSFT:\n\nRecommendation: BUY\nConfidence: moderate\nSignals: bullish_trend\n\nBased on technical analysis, risk metrics, and sentiment, recommend BUY for MSFT"
     }

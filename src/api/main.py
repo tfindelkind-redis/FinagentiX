@@ -659,6 +659,59 @@ def _extract_ticker(query: str) -> Optional[str]:
         "C", "BAC", "WFC", "USB", "PNC", "SCHW",
     }
     
+    # Company name to ticker mapping
+    COMPANY_TO_TICKER = {
+        "APPLE": "AAPL",
+        "APPLE'S": "AAPL",
+        "MICROSOFT": "MSFT",
+        "MICROSOFT'S": "MSFT",
+        "GOOGLE": "GOOGL",
+        "GOOGLE'S": "GOOGL",
+        "ALPHABET": "GOOGL",
+        "AMAZON": "AMZN",
+        "AMAZON'S": "AMZN",
+        "TESLA": "TSLA",
+        "TESLA'S": "TSLA",
+        "NVIDIA": "NVDA",
+        "NVIDIA'S": "NVDA",
+        "META": "META",
+        "FACEBOOK": "META",
+        "NETFLIX": "NFLX",
+        "DISNEY": "DIS",
+        "BOEING": "BA",
+        "WALMART": "WMT",
+        "TARGET": "TGT",
+        "COSTCO": "COST",
+        "NIKE": "NKE",
+        "STARBUCKS": "SBUX",
+        "MCDONALD'S": "MCD",
+        "MCDONALDS": "MCD",
+        "COCA-COLA": "KO",
+        "PEPSI": "PEP",
+        "PEPSICO": "PEP",
+        "INTEL": "INTC",
+        "ORACLE": "ORCL",
+        "SALESFORCE": "CRM",
+        "CISCO": "CSCO",
+        "ADOBE": "ADBE",
+        "UBER": "UBER",
+        "LYFT": "LYFT",
+        "AIRBNB": "ABNB",
+        "DOORDASH": "DASH",
+        "ROBLOX": "RBLX",
+        "COINBASE": "COIN",
+        "PAYPAL": "PYPL",
+        "FORD": "F",
+        "CHEVRON": "CVX",
+        "EXXON": "XOM",
+        "JPMORGAN": "JPM",
+        "JP MORGAN": "JPM",
+        "GOLDMAN": "GS",
+        "GOLDMAN SACHS": "GS",
+        "BANK OF AMERICA": "BAC",
+        "WELLS FARGO": "WFC",
+    }
+    
     # Common non-ticker words to exclude
     EXCLUDED_WORDS = {
         "A", "I", "THE", "OF", "AND", "FOR", "IS", "IT", "MY", "TO", "IN", "AT",
@@ -668,7 +721,21 @@ def _extract_ticker(query: str) -> Optional[str]:
         "GIVE", "TAKE", "MAKE", "GOOD", "TIME", "JUST", "KNOW", "COME", "THINK",
         "LOOK", "USE", "FIND", "TELL", "ASK", "WORK", "SEEM", "FEEL", "TRY",
         "STOCK", "PRICE", "QUOTE", "SHARE", "VALUE", "CURRENT", "TODAY", "BUY", "SELL",
+        "INDUSTRY", "SECTOR", "MARKET", "ANALYSTS", "SAYING", "ABOUT", "SHOW",
+        "LONG", "TERM", "SHORT", "POTENTIAL", "INVESTMENT", "INVEST", "INVESTING",
+        "BASED", "RECENT", "NEWS", "SENTIMENT", "ANALYSIS", "ANALYZE", "TECHNICAL",
+        "INDICATORS", "PATTERNS", "BULLISH", "BEARISH", "RISK", "RISKY", "METRICS",
+        "VAR", "BETA", "VOLATILITY", "COMPARED", "ARE", "SAYING", "HAPPENING",
+        "COMPREHENSIVE", "PORTFOLIO", "REVIEW", "PERFORMANCE", "SUGGEST", "REBALANCING",
+        "RSI", "MACD", "BOLLINGER", "BANDS", "CALCULATE", "SEMICONDUCTOR", "CHIP",
     }
+    
+    query_upper = query.upper()
+    
+    # First, check for company names
+    for company, ticker in COMPANY_TO_TICKER.items():
+        if company in query_upper:
+            return ticker
     
     # Look for common ticker patterns
     patterns = [
@@ -677,8 +744,6 @@ def _extract_ticker(query: str) -> Optional[str]:
         r'\$([A-Z]{1,5})\b',  # "$AAPL"
         r'(?:price\s+of|analyze|about)\s+([A-Z]{1,5})\b',  # "price of AAPL"
     ]
-    
-    query_upper = query.upper()
     for pattern in patterns:
         match = re.search(pattern, query_upper)
         if match:

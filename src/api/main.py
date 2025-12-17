@@ -720,6 +720,43 @@ def _format_response(result: Dict[str, Any]) -> str:
         
         return response
     
+    # Format quick quote
+    if result.get("workflow") == "QuickQuoteWorkflow":
+        ticker = result.get("ticker", "")
+        price_data = result.get("price_data", {})
+        
+        if price_data.get("success"):
+            price = price_data.get("value", 0)
+            date = price_data.get("date", "")
+            # Extract just the date part if timestamp includes time
+            if " " in date:
+                date = date.split(" ")[0]
+            
+            return f"📈 **{ticker}** is currently trading at **${price:,.2f}** (as of {date})."
+        else:
+            error_msg = price_data.get("message", "Unable to fetch price data")
+            return f"Unable to get current price for {ticker}: {error_msg}"
+    
+    # Format market research
+    if result.get("workflow") == "MarketResearchWorkflow":
+        ticker = result.get("ticker", "")
+        research = result.get("research_summary", {})
+        
+        response = f"📊 **Market Research for {ticker}**\n\n"
+        
+        if "news" in result.get("agent_results", {}):
+            news = result["agent_results"]["news"]
+            if news.get("headlines"):
+                response += "**Recent Headlines:**\n"
+                for headline in news["headlines"][:3]:
+                    response += f"• {headline}\n"
+                response += "\n"
+        
+        if research.get("sentiment"):
+            response += f"**Sentiment:** {research['sentiment']}\n"
+        
+        return response
+    
     # Default: return JSON string
     import json
     return json.dumps(result, indent=2)

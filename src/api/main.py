@@ -732,9 +732,12 @@ def _extract_ticker(query: str) -> Optional[str]:
     
     query_upper = query.upper()
     
+    # Normalize apostrophes (curly to straight)
+    query_normalized = query_upper.replace("'", "'").replace("'", "'")
+    
     # First, check for company names
     for company, ticker in COMPANY_TO_TICKER.items():
-        if company in query_upper:
+        if company in query_normalized:
             return ticker
     
     # Look for common ticker patterns

@@ -717,17 +717,18 @@ def _extract_ticker(query: str) -> Optional[str]:
         "A", "I", "THE", "OF", "AND", "FOR", "IS", "IT", "MY", "TO", "IN", "AT",
         "ON", "BE", "AS", "OR", "AN", "BY", "IF", "UP", "SO", "NO", "DO", "GO",
         "HAS", "CAN", "GET", "HOW", "NEW", "NOW", "OLD", "OUR", "OUT", "OWN",
-        "SAY", "SEE", "WHAT", "WHEN", "WHO", "WHY", "WAY", "WELL", "WANT",
+        "SAY", "SEE", "WHAT", "WHEN", "WHO", "WHY", "WAY", "WELL", "WANT", "ME",
         "GIVE", "TAKE", "MAKE", "GOOD", "TIME", "JUST", "KNOW", "COME", "THINK",
-        "LOOK", "USE", "FIND", "TELL", "ASK", "WORK", "SEEM", "FEEL", "TRY",
+        "LOOK", "USE", "FIND", "TELL", "ASK", "WORK", "SEEM", "FEEL", "TRY", "ALSO",
         "STOCK", "PRICE", "QUOTE", "SHARE", "VALUE", "CURRENT", "TODAY", "BUY", "SELL",
-        "INDUSTRY", "SECTOR", "MARKET", "ANALYSTS", "SAYING", "ABOUT", "SHOW",
+        "INDUSTRY", "SECTOR", "MARKET", "ANALYSTS", "SAYING", "ABOUT", "SHOW", "TRENDS",
         "LONG", "TERM", "SHORT", "POTENTIAL", "INVESTMENT", "INVEST", "INVESTING",
         "BASED", "RECENT", "NEWS", "SENTIMENT", "ANALYSIS", "ANALYZE", "TECHNICAL",
         "INDICATORS", "PATTERNS", "BULLISH", "BEARISH", "RISK", "RISKY", "METRICS",
         "VAR", "BETA", "VOLATILITY", "COMPARED", "ARE", "SAYING", "HAPPENING",
         "COMPREHENSIVE", "PORTFOLIO", "REVIEW", "PERFORMANCE", "SUGGEST", "REBALANCING",
         "RSI", "MACD", "BOLLINGER", "BANDS", "CALCULATE", "SEMICONDUCTOR", "CHIP",
+        "OPINIONS", "OPINION", "ANALYST", "PLEASE", "THANK", "THANKS", "WOULD", "COULD",
     }
     
     query_upper = query.upper()

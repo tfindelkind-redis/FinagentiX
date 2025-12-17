@@ -829,6 +829,47 @@ def _format_response(result: Dict[str, Any]) -> str:
     if result.get("workflow") == "MarketResearchWorkflow":
         ticker = result.get("ticker", "")
         research = result.get("research_summary", {})
+        query = result.get("query", "")
+        
+        # If no ticker, provide helpful response for sector/general queries
+        if not ticker:
+            # Extract sector from query if present
+            sector_keywords = {
+                "semiconductor": "semiconductor",
+                "chip": "semiconductor", 
+                "tech": "technology",
+                "technology": "technology",
+                "energy": "energy",
+                "healthcare": "healthcare",
+                "financial": "financial",
+                "banking": "banking",
+                "retail": "retail",
+                "auto": "automotive",
+                "automotive": "automotive",
+            }
+            query_lower = query.lower() if query else ""
+            detected_sector = None
+            for keyword, sector in sector_keywords.items():
+                if keyword in query_lower:
+                    detected_sector = sector
+                    break
+            
+            if detected_sector:
+                return (
+                    f"📊 **{detected_sector.title()} Sector Analysis**\n\n"
+                    f"I can provide detailed analysis for specific stocks in the {detected_sector} sector. "
+                    f"For example, you could ask about:\n"
+                    f"• **NVDA** (NVIDIA) - leading semiconductor company\n"
+                    f"• **AMD** - Advanced Micro Devices\n"
+                    f"• **INTC** - Intel Corporation\n\n"
+                    f"Would you like me to analyze a specific stock?"
+                )
+            else:
+                return (
+                    "📊 **Market Research**\n\n"
+                    "I can help with market research and analysis. Please specify a stock ticker "
+                    "(e.g., 'What's the outlook for AAPL?') or a specific sector to analyze."
+                )
         
         response = f"📊 **Market Research for {ticker}**\n\n"
         

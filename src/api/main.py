@@ -651,6 +651,23 @@ def _extract_ticker(query: str) -> Optional[str]:
         "JNJ", "PFE", "UNH", "CVS", "ABBV", "MRK", "LLY", "BMY",
         "XOM", "CVX", "COP", "SLB", "OXY",
         "SPY", "QQQ", "DIA", "IWM", "VTI",
+        "IBM", "ORCL", "CRM", "SAP", "CSCO", "ADBE", "NOW", "SNOW",
+        "UBER", "LYFT", "ABNB", "DASH", "RBLX", "COIN", "SQ", "PYPL",
+        "F", "GM", "TM", "HMC", "RIVN", "LCID",
+        "T", "VZ", "TMUS", "CMCSA",
+        "BRK.A", "BRK.B", "BRKB",
+        "C", "BAC", "WFC", "USB", "PNC", "SCHW",
+    }
+    
+    # Common non-ticker words to exclude
+    EXCLUDED_WORDS = {
+        "A", "I", "THE", "OF", "AND", "FOR", "IS", "IT", "MY", "TO", "IN", "AT",
+        "ON", "BE", "AS", "OR", "AN", "BY", "IF", "UP", "SO", "NO", "DO", "GO",
+        "HAS", "CAN", "GET", "HOW", "NEW", "NOW", "OLD", "OUR", "OUT", "OWN",
+        "SAY", "SEE", "WHAT", "WHEN", "WHO", "WHY", "WAY", "WELL", "WANT",
+        "GIVE", "TAKE", "MAKE", "GOOD", "TIME", "JUST", "KNOW", "COME", "THINK",
+        "LOOK", "USE", "FIND", "TELL", "ASK", "WORK", "SEEM", "FEEL", "TRY",
+        "STOCK", "PRICE", "QUOTE", "SHARE", "VALUE", "CURRENT", "TODAY", "BUY", "SELL",
     }
     
     # Look for common ticker patterns
@@ -682,7 +699,7 @@ def _extract_ticker(query: str) -> Optional[str]:
         clean_word = word.strip("?.,!;:'\"()[]")
         if len(clean_word) >= 1 and len(clean_word) <= 5 and clean_word.isalpha():
             # All uppercase, reasonable length - likely a ticker
-            if clean_word.isupper() and clean_word not in {"A", "I", "THE", "OF", "AND", "FOR", "IS", "IT", "MY", "TO", "IN", "AT"}:
+            if clean_word.isupper() and clean_word not in EXCLUDED_WORDS:
                 return clean_word
     
     return None

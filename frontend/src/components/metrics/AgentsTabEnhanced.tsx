@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Info, Zap, Database, Clock, DollarSign, ChevronDown, CheckCircle, AlertCircle } from 'lucide-react'
+import { Info, Zap, Database, Clock, DollarSign, ChevronDown, CheckCircle, AlertCircle, Sparkles } from 'lucide-react'
 import { AGENT_EXPLANATIONS } from '@/data/learnModeQuestions'
 import type { EnhancedQueryResponse } from '@/types/api'
 import './AgentsTab.css'
@@ -14,6 +14,47 @@ export default function AgentsTab({ response }: AgentsTabProps) {
 
   const toggleAgent = (agentId: string) => {
     setExpandedAgent(expandedAgent === agentId ? null : agentId)
+  }
+
+  // Show cached response state when no agents
+  if (response.agents.length === 0) {
+    return (
+      <div className="agents-tab">
+        <div className="agents-header">
+          <h3>Execution Details</h3>
+        </div>
+        
+        <div className="cached-response-info">
+          <div className="cached-icon">
+            <Sparkles size={48} />
+          </div>
+          <h4>⚡ Instant Response from Cache</h4>
+          <p>This query was served directly from the semantic cache - no agents were needed!</p>
+          
+          <div className="cache-benefits">
+            <div className="cache-benefit">
+              <Database size={16} />
+              <span>Semantic similarity matched a previous query</span>
+            </div>
+            <div className="cache-benefit">
+              <Clock size={16} />
+              <span>Response time: {response.performance.total_time_ms.toFixed(0)}ms</span>
+            </div>
+            <div className="cache-benefit">
+              <DollarSign size={16} />
+              <span>Cost saved: ${response.cost.cost_savings_usd.toFixed(4)}</span>
+            </div>
+          </div>
+          
+          {response.cache_layers.find(l => l.hit)?.matched_query && (
+            <div className="matched-query">
+              <strong>Matched query:</strong>
+              <p>"{response.cache_layers.find(l => l.hit)?.matched_query}"</p>
+            </div>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (

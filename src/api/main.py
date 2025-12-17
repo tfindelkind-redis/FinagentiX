@@ -434,6 +434,64 @@ async def query_enhanced(
         agent_catalogue = sorted({agent for cfg in workflow_registry.values() for agent in cfg["agents"]})
         overall_cache_hit = any(layer.get("hit") for layer in metrics.cache_checks)
         
+        # Generate synthetic agent data from tool invocations if no agents recorded
+        agent_executions = metrics.agent_executions
+        if not agent_executions and metrics.tool_invocations:
+            # Group tools by agent name (derived from tool name)
+            agent_tools: Dict[str, List[Dict[str, Any]]] = {}
+            for tool in metrics.tool_invocations:
+                # Extract agent name from tool name (e.g., "quick_quote_price" -> "market_data")
+                tool_name = tool.get("tool_name", "")
+                if "quote" in tool_name or "price" in tool_name or "historical" in tool_name:
+                    agent_name = "market_data"
+                elif "technical" in tool_name or "rsi" in tool_name or "macd" in tool_name:
+                    agent_name = "technical_analysis"
+                elif "risk" in tool_name or "var" in tool_name or "beta" in tool_name:
+                    agent_name = "risk_analysis"
+                elif "news" in tool_name or "sentiment" in tool_name:
+                    agent_name = "news_sentiment"
+                elif "portfolio" in tool_name:
+                    agent_name = "portfolio"
+                else:
+                    agent_name = "market_data"  # Default
+                    
+                if agent_name not in agent_tools:
+                    agent_tools[agent_name] = []
+                agent_tools[agent_name].append({
+                    "tool_name": tool.get("tool_name", "unknown"),
+                    "duration_ms": tool.get("duration_ms", 0),
+                    "cache_hit": tool.get("cache_hit", False),
+                    "cache_similarity": tool.get("cache_similarity"),
+                    "status": tool.get("status", "success")
+                })
+            
+            # Create synthetic agents from grouped tools
+            for agent_name in selected_agents:
+                tools = agent_tools.get(agent_name, [])
+                total_duration = sum(t.get("duration_ms", 0) for t in tools)
+                cache_hits = sum(1 for t in tools if t.get("cache_hit"))
+                
+                agent_executions.append({
+                    "agent_name": agent_name,
+                    "agent_id": f"{agent_name}_{metrics.query_id[:8]}",
+                    "agent_index": len(agent_executions),
+                    "duration_ms": total_duration,
+                    "start_time": datetime.now().isoformat(),
+                    "end_time": datetime.now().isoformat(),
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "total_tokens": 0,
+                    "model_used": "plugin",
+                    "temperature": 0.0,
+                    "max_tokens": 0,
+                    "cost_usd": 0.0,
+                    "status": "success",
+                    "response": None,
+                    "error_message": None,
+                    "tools_invoked": tools,
+                    "timestamp": datetime.now().isoformat()
+                })
+        
         return EnhancedQueryResponse(
             query=request.query,
             response=response_text,
@@ -443,10 +501,10 @@ async def query_enhanced(
                 workflow_name=workflow_name,
                 orchestration_pattern=orchestration_pattern,
                 routing_time_ms=routing_time,
-                agents_invoked_count=len(selected_agents),
+                agents_invoked_count=len(agent_executions) if agent_executions else len(selected_agents),
                 agents_available_count=len(agent_catalogue)
             ),
-            agents=metrics.agent_executions,
+            agents=agent_executions,
             cache_layers=metrics.cache_checks,
             overall_cache_hit=overall_cache_hit,
             cost=CostBreakdown(**costs),

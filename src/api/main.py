@@ -459,10 +459,13 @@ async def query_enhanced(
                     agent_tools[agent_name] = []
                 agent_tools[agent_name].append({
                     "tool_name": tool.get("tool_name", "unknown"),
+                    "parameters": tool.get("parameters", {}),
                     "duration_ms": tool.get("duration_ms", 0),
                     "cache_hit": tool.get("cache_hit", False),
                     "cache_similarity": tool.get("cache_similarity"),
-                    "status": tool.get("status", "success")
+                    "result_size_bytes": tool.get("result_size_bytes", 0),
+                    "status": tool.get("status", "success"),
+                    "error_message": tool.get("error_message")
                 })
             
             # Create synthetic agents from grouped tools

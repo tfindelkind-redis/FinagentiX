@@ -278,6 +278,47 @@
   line-height: 1.4;
 }
 
+/* Event Status Badge - HIT/MISS indicators */
+.event-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.event-status-badge.status-hit {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: var(--color-success);
+  border: 1px solid var(--color-success);
+}
+
+.event-status-badge.status-miss {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.event-status-badge.status-success {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: var(--color-success);
+}
+
+/* Update timeline header to accommodate status badge */
+.timeline-event.enhanced .timeline-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.timeline-event.enhanced .event-time {
+  margin-left: auto;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .timeline-summary {

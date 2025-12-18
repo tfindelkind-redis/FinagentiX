@@ -115,8 +115,10 @@ export default function TimelineTabEnhanced({ response }: TimelineTabEnhancedPro
     })
   }
 
-  // Calculate savings summary
-  const cacheHits = timeline.events.filter(e => e.type === 'cache_hit').length
+  // Calculate savings summary - count both cache_hit type AND cache_check with status='hit'
+  const cacheHits = timeline.events.filter(e => 
+    e.type === 'cache_hit' || (e.type === 'cache_check' && e.status === 'hit')
+  ).length
   const totalEvents = timeline.events.length
   const estimatedSavings = cacheHits * 0.01 // $0.01 per cache hit
   const estimatedTimeSaved = cacheHits * 2000 // 2 seconds per cache hit
@@ -193,6 +195,14 @@ export default function TimelineTabEnhanced({ response }: TimelineTabEnhancedPro
                   >
                     {event.type.replace(/_/g, ' ')}
                   </span>
+                  {/* Status Badge - Shows HIT/MISS/SUCCESS prominently */}
+                  {event.status && (
+                    <span className={`event-status-badge status-${event.status}`}>
+                      {event.status === 'hit' ? '✓ HIT' : 
+                       event.status === 'miss' ? '✗ MISS' : 
+                       event.status === 'success' ? '✓' : event.status.toUpperCase()}
+                    </span>
+                  )}
                   <span className="event-time">
                     {event.start_time_ms.toFixed(0)}ms
                   </span>

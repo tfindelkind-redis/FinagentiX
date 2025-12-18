@@ -887,96 +887,128 @@ def _format_response(result: Dict[str, Any]) -> str:
         
         # Technical Analysis Section
         response += "## 📈 Technical Indicators\n\n"
-        if isinstance(technical, dict) and technical.get("success", True):
-            # SMA
+        if isinstance(technical, dict) and technical.get("status") != "error":
+            # SMA - plugins return "sma" key, not "value"
             sma_50 = technical.get("sma_50", {})
             sma_200 = technical.get("sma_200", {})
-            if isinstance(sma_50, dict) and sma_50.get("value"):
-                response += f"• **SMA 50:** ${sma_50['value']:,.2f}\n"
-            if isinstance(sma_200, dict) and sma_200.get("value"):
-                response += f"• **SMA 200:** ${sma_200['value']:,.2f}\n"
+            if isinstance(sma_50, dict):
+                sma_val = sma_50.get("sma") or sma_50.get("value")
+                if sma_val is not None and isinstance(sma_val, (int, float)):
+                    response += f"• **SMA 50:** ${sma_val:,.2f}\n"
+            if isinstance(sma_200, dict):
+                sma_val = sma_200.get("sma") or sma_200.get("value")
+                if sma_val is not None and isinstance(sma_val, (int, float)):
+                    response += f"• **SMA 200:** ${sma_val:,.2f}\n"
             
-            # RSI
+            # RSI - plugins return "rsi" key
             rsi = technical.get("rsi", {})
             if isinstance(rsi, dict):
-                rsi_value = rsi.get("value")
+                rsi_value = rsi.get("rsi") or rsi.get("value")
                 if rsi_value is not None and isinstance(rsi_value, (int, float)):
                     rsi_status = "Overbought ⚠️" if rsi_value > 70 else "Oversold ⚠️" if rsi_value < 30 else "Neutral"
                     response += f"• **RSI (14):** {rsi_value:.1f} ({rsi_status})\n"
             
-            # Volatility
+            # Volatility - plugins return "annualized" or "daily"
             volatility = technical.get("volatility", {})
             if isinstance(volatility, dict):
-                vol_value = volatility.get("value") or volatility.get("annualized")
+                vol_value = volatility.get("annualized") or volatility.get("daily") or volatility.get("value")
                 if vol_value is not None and isinstance(vol_value, (int, float)):
                     vol_level = "High" if vol_value > 0.4 else "Low" if vol_value < 0.2 else "Moderate"
                     response += f"• **Volatility:** {vol_value:.1%} ({vol_level})\n"
             
-            # Trend
-            trend = technical.get("trend")
-            if trend and isinstance(trend, str):
-                trend_emoji = "📈" if trend == "bullish" else "📉" if trend == "bearish" else "➡️"
-                response += f"• **Trend:** {trend_emoji} {trend.title()}\n"
+            # Trend - check signals array or trend field
+            signals = technical.get("signals", [])
+            if signals and isinstance(signals, list):
+                trend = "bullish" if "bullish_trend" in signals else "bearish" if "bearish_trend" in signals else None
+                if trend:
+                    trend_emoji = "📈" if trend == "bullish" else "📉"
+                    response += f"• **Trend:** {trend_emoji} {trend.title()}\n"
         response += "\n"
         
         # Risk Analysis Section
         response += "## ⚠️ Risk Assessment\n\n"
-        if isinstance(risk, dict) and risk.get("success", True):
-            # VaR
+        if isinstance(risk, dict) and risk.get("status") != "error":
+            # VaR - plugins return "var_pct" key
             var_data = risk.get("var", {})
             if isinstance(var_data, dict):
-                var_value = var_data.get("value") or var_data.get("var_95")
+                var_value = var_data.get("var_pct") or var_data.get("value") or var_data.get("var_95")
                 if var_value is not None and isinstance(var_value, (int, float)):
-                    response += f"• **Value at Risk (95%):** {abs(var_value):.2%} potential daily loss\n"
+                    # var_pct is already in percentage, convert to decimal for display
+                    var_decimal = var_value / 100 if var_value > 1 else var_value
+                    response += f"• **Value at Risk (95%):** {abs(var_decimal):.2%} potential daily loss\n"
             
-            # Beta
+            # Beta - plugins return "beta" key directly
             beta_data = risk.get("beta", {})
             if isinstance(beta_data, dict):
-                beta_value = beta_data.get("value")
+                beta_value = beta_data.get("beta") or beta_data.get("value")
                 if beta_value is not None and isinstance(beta_value, (int, float)):
                     beta_desc = "More volatile than market" if beta_value > 1 else "Less volatile than market" if beta_value < 1 else "Matches market"
                     response += f"• **Beta:** {beta_value:.2f} ({beta_desc})\n"
             
-            # Max Drawdown
+            # Max Drawdown - plugins return "max_drawdown_pct" key
             drawdown = risk.get("drawdown", risk.get("max_drawdown", {}))
             if isinstance(drawdown, dict):
-                dd_value = drawdown.get("value") or drawdown.get("max_drawdown")
+                dd_value = drawdown.get("max_drawdown_pct") or drawdown.get("value") or drawdown.get("max_drawdown")
                 if dd_value is not None and isinstance(dd_value, (int, float)):
-                    response += f"• **Max Drawdown:** {abs(dd_value):.1%}\n"
+                    # max_drawdown_pct is already in percentage
+                    dd_decimal = dd_value / 100 if dd_value > 1 else dd_value
+                    response += f"• **Max Drawdown:** {abs(dd_decimal):.1%}\n"
             
-            # Risk Level - handle case where summary might be string or missing
+            # Risk Level - can be in var, beta, drawdown, or top-level
             risk_level = risk.get("risk_level")
+            if not risk_level:
+                # Try to get from nested data
+                for data in [var_data, drawdown]:
+                    if isinstance(data, dict) and data.get("risk_level"):
+                        risk_level = data.get("risk_level")
+                        break
             if not risk_level:
                 summary = risk.get("summary", {})
                 if isinstance(summary, dict):
                     risk_level = summary.get("risk_level")
             if risk_level and isinstance(risk_level, str):
-                risk_emoji = "🔴" if risk_level == "high" else "🟡" if risk_level == "moderate" else "🟢"
+                risk_emoji = "🔴" if risk_level in ("high", "extreme") else "🟡" if risk_level == "moderate" else "🟢"
                 response += f"• **Overall Risk:** {risk_emoji} {risk_level.title()}\n"
         response += "\n"
         
         # Sentiment Section  
         response += "## 📰 Market Sentiment\n\n"
-        if isinstance(sentiment, dict) and sentiment.get("success", True):
-            sentiment_score = sentiment.get("sentiment", {})
-            if isinstance(sentiment_score, dict):
-                score = sentiment_score.get("score") or sentiment_score.get("overall_score")
-                label = sentiment_score.get("label") or sentiment_score.get("sentiment")
-                if score is not None and isinstance(score, (int, float)):
-                    sent_emoji = "🟢" if score > 0.3 else "🔴" if score < -0.3 else "🟡"
-                    response += f"• **Sentiment Score:** {sent_emoji} {score:+.2f}\n"
+        if isinstance(sentiment, dict) and sentiment.get("status") != "error":
+            # Check the nested sentiment dict from the plugin
+            sentiment_data = sentiment.get("sentiment", {})
+            if isinstance(sentiment_data, dict):
+                # Try to get sentiment label - plugins return "overall_sentiment"
+                label = sentiment_data.get("overall_sentiment") or sentiment_data.get("sentiment") or sentiment_data.get("label")
                 if label and isinstance(label, str):
-                    response += f"• **Overall Sentiment:** {label.title()}\n"
+                    sent_emoji = "🟢" if "positive" in label.lower() else "🔴" if "negative" in label.lower() else "🟡"
+                    response += f"• **Overall Sentiment:** {sent_emoji} {label.title()}\n"
+                
+                # Sentiment percentages
+                pct = sentiment_data.get("sentiment_percentages", {})
+                if isinstance(pct, dict) and pct:
+                    pos_pct = pct.get("positive", 0)
+                    neg_pct = pct.get("negative", 0)
+                    if isinstance(pos_pct, (int, float)) and isinstance(neg_pct, (int, float)):
+                        response += f"• **Sentiment Distribution:** {pos_pct:.0f}% positive, {neg_pct:.0f}% negative\n"
+                
+                # Analysis summary
+                analysis = sentiment_data.get("analysis")
+                if analysis and isinstance(analysis, str):
+                    response += f"• **Analysis:** {analysis.capitalize()}\n"
             
-            # Headlines
-            news = sentiment.get("news", {})
-            if isinstance(news, dict):
-                headlines = news.get("headlines", [])
-                if headlines and isinstance(headlines, list):
+            # Articles/Headlines - check the nested articles dict
+            articles_data = sentiment.get("articles", {})
+            if isinstance(articles_data, dict):
+                articles_list = articles_data.get("results", [])
+                if articles_list and isinstance(articles_list, list):
                     response += "\n**Recent Headlines:**\n"
-                    for headline in headlines[:3]:
-                        if isinstance(headline, str):
-                            response += f"• {headline}\n"
+                    for article in articles_list[:3]:
+                        if isinstance(article, dict):
+                            title = article.get("title", "")
+                            if title and isinstance(title, str):
+                                response += f"• {title}\n"
+                        elif isinstance(article, str):
+                            response += f"• {article}\n"
         response += "\n"
         
         # Summary

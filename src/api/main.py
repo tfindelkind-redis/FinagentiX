@@ -866,7 +866,7 @@ def _format_response(result: Dict[str, Any]) -> str:
         
         # Market Data Section
         response += "---\n## 💰 Current Market Data\n\n"
-        if isinstance(market_data, dict) and market_data.get("success", True):
+        if isinstance(market_data, dict) and market_data.get("status") != "error":
             price_info = market_data.get("current_price", {})
             if isinstance(price_info, dict):
                 current_price = price_info.get("value") or price_info.get("price", "N/A")
@@ -879,7 +879,12 @@ def _format_response(result: Dict[str, Any]) -> str:
             
             historical = market_data.get("historical", {})
             if isinstance(historical, dict) and historical.get("success"):
-                change_pct = historical.get("change_pct", historical.get("change_percent"))
+                # change_pct is in the stats dict
+                stats = historical.get("stats", {})
+                if isinstance(stats, dict):
+                    change_pct = stats.get("change_pct")
+                else:
+                    change_pct = historical.get("change_pct", historical.get("change_percent"))
                 if change_pct is not None and isinstance(change_pct, (int, float)):
                     change_emoji = "📈" if change_pct > 0 else "📉" if change_pct < 0 else "➡️"
                     response += f"• **30-Day Change:** {change_emoji} {change_pct:+.2f}%\n"

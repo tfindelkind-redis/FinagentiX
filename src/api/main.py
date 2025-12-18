@@ -866,7 +866,7 @@ def _format_response(result: Dict[str, Any]) -> str:
         
         # Market Data Section
         response += "---\n## 💰 Current Market Data\n\n"
-        if market_data.get("success", True):
+        if isinstance(market_data, dict) and market_data.get("success", True):
             price_info = market_data.get("current_price", {})
             if isinstance(price_info, dict):
                 current_price = price_info.get("value") or price_info.get("price", "N/A")
@@ -880,14 +880,14 @@ def _format_response(result: Dict[str, Any]) -> str:
             historical = market_data.get("historical", {})
             if isinstance(historical, dict) and historical.get("success"):
                 change_pct = historical.get("change_pct", historical.get("change_percent"))
-                if change_pct is not None:
+                if change_pct is not None and isinstance(change_pct, (int, float)):
                     change_emoji = "📈" if change_pct > 0 else "📉" if change_pct < 0 else "➡️"
                     response += f"• **30-Day Change:** {change_emoji} {change_pct:+.2f}%\n"
         response += "\n"
         
         # Technical Analysis Section
         response += "## 📈 Technical Indicators\n\n"
-        if technical.get("success", True):
+        if isinstance(technical, dict) and technical.get("success", True):
             # SMA
             sma_50 = technical.get("sma_50", {})
             sma_200 = technical.get("sma_200", {})
@@ -900,7 +900,7 @@ def _format_response(result: Dict[str, Any]) -> str:
             rsi = technical.get("rsi", {})
             if isinstance(rsi, dict):
                 rsi_value = rsi.get("value")
-                if rsi_value is not None:
+                if rsi_value is not None and isinstance(rsi_value, (int, float)):
                     rsi_status = "Overbought ⚠️" if rsi_value > 70 else "Oversold ⚠️" if rsi_value < 30 else "Neutral"
                     response += f"• **RSI (14):** {rsi_value:.1f} ({rsi_status})\n"
             
@@ -908,32 +908,32 @@ def _format_response(result: Dict[str, Any]) -> str:
             volatility = technical.get("volatility", {})
             if isinstance(volatility, dict):
                 vol_value = volatility.get("value") or volatility.get("annualized")
-                if vol_value is not None:
+                if vol_value is not None and isinstance(vol_value, (int, float)):
                     vol_level = "High" if vol_value > 0.4 else "Low" if vol_value < 0.2 else "Moderate"
                     response += f"• **Volatility:** {vol_value:.1%} ({vol_level})\n"
             
             # Trend
             trend = technical.get("trend")
-            if trend:
+            if trend and isinstance(trend, str):
                 trend_emoji = "📈" if trend == "bullish" else "📉" if trend == "bearish" else "➡️"
                 response += f"• **Trend:** {trend_emoji} {trend.title()}\n"
         response += "\n"
         
         # Risk Analysis Section
         response += "## ⚠️ Risk Assessment\n\n"
-        if risk.get("success", True):
+        if isinstance(risk, dict) and risk.get("success", True):
             # VaR
             var_data = risk.get("var", {})
             if isinstance(var_data, dict):
                 var_value = var_data.get("value") or var_data.get("var_95")
-                if var_value is not None:
+                if var_value is not None and isinstance(var_value, (int, float)):
                     response += f"• **Value at Risk (95%):** {abs(var_value):.2%} potential daily loss\n"
             
             # Beta
             beta_data = risk.get("beta", {})
             if isinstance(beta_data, dict):
                 beta_value = beta_data.get("value")
-                if beta_value is not None:
+                if beta_value is not None and isinstance(beta_value, (int, float)):
                     beta_desc = "More volatile than market" if beta_value > 1 else "Less volatile than market" if beta_value < 1 else "Matches market"
                     response += f"• **Beta:** {beta_value:.2f} ({beta_desc})\n"
             
@@ -941,37 +941,42 @@ def _format_response(result: Dict[str, Any]) -> str:
             drawdown = risk.get("drawdown", risk.get("max_drawdown", {}))
             if isinstance(drawdown, dict):
                 dd_value = drawdown.get("value") or drawdown.get("max_drawdown")
-                if dd_value is not None:
+                if dd_value is not None and isinstance(dd_value, (int, float)):
                     response += f"• **Max Drawdown:** {abs(dd_value):.1%}\n"
             
-            # Risk Level
-            risk_level = risk.get("risk_level") or risk.get("summary", {}).get("risk_level")
-            if risk_level:
+            # Risk Level - handle case where summary might be string or missing
+            risk_level = risk.get("risk_level")
+            if not risk_level:
+                summary = risk.get("summary", {})
+                if isinstance(summary, dict):
+                    risk_level = summary.get("risk_level")
+            if risk_level and isinstance(risk_level, str):
                 risk_emoji = "🔴" if risk_level == "high" else "🟡" if risk_level == "moderate" else "🟢"
                 response += f"• **Overall Risk:** {risk_emoji} {risk_level.title()}\n"
         response += "\n"
         
         # Sentiment Section  
         response += "## 📰 Market Sentiment\n\n"
-        if sentiment.get("success", True):
+        if isinstance(sentiment, dict) and sentiment.get("success", True):
             sentiment_score = sentiment.get("sentiment", {})
             if isinstance(sentiment_score, dict):
                 score = sentiment_score.get("score") or sentiment_score.get("overall_score")
                 label = sentiment_score.get("label") or sentiment_score.get("sentiment")
-                if score is not None:
+                if score is not None and isinstance(score, (int, float)):
                     sent_emoji = "🟢" if score > 0.3 else "🔴" if score < -0.3 else "🟡"
                     response += f"• **Sentiment Score:** {sent_emoji} {score:+.2f}\n"
-                if label:
+                if label and isinstance(label, str):
                     response += f"• **Overall Sentiment:** {label.title()}\n"
             
             # Headlines
             news = sentiment.get("news", {})
             if isinstance(news, dict):
                 headlines = news.get("headlines", [])
-                if headlines:
+                if headlines and isinstance(headlines, list):
                     response += "\n**Recent Headlines:**\n"
                     for headline in headlines[:3]:
-                        response += f"• {headline}\n"
+                        if isinstance(headline, str):
+                            response += f"• {headline}\n"
         response += "\n"
         
         # Summary

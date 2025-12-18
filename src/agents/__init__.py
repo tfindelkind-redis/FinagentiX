@@ -18,13 +18,31 @@ Usage:
     result = await orchestrator.run("What is AAPL stock price?")
 """
 
-from src.agents.orchestrator_agent import OrchestratorAgent
+# Import most agents directly - but NOT OrchestratorAgent (causes circular import)
 from src.agents.market_data_agent import MarketDataAgent
 from src.agents.news_sentiment_agent import NewsSentimentAgent
 from src.agents.risk_assessment_agent import RiskAssessmentAgent
 from src.agents.fundamental_analysis_agent import FundamentalAnalysisAgent
 from src.agents.router_agent import RouterAgent
 from src.agents.synthesis_agent import SynthesisAgent
+
+# Lazy import for OrchestratorAgent to avoid circular imports
+# (orchestrator_agent imports workflows which imports agents.plugins which imports this module)
+_OrchestratorAgent = None
+
+def _get_orchestrator_agent():
+    """Lazy load OrchestratorAgent to avoid circular imports."""
+    global _OrchestratorAgent
+    if _OrchestratorAgent is None:
+        from src.agents.orchestrator_agent import OrchestratorAgent
+        _OrchestratorAgent = OrchestratorAgent
+    return _OrchestratorAgent
+
+# Support "from src.agents import OrchestratorAgent"
+def __getattr__(name):
+    if name == "OrchestratorAgent":
+        return _get_orchestrator_agent()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 __all__ = [
     "OrchestratorAgent",
@@ -36,16 +54,17 @@ __all__ = [
     "SynthesisAgent",
 ]
 
-# Agent registry for dynamic instantiation
-AGENT_REGISTRY = {
-    "orchestrator": OrchestratorAgent,
-    "market_data": MarketDataAgent,
-    "news_sentiment": NewsSentimentAgent,
-    "risk_assessment": RiskAssessmentAgent,
-    "fundamental_analysis": FundamentalAnalysisAgent,
-    "router": RouterAgent,
-    "synthesis": SynthesisAgent,
-}
+# Agent registry for dynamic instantiation - lazy for orchestrator
+def _get_agent_registry():
+    return {
+        "orchestrator": _get_orchestrator_agent(),
+        "market_data": MarketDataAgent,
+        "news_sentiment": NewsSentimentAgent,
+        "risk_assessment": RiskAssessmentAgent,
+        "fundamental_analysis": FundamentalAnalysisAgent,
+        "router": RouterAgent,
+        "synthesis": SynthesisAgent,
+    }
 
 
 def get_agent(agent_name: str):
@@ -61,10 +80,11 @@ def get_agent(agent_name: str):
     Raises:
         ValueError: If agent name not found in registry
     """
-    if agent_name not in AGENT_REGISTRY:
-        available = ", ".join(AGENT_REGISTRY.keys())
+    registry = _get_agent_registry()
+    if agent_name not in registry:
+        available = ", ".join(registry.keys())
         raise ValueError(
             f"Agent '{agent_name}' not found. Available agents: {available}"
         )
     
-    return AGENT_REGISTRY[agent_name]()
+    return registry[agent_name]()

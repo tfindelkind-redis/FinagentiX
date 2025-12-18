@@ -846,16 +846,139 @@ def _format_response(result: Dict[str, Any]) -> str:
     if "response" in result:
         return result["response"]
     
-    # Format investment analysis
-    if "recommendation" in result:
+    # Format investment analysis - COMPREHENSIVE
+    if "recommendation" in result and result.get("workflow") == "InvestmentAnalysisWorkflow":
         rec = result["recommendation"]
         ticker = result.get("ticker", "")
+        market_data = result.get("market_data", {})
+        technical = result.get("technical_analysis", {})
+        risk = result.get("risk_analysis", {})
+        sentiment = result.get("sentiment_analysis", {})
         
-        response = f"Investment Analysis for {ticker}:\n\n"
-        response += f"Recommendation: {rec.get('action', 'N/A')}\n"
-        response += f"Confidence: {rec.get('confidence', 'N/A')}\n"
-        response += f"Signals: {', '.join(rec.get('signals', []))}\n\n"
-        response += rec.get("summary", "")
+        response = f"# 📊 Investment Analysis: {ticker}\n\n"
+        
+        # Recommendation Summary Box
+        action = rec.get('action', 'N/A').upper()
+        confidence = rec.get('confidence', 'N/A')
+        action_emoji = "🟢" if action == "BUY" else "🔴" if action == "SELL" else "🟡"
+        response += f"## {action_emoji} Recommendation: **{action}**\n"
+        response += f"**Confidence:** {confidence} | **Signals:** {', '.join(rec.get('signals', []))}\n\n"
+        
+        # Market Data Section
+        response += "---\n## 💰 Current Market Data\n\n"
+        if market_data.get("success", True):
+            price_info = market_data.get("current_price", {})
+            if isinstance(price_info, dict):
+                current_price = price_info.get("value") or price_info.get("price", "N/A")
+                price_date = price_info.get("date", "")
+                if price_date and " " in str(price_date):
+                    price_date = str(price_date).split(" ")[0]
+                response += f"• **Current Price:** ${current_price:,.2f}\n" if isinstance(current_price, (int, float)) else f"• **Current Price:** {current_price}\n"
+                if price_date:
+                    response += f"• **As of:** {price_date}\n"
+            
+            historical = market_data.get("historical", {})
+            if isinstance(historical, dict) and historical.get("success"):
+                change_pct = historical.get("change_pct", historical.get("change_percent"))
+                if change_pct is not None:
+                    change_emoji = "📈" if change_pct > 0 else "📉" if change_pct < 0 else "➡️"
+                    response += f"• **30-Day Change:** {change_emoji} {change_pct:+.2f}%\n"
+        response += "\n"
+        
+        # Technical Analysis Section
+        response += "## 📈 Technical Indicators\n\n"
+        if technical.get("success", True):
+            # SMA
+            sma_50 = technical.get("sma_50", {})
+            sma_200 = technical.get("sma_200", {})
+            if isinstance(sma_50, dict) and sma_50.get("value"):
+                response += f"• **SMA 50:** ${sma_50['value']:,.2f}\n"
+            if isinstance(sma_200, dict) and sma_200.get("value"):
+                response += f"• **SMA 200:** ${sma_200['value']:,.2f}\n"
+            
+            # RSI
+            rsi = technical.get("rsi", {})
+            if isinstance(rsi, dict):
+                rsi_value = rsi.get("value")
+                if rsi_value is not None:
+                    rsi_status = "Overbought ⚠️" if rsi_value > 70 else "Oversold ⚠️" if rsi_value < 30 else "Neutral"
+                    response += f"• **RSI (14):** {rsi_value:.1f} ({rsi_status})\n"
+            
+            # Volatility
+            volatility = technical.get("volatility", {})
+            if isinstance(volatility, dict):
+                vol_value = volatility.get("value") or volatility.get("annualized")
+                if vol_value is not None:
+                    vol_level = "High" if vol_value > 0.4 else "Low" if vol_value < 0.2 else "Moderate"
+                    response += f"• **Volatility:** {vol_value:.1%} ({vol_level})\n"
+            
+            # Trend
+            trend = technical.get("trend")
+            if trend:
+                trend_emoji = "📈" if trend == "bullish" else "📉" if trend == "bearish" else "➡️"
+                response += f"• **Trend:** {trend_emoji} {trend.title()}\n"
+        response += "\n"
+        
+        # Risk Analysis Section
+        response += "## ⚠️ Risk Assessment\n\n"
+        if risk.get("success", True):
+            # VaR
+            var_data = risk.get("var", {})
+            if isinstance(var_data, dict):
+                var_value = var_data.get("value") or var_data.get("var_95")
+                if var_value is not None:
+                    response += f"• **Value at Risk (95%):** {abs(var_value):.2%} potential daily loss\n"
+            
+            # Beta
+            beta_data = risk.get("beta", {})
+            if isinstance(beta_data, dict):
+                beta_value = beta_data.get("value")
+                if beta_value is not None:
+                    beta_desc = "More volatile than market" if beta_value > 1 else "Less volatile than market" if beta_value < 1 else "Matches market"
+                    response += f"• **Beta:** {beta_value:.2f} ({beta_desc})\n"
+            
+            # Max Drawdown
+            drawdown = risk.get("drawdown", risk.get("max_drawdown", {}))
+            if isinstance(drawdown, dict):
+                dd_value = drawdown.get("value") or drawdown.get("max_drawdown")
+                if dd_value is not None:
+                    response += f"• **Max Drawdown:** {abs(dd_value):.1%}\n"
+            
+            # Risk Level
+            risk_level = risk.get("risk_level") or risk.get("summary", {}).get("risk_level")
+            if risk_level:
+                risk_emoji = "🔴" if risk_level == "high" else "🟡" if risk_level == "moderate" else "🟢"
+                response += f"• **Overall Risk:** {risk_emoji} {risk_level.title()}\n"
+        response += "\n"
+        
+        # Sentiment Section  
+        response += "## 📰 Market Sentiment\n\n"
+        if sentiment.get("success", True):
+            sentiment_score = sentiment.get("sentiment", {})
+            if isinstance(sentiment_score, dict):
+                score = sentiment_score.get("score") or sentiment_score.get("overall_score")
+                label = sentiment_score.get("label") or sentiment_score.get("sentiment")
+                if score is not None:
+                    sent_emoji = "🟢" if score > 0.3 else "🔴" if score < -0.3 else "🟡"
+                    response += f"• **Sentiment Score:** {sent_emoji} {score:+.2f}\n"
+                if label:
+                    response += f"• **Overall Sentiment:** {label.title()}\n"
+            
+            # Headlines
+            news = sentiment.get("news", {})
+            if isinstance(news, dict):
+                headlines = news.get("headlines", [])
+                if headlines:
+                    response += "\n**Recent Headlines:**\n"
+                    for headline in headlines[:3]:
+                        response += f"• {headline}\n"
+        response += "\n"
+        
+        # Summary
+        summary = rec.get("summary", "")
+        if summary:
+            response += "---\n## 💡 Summary\n\n"
+            response += f"{summary}\n"
         
         return response
     

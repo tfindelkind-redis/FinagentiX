@@ -29,32 +29,28 @@ Redis is not a database replacement. It's the **acceleration layer** that sits b
 
 ### 5 Core Capabilities
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        REDIS CORE CAPABILITIES                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  🚀 CACHING          Fast data access, sub-ms latency, TTL expiration      │
-│  📊 SESSIONS         Centralized state, horizontal scaling, auto-cleanup   │
-│  📨 STREAMS          Event sourcing, pub/sub, consumer groups              │
-│  🔎 VECTORS          Semantic search, RAG, embeddings                      │
-│  📊 FEATURE STORE    Real-time ML serving, <1ms inference                  │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+| Capability | What It Does |
+|------------|--------------|
+| 🚀 **Caching** | Fast data access, sub-ms latency, TTL expiration |
+| 📊 **Sessions** | Centralized state, horizontal scaling, auto-cleanup |
+| 📨 **Streams** | Event sourcing, pub/sub, consumer groups |
+| 🔎 **Vectors** | Semantic search, RAG, embeddings |
+| 📊 **Feature Store** | Real-time ML serving, <1ms inference |
 
 ### Real-World Checkout Flow (8 Redis Operations, <10ms Total)
 
-```
-Customer Click → Session Auth → Rate Limit → Inventory Hold → Fraud Check
-       ↓              ↓            ↓              ↓              ↓
-    <1ms          <1ms         <1ms           <1ms           <5ms
-       
-→ Idempotency Key → Event Stream → Feature Update → ✅ Done
-         ↓                ↓               ↓
-       <1ms            <1ms            <1ms
-```
-**Result:** 50x faster checkout vs. traditional DB architecture
+| Step | Operation | Latency |
+|------|-----------|---------|
+| 1 | Customer Click → **Session Auth** | <1ms |
+| 2 | → **Rate Limit** | <1ms |
+| 3 | → **Inventory Hold** | <1ms |
+| 4 | → **Fraud Check** | <5ms |
+| 5 | → **Idempotency Key** | <1ms |
+| 6 | → **Event Stream** | <1ms |
+| 7 | → **Feature Update** | <1ms |
+| 8 | → ✅ **Done** | **Total: <10ms** |
+
+**Result:** 50x faster checkout vs. traditional DB architecture (200-500ms)
 
 ### What Customers Say
 
@@ -93,36 +89,25 @@ Customer Click → Session Auth → Rate Limit → Inventory Hold → Fraud Chec
 
 ### Adoption Path (Proven Pattern)
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           REDIS ADOPTION PATH                               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  PHASE 1: Quick Wins (Day 1-3)                                             │
-│  ─────────────────────────────                                             │
-│  • Caching (API responses, DB queries)                                     │
-│  • Sessions (user state, auth tokens)                                      │
-│  • Rate Limiting (API protection)                                          │
-│  → Impact: Immediate latency reduction, DB load relief                     │
-│                                                                             │
-│  PHASE 2: Core Infrastructure (Week 1-2)                                   │
-│  ──────────────────────────────────────                                    │
-│  • Streams (event messaging)                                               │
-│  • Leaderboards (real-time rankings)                                       │
-│  • Job Queues (background processing)                                      │
-│  • Distributed Locks (coordination)                                        │
-│  → Impact: Simplified architecture, fewer external systems                 │
-│                                                                             │
-│  PHASE 3: Advanced Capabilities (Week 3+)                                  │
-│  ─────────────────────────────────────────                                 │
-│  • Feature Store (ML inference)                                            │
-│  • Vector Search / RAG (semantic search)                                   │
-│  • Semantic Cache (LLM cost reduction)                                     │
-│  • Agent Memory (conversational AI)                                        │
-│  → Impact: AI/ML acceleration, significant cost savings                    │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+#### Phase 1: Quick Wins (Day 1-3)
+- Caching (API responses, DB queries)
+- Sessions (user state, auth tokens)
+- Rate Limiting (API protection)
+- **→ Impact:** Immediate latency reduction, DB load relief
+
+#### Phase 2: Core Infrastructure (Week 1-2)
+- Streams (event messaging)
+- Leaderboards (real-time rankings)
+- Job Queues (background processing)
+- Distributed Locks (coordination)
+- **→ Impact:** Simplified architecture, fewer external systems
+
+#### Phase 3: Advanced Capabilities (Week 3+)
+- Feature Store (ML inference)
+- Vector Search / RAG (semantic search)
+- Semantic Cache (LLM cost reduction)
+- Agent Memory (conversational AI)
+- **→ Impact:** AI/ML acceleration, significant cost savings
 
 | Phase | Timeline | Use Cases | Business Value |
 |-------|----------|-----------|----------------|

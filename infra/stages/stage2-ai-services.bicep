@@ -22,6 +22,12 @@ param openaiSubnetId string
 @description('Private DNS Zone ID for OpenAI')
 param privateDnsZoneIdOpenAI string
 
+@description('Enable public network access for development (should be false in production)')
+param enablePublicAccess bool = false
+
+@description('Allowed IP addresses for public access (only used when enablePublicAccess is true)')
+param allowedIpAddresses array = []
+
 // Ensure we keep tags consistent and reference virtual network
 var mergedTags = union(tags, {
   environment: environmentName
@@ -50,10 +56,14 @@ resource openai 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
   }
   properties: {
     customSubDomainName: 'openai-${resourceToken}'
-    publicNetworkAccess: 'Disabled'
+    // Enable public access for dev, disable for production
+    publicNetworkAccess: enablePublicAccess ? 'Enabled' : 'Disabled'
     networkAcls: {
       defaultAction: 'Deny'
-      ipRules: []
+      // Add allowed IPs for development access
+      ipRules: [for ip in allowedIpAddresses: {
+        value: ip
+      }]
       virtualNetworkRules: []
     }
   }

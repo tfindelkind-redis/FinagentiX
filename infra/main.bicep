@@ -24,6 +24,12 @@ param tags object = {
 @allowed(['all', 'foundation', 'data-platform', 'ai-services', 'data-ingestion', 'agent-runtime'])
 param deployStage string = 'all'
 
+@description('Enable public network access to Azure OpenAI for development')
+param enableOpenAIPublicAccess bool = false
+
+@description('Allowed IP addresses for Azure OpenAI public access (CIDR format, e.g., ["1.2.3.4/32"])')
+param openAIAllowedIpAddresses array = []
+
 // Generate unique suffix for globally unique resource names
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 var resourceGroupName = '${prefix}-${environmentName}-rg'
@@ -79,6 +85,9 @@ module aiServices './stages/stage2-ai-services.bicep' = if (deployStage == 'all'
     vnetId: foundation.outputs.vnetId
     openaiSubnetId: foundation.outputs.openaiSubnetId
     privateDnsZoneIdOpenAI: foundation.outputs.privateDnsZoneIdOpenAI
+    // Development access configuration
+    enablePublicAccess: enableOpenAIPublicAccess
+    allowedIpAddresses: openAIAllowedIpAddresses
   }
   dependsOn: [
     foundation

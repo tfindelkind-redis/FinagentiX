@@ -23,10 +23,11 @@ class AzureOpenAIConfig:
     def from_env(cls) -> "AzureOpenAIConfig":
         """Load configuration from environment variables"""
         endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-        api_key = os.getenv("AZURE_OPENAI_KEY")
+        # Support both AZURE_OPENAI_KEY and AZURE_OPENAI_API_KEY
+        api_key = os.getenv("AZURE_OPENAI_KEY") or os.getenv("AZURE_OPENAI_API_KEY")
         
         if not endpoint or not api_key:
-            raise ValueError("AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY must be set")
+            raise ValueError("AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY (or AZURE_OPENAI_API_KEY) must be set")
         
         return cls(
             endpoint=endpoint,

@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 from src.agents.base_agent import BaseAgent
 from src.agents.synthesis_agent import SynthesisAgent
 from src.redis import SemanticRouter, ToolCache, WorkflowOutcomeStore
+from src.utils.ticker_utils import extract_ticker
 
 # Lazy import to avoid circular dependency with orchestration.workflows
 # The workflows module imports from agents.plugins which imports agents/__init__.py
@@ -434,31 +435,8 @@ Always check caches first to minimize costs and latency.
 
     @staticmethod
     def _extract_ticker(query: str) -> Optional[str]:
-        """Extract potential stock ticker from user query."""
-        import re
-
-        patterns = [
-            r"\b([A-Z]{1,5})\b(?:\s+stock|\s+shares?)",
-            r"(?:ticker|symbol)\s+([A-Z]{1,5})\b",
-            r"\$([A-Z]{1,5})\b",
-        ]
-
-        for pattern in patterns:
-            match = re.search(pattern, query.upper())
-            if match:
-                return match.group(1)
-
-        words = query.upper().split()
-        for word in words:
-            if 2 <= len(word) <= 5 and word.isalpha():
-                if word in {"AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA"}:
-                    return word
-
-        return None
-
-    @staticmethod
-    def _format_response(result: Dict[str, Any]) -> str:
-        """Format workflow output into a user-facing string."""
+        """Extract ticker from query using shared utility."""
+        return extract_ticker(query)
         if not result:
             return "Unable to process query."
 

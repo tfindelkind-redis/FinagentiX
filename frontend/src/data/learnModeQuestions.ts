@@ -297,15 +297,18 @@ export const QUESTION_CATEGORIES = {
 };
 
 // Agent explanations for the AgentsTab
+// Keys match the actual agent names from backend (e.g., "MarketDataAgent")
 export const AGENT_EXPLANATIONS: Record<string, {
   name: string;
   role: string;
+  icon: string;
   redisIntegration: string;
   benefits: string[];
 }> = {
-  'Market Data Agent': {
+  'MarketDataAgent': {
     name: 'Market Data Agent',
     role: 'Fetches real-time and historical price data, volume, and basic metrics.',
+    icon: '📊',
     redisIntegration: 'Uses Tool Cache to store API responses (price data, OHLCV) for 1-5 minutes, reducing external API calls by 60%+.',
     benefits: [
       'Tool Cache eliminates redundant API calls',
@@ -313,9 +316,10 @@ export const AGENT_EXPLANATIONS: Record<string, {
       'Reduces rate limit issues with data providers',
     ],
   },
-  'Technical Analysis Agent': {
+  'TechnicalAnalysisAgent': {
     name: 'Technical Analysis Agent',
     role: 'Calculates technical indicators (RSI, MACD, Bollinger Bands) and identifies chart patterns.',
+    icon: '📈',
     redisIntegration: 'Computation-heavy indicators are cached in Tool Cache. Results reused across similar queries.',
     benefits: [
       'RSI/MACD calculations cached for 5 minutes',
@@ -323,9 +327,10 @@ export const AGENT_EXPLANATIONS: Record<string, {
       '70% reduction in compute time',
     ],
   },
-  'Risk Assessment Agent': {
+  'RiskAnalysisAgent': {
     name: 'Risk Assessment Agent',
     role: 'Calculates Value-at-Risk (VaR), beta, volatility, Sharpe ratio, and other risk metrics.',
+    icon: '⚠️',
     redisIntegration: 'Complex statistical calculations stored in Tool Cache. Historical volatility data cached for efficiency.',
     benefits: [
       'VaR calculations are CPU-intensive',
@@ -333,9 +338,10 @@ export const AGENT_EXPLANATIONS: Record<string, {
       'Risk metrics consistent across queries',
     ],
   },
-  'Sentiment Agent': {
-    name: 'Sentiment Analysis Agent',
+  'NewsSentimentAgent': {
+    name: 'News & Sentiment Agent',
     role: 'Analyzes news and social media sentiment for stocks and sectors.',
+    icon: '📰',
     redisIntegration: 'Sentiment scores cached per ticker. RAG retrieves relevant news for analysis.',
     benefits: [
       'Sentiment scores cached per ticker',
@@ -343,9 +349,10 @@ export const AGENT_EXPLANATIONS: Record<string, {
       'Aggregated sentiment from multiple sources',
     ],
   },
-  'Portfolio Management Agent': {
+  'PortfolioAgent': {
     name: 'Portfolio Management Agent',
     role: 'Tracks positions, calculates allocation, and suggests rebalancing strategies.',
+    icon: '💼',
     redisIntegration: 'User portfolio stored in Contextual Memory. Positions persist across sessions.',
     benefits: [
       'Portfolio state persists in Redis',
@@ -353,25 +360,106 @@ export const AGENT_EXPLANATIONS: Record<string, {
       'Personalized recommendations',
     ],
   },
-  'News Research Agent': {
-    name: 'News & Research Agent',
-    role: 'Searches SEC filings and news using RAG (Retrieval-Augmented Generation).',
-    redisIntegration: 'Document Store holds 326+ SEC chunks and 120+ news articles with vector embeddings.',
+  'FundamentalAnalysisAgent': {
+    name: 'Fundamental Analysis Agent',
+    role: 'Searches SEC filings and financial documents using RAG (Retrieval-Augmented Generation).',
+    icon: '📋',
+    redisIntegration: 'Document Store holds 326+ SEC chunks with vector embeddings for semantic search.',
     benefits: [
       'Vector search in <10ms',
       'Semantic similarity ranking',
       'Context-aware document retrieval',
     ],
   },
-  'Orchestrator Agent': {
+  'StrategySynthesisAgent': {
+    name: 'Strategy Synthesis Agent',
+    role: 'Combines insights from all agents to generate actionable trading recommendations.',
+    icon: '🎯',
+    redisIntegration: 'Aggregates cached results from other agents. Synthesis results cached for similar portfolios.',
+    benefits: [
+      'Multi-agent coordination',
+      'Holistic analysis synthesis',
+      'Actionable recommendations',
+    ],
+  },
+  'TradeExecutionAgent': {
+    name: 'Trade Execution Agent',
+    role: 'Simulates or executes trades with order routing and position management.',
+    icon: '💹',
+    redisIntegration: 'Order state and execution history cached. Trade simulation results reused.',
+    benefits: [
+      'Fast order simulation',
+      'Position tracking in Redis',
+      'Execution history persistence',
+    ],
+  },
+  'OrchestratorAgent': {
     name: 'Orchestrator Agent',
     role: 'Routes queries to appropriate workflows and coordinates multi-agent execution.',
+    icon: '🎛️',
     redisIntegration: 'Semantic Router uses vector similarity to bypass LLM routing decisions. Workflow state persisted.',
     benefits: [
       'Route matching in <5ms',
       'Avoids expensive LLM orchestration call',
       'Workflow state persists for recovery',
     ],
+  },
+  // Fallback aliases for variations in naming
+  'market_data': {
+    name: 'Market Data Agent',
+    role: 'Fetches real-time and historical price data, volume, and basic metrics.',
+    icon: '📊',
+    redisIntegration: 'Uses Tool Cache to store API responses.',
+    benefits: ['Tool Cache eliminates redundant API calls'],
+  },
+  'technical_analysis': {
+    name: 'Technical Analysis Agent', 
+    role: 'Calculates technical indicators and identifies chart patterns.',
+    icon: '📈',
+    redisIntegration: 'Computation-heavy indicators are cached.',
+    benefits: ['70% reduction in compute time'],
+  },
+  'risk_analysis': {
+    name: 'Risk Assessment Agent',
+    role: 'Calculates Value-at-Risk, beta, volatility, and risk metrics.',
+    icon: '⚠️',
+    redisIntegration: 'Complex statistical calculations stored in cache.',
+    benefits: ['Risk metrics consistent across queries'],
+  },
+  'news_sentiment': {
+    name: 'News & Sentiment Agent',
+    role: 'Analyzes news and social media sentiment.',
+    icon: '📰',
+    redisIntegration: 'Sentiment scores cached per ticker.',
+    benefits: ['News retrieval via vector search'],
+  },
+  'portfolio': {
+    name: 'Portfolio Management Agent',
+    role: 'Tracks positions and suggests rebalancing.',
+    icon: '💼',
+    redisIntegration: 'Portfolio state persists in Redis.',
+    benefits: ['Personalized recommendations'],
+  },
+  'fundamental_analysis': {
+    name: 'Fundamental Analysis Agent',
+    role: 'Searches SEC filings using RAG.',
+    icon: '📋',
+    redisIntegration: 'Document Store with vector embeddings.',
+    benefits: ['Context-aware document retrieval'],
+  },
+  'strategy_synthesis': {
+    name: 'Strategy Synthesis Agent',
+    role: 'Combines insights for trading recommendations.',
+    icon: '🎯',
+    redisIntegration: 'Aggregates cached results.',
+    benefits: ['Multi-agent coordination'],
+  },
+  'trade_execution': {
+    name: 'Trade Execution Agent',
+    role: 'Simulates or executes trades.',
+    icon: '💹',
+    redisIntegration: 'Order state cached.',
+    benefits: ['Fast order simulation'],
   },
 };
 

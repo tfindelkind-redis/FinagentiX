@@ -45,16 +45,36 @@ def _generate_embedding(text: str) -> List[float]:
         
     Returns:
         List of floats representing the embedding vector
+        
+    Raises:
+        ConnectionError: If Azure OpenAI endpoint is not accessible
     """
+    import logging
+    from openai import PermissionDeniedError, APIConnectionError
+    
     config = get_config()
     client = _get_openai_client()
     
-    response = client.embeddings.create(
-        input=text,
-        model=config.azure_openai.embedding_deployment
-    )
-    
-    return response.data[0].embedding
+    try:
+        response = client.embeddings.create(
+            input=text,
+            model=config.azure_openai.embedding_deployment
+        )
+        return response.data[0].embedding
+    except PermissionDeniedError as e:
+        logging.warning(
+            f"Azure OpenAI embedding access denied (private endpoint may be required): {e}"
+        )
+        raise ConnectionError(
+            "Azure OpenAI embeddings not accessible. "
+            "The endpoint may require private network access or VPN connection. "
+            "Please configure private endpoint or use a public endpoint."
+        ) from e
+    except APIConnectionError as e:
+        logging.warning(f"Azure OpenAI connection failed: {e}")
+        raise ConnectionError(
+            f"Cannot connect to Azure OpenAI endpoint: {e}"
+        ) from e
 
 
 def search_sec_filings(
@@ -101,13 +121,19 @@ def search_sec_filings(
     from redis.commands.search.query import Query
     
     # Create filter conditions
-    filter_parts = ["*"]
+    # Note: In RediSearch, use "*" only when no tag filters are present
+    # When using tag filters, combine them with spaces (implicit AND)
+    filter_parts = []
     if ticker:
-        filter_parts.append(f"@ticker:{{{ticker}}}")
+        # Escape special characters in ticker to prevent query injection
+        escaped_ticker = ticker.replace("-", "\\-").replace(".", "\\.")
+        filter_parts.append(f"@ticker:{{{escaped_ticker}}}")
     if filing_type:
-        filter_parts.append(f"@filing_type:{{{filing_type}}}")
+        escaped_filing_type = filing_type.replace("-", "\\-")
+        filter_parts.append(f"@filing_type:{{{escaped_filing_type}}}")
     
-    filter_str = " ".join(filter_parts)
+    # Use "*" (match all) only when no filters, otherwise join filters
+    filter_str = " ".join(filter_parts) if filter_parts else "*"
     
     # Vector search query
     query_obj = (
@@ -184,15 +210,18 @@ def search_news(
     query_embedding = _generate_embedding(query)
     
     # Build filter conditions
-    filter_parts = ["*"]
+    # Note: In RediSearch, use "*" only when no tag filters are present
+    filter_parts = []
     if ticker:
-        filter_parts.append(f"@ticker:{{{ticker}}}")
+        escaped_ticker = ticker.replace("-", "\\-").replace(".", "\\.")
+        filter_parts.append(f"@ticker:{{{escaped_ticker}}}")
     if start_date:
         filter_parts.append(f"@published_date:[{start_date} +inf]")
     if end_date:
         filter_parts.append(f"@published_date:[-inf {end_date}]")
     
-    filter_str = " ".join(filter_parts)
+    # Use "*" (match all) only when no filters, otherwise join filters
+    filter_str = " ".join(filter_parts) if filter_parts else "*"
     
     # Vector search query
     from redis.commands.search.query import Query

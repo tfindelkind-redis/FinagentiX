@@ -441,6 +441,93 @@ SET api:weather:NYC '{"temp":72,"condition":"sunny","humidity":45}' EX 300
 SET query:products:electronics:page1 '[{"id":1,"name":"TV"},{"id":2,"name":"Phone"}]' EX 600
 ```
 
+#### 🛡️ Production Patterns: Cache Stampede Protection
+
+> **⚠️ The Cache Stampede Problem**
+>
+> When a popular cache key expires, hundreds of concurrent requests may all try to regenerate it simultaneously,
+> overwhelming your database. This is called a "cache stampede" or "thundering herd."
+
+**Solution 1: Probabilistic Early Refresh (Recommended)**
+```python
+# Soft TTL with probabilistic refresh
+import random
+import time
+
+def get_with_early_refresh(key, fetch_func, ttl=3600, beta=1.0):
+    """XFetch algorithm: probabilistically refresh before expiry"""
+    cached = redis.get(key)
+    if cached:
+        data = json.loads(cached)
+        # Check if we should proactively refresh
+        delta = data['expiry'] - time.time()
+        if delta > 0 and random.random() < math.exp(-delta * beta / ttl):
+            # Probabilistic early refresh - only one request likely wins
+            pass
+        else:
+            return data['value']
+    
+    # Cache miss or refresh needed
+    value = fetch_func()
+    redis.setex(key, ttl, json.dumps({'value': value, 'expiry': time.time() + ttl}))
+    return value
+```
+
+**Solution 2: Lock-Based Regeneration**
+```redis
+# Only one request regenerates; others wait or use stale data
+# Lua script for atomic lock acquisition
+EVAL "
+    local lock_key = KEYS[1] .. ':lock'
+    local locked = redis.call('SET', lock_key, '1', 'NX', 'EX', 10)
+    if locked then
+        return 'REGENERATE'  -- This request wins, regenerate cache
+    else
+        return 'WAIT'  -- Another request is regenerating
+    end
+" 1 product:12345
+```
+
+**Solution 3: Background Refresh (Best for high-traffic keys)**
+```python
+# Never let cache fully expire - refresh in background
+def get_with_background_refresh(key, fetch_func, ttl=3600, refresh_threshold=300):
+    cached = redis.get(key)
+    if cached:
+        ttl_remaining = redis.ttl(key)
+        if ttl_remaining < refresh_threshold:
+            # Queue background refresh, return stale data immediately
+            task_queue.enqueue(refresh_cache, key, fetch_func, ttl)
+        return json.loads(cached)
+    
+    # True cache miss
+    value = fetch_func()
+    redis.setex(key, ttl, json.dumps(value))
+    return value
+```
+
+#### 📦 Serialization Format Tradeoffs
+
+| Format | Pros | Cons | Best For |
+|--------|------|------|----------|
+| **JSON** | Human-readable, native JS support, schema-flexible | Larger size, slower parse | API responses, debugging |
+| **Hash fields** | Partial reads (HGET), atomic field updates | No nested structures | User profiles, configs |
+| **MessagePack** | ~30% smaller than JSON, fast parse | Binary (not human-readable) | High-throughput caching |
+| **Protobuf** | Smallest size, schema-enforced, very fast | Requires schema compilation | Microservices, mobile apps |
+
+```python
+# Example: MessagePack for high-volume caching
+import msgpack
+
+# ~30% smaller than JSON, faster to serialize/deserialize
+data = {'id': 12345, 'name': 'Widget', 'price': 29.99, 'tags': ['electronics', 'sale']}
+redis.setex('product:12345', 3600, msgpack.packb(data))
+
+# Retrieve
+cached = redis.get('product:12345')
+product = msgpack.unpackb(cached, raw=False) if cached else None
+```
+
 #### 🗄️ What's Stored in Legacy Database (PostgreSQL/MySQL)
 ```sql
 -- Products table (disk-based, requires I/O on every read)
@@ -614,6 +701,46 @@ Each Page Load:
 Total: < 1ms per page load
 ```
 
+#### 🚀 Production Pattern: Pipeline for Session Operations
+
+> **⚠️ Optimization Tip**
+>
+> If you update TTL on every request, use a pipeline or transaction to reduce round-trip times (RTTs).
+> This batches multiple commands into a single network call.
+
+```python
+# ❌ Naive approach: 2 network round-trips
+session_data = redis.hgetall(f'session:{session_id}')  # RTT 1
+redis.expire(f'session:{session_id}', 3600)             # RTT 2
+
+# ✅ Optimized: Single pipeline (1 RTT)
+pipe = redis.pipeline()
+pipe.hgetall(f'session:{session_id}')
+pipe.expire(f'session:{session_id}', 3600)
+session_data, _ = pipe.execute()  # Both commands in 1 RTT
+```
+
+#### 🔐 "Logout All Devices" Pattern
+
+```redis
+# Track all sessions for a user
+SADD user:12345:sessions "session:abc123" "session:def456" "session:ghi789"
+
+# Logout all devices (atomic cleanup)
+EVAL "
+    local user_sessions_key = KEYS[1]
+    local sessions = redis.call('SMEMBERS', user_sessions_key)
+    for _, session_key in ipairs(sessions) do
+        redis.call('DEL', session_key)
+    end
+    redis.call('DEL', user_sessions_key)  -- Clean up the set itself!
+    return #sessions
+" 1 user:12345:sessions
+```
+
+> **💡 Important:** When using a Set to track session IDs, remember to delete the Set itself after
+> removing all sessions. Otherwise, you'll accumulate empty Sets for users who have logged out.
+
 #### Why Legacy is Slow/Complicated
 | Problem | Legacy (DB Sessions) | Redis Solution |
 |---------|----------------------|----------------|
@@ -715,10 +842,60 @@ SELECT * FROM players ORDER BY score DESC LIMIT 10;
 
 #### Redis Approach
 ```redis
-ZADD leaderboard 1500 "player:123"     -- Add/update score
-ZRANK leaderboard "player:123"          -- Get rank instantly
-ZREVRANGE leaderboard 0 9 WITHSCORES   -- Top 10 instantly
-ZINCRBY leaderboard 50 "player:123"    -- Increment score
+ZADD leaderboard 1500 "player:123"       -- Add/update score
+ZREVRANK leaderboard "player:123"        -- Get rank (0 = highest score)
+ZREVRANGE leaderboard 0 9 WITHSCORES    -- Top 10 (highest scores first)
+ZINCRBY leaderboard 50 "player:123"     -- Increment score atomically
+```
+
+#### ⚠️ ZRANK vs ZREVRANK: Getting It Right
+
+> **Common Mistake:** Using `ZRANK` when you want "rank #1 = highest score"
+>
+> - `ZRANK`: Returns position where **lowest score = rank 0** (ascending)
+> - `ZREVRANK`: Returns position where **highest score = rank 0** (descending)
+>
+> **For leaderboards, you almost always want `ZREVRANK`!**
+
+```redis
+# Example: Scores in a leaderboard
+ZADD leaderboard 15000 "alice" 14500 "bob" 14200 "charlie"
+
+# ❌ ZRANK gives ASCENDING order (lowest score = rank 0)
+ZRANK leaderboard "alice"    # → 2 (alice has highest score, so last in ascending)
+ZRANK leaderboard "charlie"  # → 0 (charlie has lowest score, so first in ascending)
+
+# ✅ ZREVRANK gives DESCENDING order (highest score = rank 0)  
+ZREVRANK leaderboard "alice"    # → 0 (alice is #1 with highest score)
+ZREVRANK leaderboard "charlie"  # → 2 (charlie is #3)
+
+# To display as "Rank #1, #2, #3", add 1 to ZREVRANK result:
+# alice: ZREVRANK + 1 = 0 + 1 = Rank #1 ✓
+```
+
+#### 🎯 Handling Score Ties
+
+> **How Redis Handles Ties:** When two members have the same score, Redis orders them
+> **lexicographically (alphabetically) by member name**.
+
+```redis
+# Same score = ordered by member name (alphabetically)
+ZADD leaderboard 5000 "alice" 5000 "bob" 5000 "aaron"
+
+ZREVRANGE leaderboard 0 -1 WITHSCORES
+# Result (same score, alphabetical order):
+# 1) "aaron"  → 5000
+# 2) "alice"  → 5000  
+# 3) "bob"    → 5000
+
+# To implement custom tie-breakers (e.g., earlier timestamp wins):
+# Option 1: Composite score = score * 1000000 + (MAX_TIME - timestamp)
+ZADD leaderboard 5000001000 "alice"  # Score 5000, timestamp offset 1000
+ZADD leaderboard 5000000500 "bob"    # Score 5000, timestamp offset 500 (earlier = higher)
+
+# Option 2: Use secondary sorted set for tie-breaking
+ZADD leaderboard:primary 5000 "alice" 5000 "bob"
+ZADD leaderboard:tiebreak 1705312800 "alice" 1705312700 "bob"  # bob registered earlier
 ```
 
 #### Why Legacy is Slow/Complicated
@@ -782,6 +959,11 @@ TS.ADD ticker:AAPL:price * 185.75
 TS.ADD ticker:AAPL:price * 185.60
 
 # Automatic downsampling rule (1-min averages)
+# ⚠️ IMPORTANT: Create destination key FIRST, then create the rule!
+TS.CREATE sensor:temp:floor1:1min
+    RETENTION 604800000
+    LABELS location "floor1" type "temperature" aggregation "avg_1min"
+
 TS.CREATERULE sensor:temp:floor1 sensor:temp:floor1:1min
     AGGREGATION avg 60000
 
@@ -873,6 +1055,9 @@ ORDER BY bucket;
 ```redis
 TS.ADD sensor:temp-1 * 23.5                          -- Auto-timestamp
 TS.RANGE sensor:temp-1 - + AGGREGATION avg 60000   -- 1-min aggregates
+
+# For automatic compaction: create destination FIRST, then rule
+TS.CREATE sensor:temp-1:hourly RETENTION 2592000000  -- Create destination
 TS.CREATERULE sensor:temp-1 sensor:temp-1:hourly AGGREGATION avg 3600000
 ```
 
@@ -1663,12 +1848,34 @@ GEOADD restaurants -122.4194 37.7749 "pizza-palace"
 GEOADD restaurants -122.4089 37.7837 "burger-barn"
 GEOADD restaurants -122.4058 37.7879 "sushi-spot"
 
-# Find restaurants within 2km of user
+# ✅ Find restaurants within 2km of coordinates (FROMLONLAT)
+GEOSEARCH restaurants FROMLONLAT -122.4194 37.7749 BYRADIUS 2 km ASC COUNT 10
+
+# ⚠️ FROMMEMBER only works if the member exists in the SAME geo key!
+# If you want to use FROMMEMBER, add the user location to the same key first:
+GEOADD restaurants -122.4200 37.7750 "user-location"  -- Add user to same key
 GEOSEARCH restaurants FROMMEMBER "user-location" BYRADIUS 2 km ASC COUNT 10
 
 # Calculate distance
 GEODIST restaurants "pizza-palace" "burger-barn" km
 ```
+
+> **⚠️ Common Mistake: FROMMEMBER**
+>
+> `GEOSEARCH key FROMMEMBER member` requires that `member` exists in `key`.
+> If you have user coordinates but haven't added them to the geo key, use `FROMLONLAT` instead.
+>
+> ```redis
+> # ❌ WRONG: "user-location" doesn't exist in "restaurants" key
+> GEOSEARCH restaurants FROMMEMBER "user-location" BYRADIUS 2 km
+>
+> # ✅ CORRECT: Use coordinates directly
+> GEOSEARCH restaurants FROMLONLAT -122.4194 37.7749 BYRADIUS 2 km
+>
+> # ✅ ALSO CORRECT: Add user to the key first, then use FROMMEMBER
+> GEOADD restaurants -122.4194 37.7749 "user-location"
+> GEOSEARCH restaurants FROMMEMBER "user-location" BYRADIUS 2 km
+> ```
 
 #### Legacy Approach: SQL with Haversine
 ```sql

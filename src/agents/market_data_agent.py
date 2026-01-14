@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from src.agents.base_agent import BaseAgent
 from src.agents.plugins.market_data_plugin import MarketDataPlugin
+from src.utils.ticker_utils import extract_ticker
 
 
 class MarketDataAgent(BaseAgent):
@@ -187,26 +188,8 @@ Always:
 
     @staticmethod
     def _extract_ticker(query: str) -> Optional[str]:
-        """Basic ticker extraction to support free-form questions."""
-        import re
-
-        patterns = [
-            r"\b([A-Z]{1,5})\b(?:\s+stock|\s+shares?)",
-            r"(?:ticker|symbol)\s+([A-Z]{1,5})\b",
-            r"\$([A-Z]{1,5})\b",
-        ]
-
-        upper_query = query.upper()
-        for pattern in patterns:
-            match = re.search(pattern, upper_query)
-            if match:
-                return match.group(1)
-
-        for word in upper_query.split():
-            if 2 <= len(word) <= 5 and word.isalpha():
-                return word
-
-        return None
+        """Extract ticker from query using shared utility."""
+        return extract_ticker(query)
 
     @staticmethod
     def _summarize(

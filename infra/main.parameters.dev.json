@@ -15,7 +15,7 @@
       "value": "all"
     },
     "enableOpenAIPublicAccess": {
-      "value": false
+      "value": true
     },
     "openAIAllowedIpAddresses": {
       "value": []

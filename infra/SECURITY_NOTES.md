@@ -2,6 +2,67 @@
 
 ## Current Configuration (Development Phase)
 
+### Azure OpenAI Network Access
+**Current State**: Private endpoint only (public access disabled)
+
+**Architecture**:
+- Azure OpenAI has `publicNetworkAccess: 'Disabled'`
+- Private Endpoint connects to VNet subnet `openai-subnet` (10.0.2.0/24)
+- Private DNS Zone `privatelink.openai.azure.com` resolves to private IP
+- Container Apps in VNet can access via private endpoint
+
+**For Local Development**:
+The agents cannot access Azure OpenAI from your local machine because it's behind a private endpoint.
+
+**Solutions**:
+
+#### Option 1: Enable Public Access with IP Allowlist (Recommended for Dev)
+Run the helper script:
+```bash
+./scripts/enable_openai_dev_access.sh
+```
+
+Or manually via Azure CLI:
+```bash
+# Get your public IP
+MY_IP=$(curl -s https://api.ipify.org)
+
+# Enable public access with your IP
+az cognitiveservices account update \
+    -g finagentix-dev-rg \
+    -n openai-<resourceToken> \
+    --public-network-access Enabled
+
+az cognitiveservices account network-rule add \
+    -g finagentix-dev-rg \
+    -n openai-<resourceToken> \
+    --ip-address "$MY_IP"
+```
+
+#### Option 2: Use IaC Parameters for Development
+Deploy with development parameters:
+```bash
+azd provision --parameters-file infra/main.parameters.dev.json
+```
+
+Or set parameters directly:
+```bash
+azd provision \
+    --parameter enableOpenAIPublicAccess=true \
+    --parameter openAIAllowedIpAddresses='["YOUR_IP/32"]'
+```
+
+#### Option 3: Use Azure Bastion/VPN
+- Connect via Azure Bastion to a VM in the VNet
+- Use Point-to-Site VPN to access the VNet directly
+- Use Express Route for production-grade connectivity
+
+**Modified Files**:
+- `infra/stages/stage2-ai-services.bicep` - Added `enablePublicAccess` and `allowedIpAddresses` parameters
+- `infra/main.bicep` - Passes new parameters to AI services module
+- `infra/main.parameters.json` - Production config (public access disabled)
+- `infra/main.parameters.dev.json` - Development config (public access enabled)
+
 ### Storage Account Network Access
 **Current State**: Public network access enabled with `Allow` default action
 

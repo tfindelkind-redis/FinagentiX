@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from src.agents.base_agent import BaseAgent
 from src.agents.plugins.news_sentiment_plugin import NewsSentimentPlugin
+from src.utils.ticker_utils import extract_ticker
 
 
 class NewsSentimentAgent(BaseAgent):
@@ -165,21 +166,8 @@ Always:
 
     @staticmethod
     def _extract_ticker(query: str) -> Optional[str]:
-        import re
-
-        patterns = [
-            r"\$([A-Z]{1,5})\b",
-            r"(?:ticker|symbol)\s+([A-Z]{1,5})\b",
-            r"\b([A-Z]{2,5})\b",
-        ]
-
-        upper_query = query.upper()
-        for pattern in patterns:
-            match = re.search(pattern, upper_query)
-            if match:
-                return match.group(1)
-
-        return None
+        """Extract ticker from query using shared utility."""
+        return extract_ticker(query)
 
     @staticmethod
     def _summarize(

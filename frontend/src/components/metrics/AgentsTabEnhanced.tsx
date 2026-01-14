@@ -114,11 +114,15 @@ export default function AgentsTab({ response }: AgentsTabProps) {
 
       {/* Agent Cards */}
       <div className="agents-list">
-        {response.agents.map((agent, idx) => {
+        {response.agents.map((agent) => {
           const explanation = AGENT_EXPLANATIONS[agent.agent_name]
           const isExpanded = expandedAgent === agent.agent_id
           const cacheHits = agent.tools_invoked.filter(t => t.cache_hit).length
           const totalTools = agent.tools_invoked.length
+          // Get friendly display name and icon
+          const displayName = explanation?.name || agent.agent_name.replace(/Agent$/, ' Agent').replace(/([A-Z])/g, ' $1').trim()
+          const agentIcon = explanation?.icon || '🤖'
+          const agentRole = explanation?.role || 'AI Agent processing your query'
 
           return (
             <div 
@@ -130,9 +134,10 @@ export default function AgentsTab({ response }: AgentsTabProps) {
                 onClick={() => toggleAgent(agent.agent_id)}
               >
                 <div className="agent-info">
-                  <div className="agent-index">{idx + 1}</div>
+                  <div className="agent-icon">{agentIcon}</div>
                   <div className="agent-details">
-                    <h4 className="agent-name">{agent.agent_name}</h4>
+                    <h4 className="agent-name">{displayName}</h4>
+                    <p className="agent-role">{agentRole}</p>
                     {agent.model_used && (
                       <span className="agent-model">{agent.model_used}</span>
                     )}

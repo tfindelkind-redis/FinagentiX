@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from src.agents.base_agent import BaseAgent
 from src.tools.vector_tools import search_sec_filings
 from src.tools.feature_tools import extract_financial_data, calculate_valuation_ratios
+from src.utils.ticker_utils import extract_ticker
 
 
 class FundamentalAnalysisAgent(BaseAgent):
@@ -157,12 +158,22 @@ Always:
         if cached:
             return cached, True
 
-        results = search_sec_filings(
-            query=query,
-            ticker=ticker,
-            filing_type=filing_type,
-            top_k=limit,
-        )
+        try:
+            results = search_sec_filings(
+                query=query,
+                ticker=ticker,
+                filing_type=filing_type,
+                top_k=limit,
+            )
+        except ConnectionError as e:
+            # Handle Azure OpenAI private endpoint restriction
+            return {
+                "success": False,
+                "count": 0,
+                "results": [],
+                "error": "embedding_access_denied",
+                "message": str(e),
+            }, False
 
         payload = {
             "success": True,
@@ -215,21 +226,8 @@ Always:
 
     @staticmethod
     def _extract_ticker(query: str) -> Optional[str]:
-        import re
-
-        patterns = [
-            r"\$([A-Z]{1,5})\b",
-            r"(?:ticker|symbol)\s+([A-Z]{1,5})\b",
-            r"\b([A-Z]{2,5})\b",
-        ]
-
-        upper_query = query.upper()
-        for pattern in patterns:
-            match = re.search(pattern, upper_query)
-            if match:
-                return match.group(1)
-
-        return None
+        """Extract ticker from query using shared utility."""
+        return extract_ticker(query)
 
     @staticmethod
     def _summarize(

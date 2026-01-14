@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from src.agents.base_agent import BaseAgent
 from src.agents.plugins.risk_analysis_plugin import RiskAnalysisPlugin
+from src.utils.ticker_utils import extract_ticker
 
 
 class RiskAssessmentAgent(BaseAgent):
@@ -189,10 +190,8 @@ Always:
 
     @staticmethod
     def _extract_ticker(query: str) -> Optional[str]:
-        import re
-
-        match = re.search(r"\b([A-Z]{2,5})\b", query.upper())
-        return match.group(1) if match else None
+        """Extract ticker from query using shared utility."""
+        return extract_ticker(query)
 
     @staticmethod
     def _summarize(

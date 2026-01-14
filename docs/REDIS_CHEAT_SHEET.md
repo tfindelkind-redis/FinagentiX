@@ -19,19 +19,19 @@ Each use case follows a consistent structure to help you understand both **what 
 ### Legend for Data Examples
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  📦 REDIS                    │  🗄️ LEGACY DATABASE              │
-├─────────────────────────────────────────────────────────────────┤
-│                              │                                   │
-│  Key-value in RAM            │  Rows in table on disk            │
-│  O(1) access                 │  Index lookup + disk I/O          │
-│  Native TTL expiration       │  Cron jobs for cleanup            │
-│  Atomic operations           │  Transactions with locks          │
-│                              │                                   │
-│  SET key "value" EX 3600     │  INSERT INTO table (...)          │
-│  < 1ms                       │  5-50ms                           │
-│                              │                                   │
-└─────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────┬────────────────────────────────┐
+│  📦 REDIS                      │  🗄️ LEGACY DATABASE            │
+├────────────────────────────────┼────────────────────────────────┤
+│                                │                                │
+│  Key-value in RAM              │  Rows in table on disk         │
+│  O(1) access                   │  Index lookup + disk I/O       │
+│  Native TTL expiration         │  Cron jobs for cleanup         │
+│  Atomic operations             │  Transactions with locks       │
+│                                │                                │
+│  SET key "value" EX 3600       │  INSERT INTO table (...)       │
+│  < 1ms                         │  5-50ms                        │
+│                                │                                │
+└────────────────────────────────┴────────────────────────────────┘
 ```
 
 ---
@@ -60,32 +60,32 @@ Each use case follows a consistent structure to help you understand both **what 
 
 | # | Use Case | Data Structure | Legacy Pain Point |
 |---|----------|----------------|-------------------|
-| 1 | 🚀 Caching | String, Hash | Slow DB queries |
-| 2 | 📊 Sessions | Hash + TTL | DB polling, cleanup jobs |
-| 3 | 🏆 Leaderboards | Sorted Set | O(N) rank queries |
-| 4 | ⏱️ Time-Series | TimeSeries | GROUP BY aggregations |
-| 5 | 📨 Messaging | Streams, Pub/Sub | DB polling, no push |
-| 6 | 🔐 Rate Limiting | String + INCR | Lock contention |
-| 7 | 🔍 Deduplication | Bloom Filter | Huge lookup tables |
-| 8 | 🔎 Full-Text Search | RediSearch | Elasticsearch sync |
-| 9 | 🚨 Fraud Detection | Multi-structure | Batch processing |
-| 10 | 📍 Geospatial | GEO | Haversine calculations |
-| 11 | 🔐 Distributed Locks | SET NX PX | DB transactions |
-| 12 | 📋 Job Queues | List, Stream | Polling, no priorities |
-| 13 | 🔄 RDI (CDC) | Auto-sync | Cache-aside staleness |
-| 14 | 📦 Inventory | Hash + Geo | ATP lag |
-| 15 | 🔐 Auth Tokens | String + TTL | Token table bloat |
-| 16 | 📡 Fast Data Ingest | Streams | Throughput limits |
+| 1 | [🚀 Caching](#1--caching-cache-aside--read-through) | String, Hash | Slow DB queries |
+| 2 | [📊 Sessions](#2--session-management) | Hash + TTL | DB polling, cleanup jobs |
+| 3 | [🏆 Leaderboards](#3--leaderboardsrankings) | Sorted Set | O(N) rank queries |
+| 4 | [⏱️ Time-Series](#4-%EF%B8%8F-time-series-metrics--iot) | TimeSeries | GROUP BY aggregations |
+| 5 | [📨 Messaging](#5--real-time-messaging-pubsub--streams) | Streams, Pub/Sub | DB polling, no push |
+| 6 | [🔐 Rate Limiting](#6--rate-limiting--throttling) | String + INCR | Lock contention |
+| 7 | [🔍 Deduplication](#7--deduplication-bloom-filters) | Bloom Filter | Huge lookup tables |
+| 8 | [🔎 Full-Text Search](#8--full-text-search-redisearch) | RediSearch | Elasticsearch sync |
+| 9 | [🚨 Fraud Detection](#9--real-time-fraud-detection) | Multi-structure | Batch processing |
+| 10 | [📍 Geospatial](#10--geospatial-queries) | GEO | Haversine calculations |
+| 11 | [🔐 Distributed Locks](#11--distributed-locks) | SET NX PX | DB transactions |
+| 12 | [📋 Job Queues](#12--job-queues--background-processing) | List, Stream | Polling, no priorities |
+| 13 | [🔄 RDI (CDC)](#13--redis-data-integration-rdi---change-data-capture) | Auto-sync | Cache-aside staleness |
+| 14 | [📦 Inventory](#14--real-time-inventory-management) | Hash + Geo | ATP lag |
+| 15 | [🔐 Auth Tokens](#15--authentication-tokens--api-keys) | String + TTL | Token table bloat |
+| 16 | [📡 Fast Data Ingest](#16--fast-data-ingest-firehose) | Streams | Throughput limits |
 | **AI Use Cases** |||
-| 17 | 🧠 Semantic Cache | Vector + Hash | Exact-match only |
-| 18 | 🔎 Vector/RAG | HNSW Vector | Multi-system complexity |
-| 19 | 🛣️ Semantic Router | Vector | Regex maintenance |
-| 20 | 🧠 Agent Memory | List + Vector | No semantic recall |
-| 21 | 📊 Feature Store | Hash | Training/serving skew |
+| 17 | [🧠 Semantic Cache](#17--semantic-cache-ai) | Vector + Hash | Exact-match only |
+| 18 | [🔎 Vector/RAG](#18--vector-searchrag-ai) | HNSW Vector | Multi-system complexity |
+| 19 | [🛣️ Semantic Router](#19-%EF%B8%8F-semantic-router-ai) | Vector | Regex maintenance |
+| 20 | [🧠 Agent Memory](#20--agent-memory-ai) | List + Vector | No semantic recall |
+| 21 | [📊 Feature Store](#21--feature-store-mlai) | Hash | Training/serving skew |
 | **Additional** |||
-| 22 | 🔑 Idempotency Keys | String + NX | Double-processing |
-| 23 | 📈 Counters & Analytics | HyperLogLog, TopK | Count(*) nightmares |
-| 24 | 📄 Document Store | RedisJSON | JSON serialization |
+| 22 | [🔑 Idempotency Keys](#22--idempotency-keys-payment--api-safety) | String + NX | Double-processing |
+| 23 | [📈 Counters & Analytics](#23--counters--analytics-hyperloglog-topk) | HyperLogLog, TopK | Count(*) nightmares |
+| 24 | [📄 Document Store](#24--document-store-redisjson) | RedisJSON | JSON serialization |
 
 ---
 
@@ -132,6 +132,7 @@ Redis Request Flow:
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Stores frequently accessed data in memory to reduce database load and speed up response times |
+| **Legacy issue it solves** | Slow database queries (5-50ms), high DB load under traffic spikes, repeated expensive computations |
 | **How Redis does it** | Application checks Redis first; on miss, fetches from DB and stores in Redis with TTL expiration |
 | **Data Structures** | Strings (GET/SET), Hashes (HGET/HSET) |
 
@@ -217,6 +218,7 @@ User Request → Application → Redis (< 1ms) → Response
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Stores user session data (login state, preferences, cart) with automatic expiration |
+| **Legacy issue it solves** | DB queries on every page load (5-20ms), cron jobs for session cleanup, sticky sessions breaking horizontal scaling |
 | **How Redis does it** | Session ID as key, JSON/Hash as value, TTL for auto-cleanup |
 | **Data Structures** | Hashes (user data), Strings (session tokens) |
 
@@ -253,30 +255,30 @@ SET remember:user:12345 "longLivedToken789" EX 2592000  # 30 days
 #### 🗄️ What's Stored in Legacy Database (PostgreSQL/MySQL)
 ```sql
 -- Sessions table (every page load = database query)
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                                    sessions                                             │
-├──────────────────┬─────────┬───────────────────────────────────────────────────────────┤
-│ session_id       │ user_id │ data (BLOB/JSON)                                          │
-├──────────────────┼─────────┼───────────────────────────────────────────────────────────┤
-│ abc123def456     │ 12345   │ {"username":"johndoe","role":"admin","prefs":{...}}       │
-│ xyz789ghi012     │ 67890   │ {"username":"janesmith","role":"user","prefs":{...}}      │
-└──────────────────┴─────────┴───────────────────────────────────────────────────────────┘
-│ expires_at       │ last_accessed     │ ip_address      │ user_agent                    │
-├──────────────────┼───────────────────┼─────────────────┼───────────────────────────────┤
-│ 2024-01-15 11:00 │ 2024-01-15 10:45  │ 192.168.1.100   │ Mozilla/5.0...                │
-│ 2024-01-15 12:00 │ 2024-01-15 11:30  │ 10.0.0.50       │ Chrome/120...                 │
-└──────────────────┴───────────────────┴─────────────────┴───────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                             sessions                                                   │
+├──────────────────┬─────────┬──────────────────────────────────────────────────────────┬───────────────┤
+│ session_id       │ user_id │ data (BLOB/JSON)                                         │ expires_at    │
+├──────────────────┼─────────┼──────────────────────────────────────────────────────────┼───────────────┤
+│ abc123def456     │ 12345   │ {"username":"johndoe","role":"admin","prefs":{...}}      │ 2024-01-15 11 │
+│ xyz789ghi012     │ 67890   │ {"username":"janesmith","role":"user","prefs":{...}}     │ 2024-01-15 12 │
+├──────────────────┼─────────┼──────────────────────────────────────────────────────────┼───────────────┤
+│ last_accessed    │ ip_address       │ user_agent                                                      │
+├──────────────────┼──────────────────┼─────────────────────────────────────────────────────────────────┤
+│ 2024-01-15 10:45 │ 192.168.1.100    │ Mozilla/5.0...                                                  │
+│ 2024-01-15 11:30 │ 10.0.0.50        │ Chrome/120...                                                   │
+└──────────────────┴──────────────────┴─────────────────────────────────────────────────────────────────┘
 
 -- Shopping carts table (separate table, requires JOIN)
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              shopping_carts                                  │
-├──────────────────┬──────────┬─────┬─────────┬───────────────────────────────┤
-│ session_id       │ sku      │ qty │ price   │ added_at                      │
-├──────────────────┼──────────┼─────┼─────────┼───────────────────────────────┤
-│ abc123def456     │ SKU001   │ 2   │ 29.99   │ 2024-01-15 10:30:00           │
-│ abc123def456     │ SKU002   │ 1   │ 99.99   │ 2024-01-15 10:35:00           │
-│ xyz789ghi012     │ SKU003   │ 3   │ 15.00   │ 2024-01-15 11:00:00           │
-└──────────────────┴──────────┴─────┴─────────┴───────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────┐
+│                              shopping_carts                                     │
+├──────────────────┬──────────┬─────┬─────────┬──────────────────────────────────┤
+│ session_id       │ sku      │ qty │ price   │ added_at                         │
+├──────────────────┼──────────┼─────┼─────────┼──────────────────────────────────┤
+│ abc123def456     │ SKU001   │ 2   │ 29.99   │ 2024-01-15 10:30:00              │
+│ abc123def456     │ SKU002   │ 1   │ 99.99   │ 2024-01-15 10:35:00              │
+│ xyz789ghi012     │ SKU003   │ 3   │ 15.00   │ 2024-01-15 11:00:00              │
+└──────────────────┴──────────┴─────┴─────────┴──────────────────────────────────┘
 
 -- ⚠️ Problems:
 -- 1. Every page load requires: SELECT * FROM sessions WHERE session_id = ?
@@ -321,6 +323,7 @@ Total: < 1ms per page load
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Maintains ranked lists of players/users with instant updates and range queries |
+| **Legacy issue it solves** | O(N) rank queries requiring full table scans (500ms-2s), expensive ORDER BY + COUNT on millions of rows |
 | **How Redis does it** | Sorted Sets (ZSET) with O(log N) insert/update and O(log N + M) range queries |
 | **Data Structures** | Sorted Sets (ZADD, ZRANK, ZRANGE, ZINCRBY) |
 
@@ -421,6 +424,7 @@ ZINCRBY leaderboard 50 "player:123"    -- Increment score
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Stores and queries time-stamped data (metrics, IoT, financial OHLCV) with automatic downsampling |
+| **Legacy issue it solves** | Table bloat from high-frequency inserts, expensive time-range aggregations, manual downsampling jobs, slow GROUP BY time bucketing |
 | **How Redis does it** | RedisTimeSeries module with compaction rules, aggregations, and range queries |
 | **Commands** | TS.ADD, TS.RANGE, TS.MRANGE, TS.CREATERULE |
 
@@ -560,6 +564,7 @@ TS.CREATERULE sensor:temp-1 sensor:temp-1:hourly AGGREGATION avg 3600000
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Enables real-time communication between services with guaranteed delivery and consumer groups |
+| **Legacy issue it solves** | Adding another system (Kafka/RabbitMQ) when you already use Redis, operational complexity for simple messaging needs |
 | **How Redis does it** | Pub/Sub for fire-and-forget, Streams for persistent message queues |
 | **Data Structures** | Pub/Sub (PUBLISH/SUBSCRIBE), Streams (XADD/XREAD/XREADGROUP) |
 
@@ -602,54 +607,64 @@ XPENDING orders:new order_processors
 # → Shows which messages are being processed by which consumer
 ```
 
-#### 🗄️ What's Stored in Legacy Database (PostgreSQL/MySQL)
-```sql
--- Message queue table (polling nightmare!)
-┌──────────────────────────────────────────────────────────────────────────────────────────┐
-│                                    message_queue                                          │
-├─────────┬───────────────┬───────────────────────────────────────────────┬────────────────┤
-│ id      │ channel       │ message (JSON)                                │ created_at     │
-├─────────┼───────────────┼───────────────────────────────────────────────┼────────────────┤
-│ 1       │ orders        │ {"order_id":"ORD-12345","total":149.95}       │ 10:00:00.001   │
-│ 2       │ orders        │ {"order_id":"ORD-12346","total":299.99}       │ 10:00:00.050   │
-│ 3       │ notifications │ {"type":"alert","msg":"Low stock"}            │ 10:00:00.100   │
-└─────────┴───────────────┴───────────────────────────────────────────────┴────────────────┘
-│ processed │ processed_by  │ processed_at    │ retry_count │ error_message              │
-├───────────┼───────────────┼─────────────────┼─────────────┼────────────────────────────┤
-│ false     │ NULL          │ NULL            │ 0           │ NULL                       │
-│ true      │ worker-1      │ 10:00:00.150    │ 0           │ NULL                       │
-│ false     │ worker-2      │ NULL            │ 2           │ Timeout on attempt 2       │
-└───────────┴───────────────┴─────────────────┴─────────────┴────────────────────────────┘
+#### � Comparison with Dedicated Message Brokers
 
--- ⚠️ Consumer must poll continuously:
-WHILE true DO
-    SELECT * FROM message_queue 
-    WHERE channel = 'orders' AND processed = false
-    ORDER BY created_at LIMIT 10
-    FOR UPDATE SKIP LOCKED;  -- Lock rows to prevent double-processing
-    
-    -- Process messages...
-    
-    UPDATE message_queue SET processed = true WHERE id IN (...);
-    
-    SLEEP(0.1);  -- 100ms polling interval = 100ms minimum latency!
-END;
+Developers have used Kafka, RabbitMQ, Pulsar, and cloud queues for years. Here's an honest comparison:
 
--- ⚠️ Dead letter handling requires manual logic
--- ⚠️ Consumer groups require custom implementation
--- ⚠️ Table grows unbounded until you run cleanup jobs
+| Feature | Redis Streams | Apache Kafka | RabbitMQ | AWS SQS/SNS |
+|---------|---------------|--------------|----------|-------------|
+| **Latency** | < 1ms | 2-10ms | 1-5ms | 20-100ms |
+| **Throughput** | 1M+ msg/sec | 1M+ msg/sec | 50K msg/sec | 3K msg/sec |
+| **Persistence** | ✅ AOF/RDB | ✅ Disk log | ✅ Disk | ✅ Managed |
+| **Consumer Groups** | ✅ Native | ✅ Native | ✅ Native | ❌ (FIFO only) |
+| **Message Replay** | ✅ XRANGE | ✅ Offset seek | ❌ Limited | ❌ No |
+| **Ordering** | ✅ Per-stream | ✅ Per-partition | ⚠️ Queue-level | ⚠️ FIFO only |
+| **Exactly-once** | ⚠️ At-least-once | ✅ With config | ⚠️ At-least-once | ⚠️ At-least-once |
+| **Setup Complexity** | ✅ Zero (built-in) | ❌ Zookeeper/KRaft | ⚠️ Erlang cluster | ✅ Managed |
+| **Operational Cost** | ✅ Same as cache | ❌ Separate cluster | ❌ Separate cluster | ⚠️ Pay per msg |
+
+#### When to Use Redis Streams vs Kafka/RabbitMQ
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                     Choosing the Right Messaging Solution                                │
+├─────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                          │
+│  Use Redis Streams when:                    Use Kafka when:                             │
+│  ─────────────────────────                  ────────────────                            │
+│  ✅ Already using Redis                     ✅ Petabyte-scale event streams             │
+│  ✅ Need < 1ms latency                      ✅ Long-term log retention (weeks/months)   │
+│  ✅ Moderate message volume                 ✅ Complex stream processing (Kafka Streams)│
+│  ✅ Want single system (cache + queue)      ✅ Multi-datacenter replication             │
+│  ✅ Real-time features + messaging          ✅ Compliance requires immutable audit log  │
+│  ✅ Simpler operations                      ✅ Already have Kafka expertise             │
+│                                                                                          │
+│  Use RabbitMQ when:                         Use SQS/SNS when:                           │
+│  ───────────────────                        ─────────────────                           │
+│  ✅ Complex routing (exchanges/bindings)    ✅ Fully managed, zero ops                  │
+│  ✅ AMQP protocol required                  ✅ AWS-native integration                   │
+│  ✅ Request-reply patterns                  ✅ Low volume, bursty traffic               │
+│  ✅ Priority queues                         ✅ Simple fan-out (SNS)                     │
+│                                                                                          │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-> **💡 Key Difference:** Redis Streams push messages instantly (no polling), have built-in consumer groups, automatic message acknowledgment, and don't require cleanup.
+#### 💡 Redis Streams Sweet Spot
 
-#### Legacy Approach: Database Polling
-```
-Producer:
-INSERT INTO message_queue (channel, message, created_at) VALUES (?, ?, NOW());
+Redis Streams shines when you:
+- **Already use Redis** — No new infrastructure, same cluster as cache/sessions
+- **Need lowest latency** — Sub-millisecond vs 2-100ms for dedicated brokers
+- **Want simplicity** — No Zookeeper, no Erlang, no separate monitoring
+- **Combine with other Redis features** — Enrich messages with cached data, trigger from cache events
 
-Consumer (polling every 100ms):
-SELECT * FROM message_queue WHERE channel = ? AND processed = false ORDER BY created_at LIMIT 10;
-UPDATE message_queue SET processed = true WHERE id IN (...);
+```redis
+# Example: Order processing with cache enrichment (single Redis call!)
+MULTI
+XADD orders:new * order_id ORD-123 customer_id CUST-456
+HGET customer:CUST-456 tier        # Enrich with customer tier
+HGET customer:CUST-456 loyalty_pts # Enrich with loyalty points
+EXEC
+# → All in one round-trip, < 1ms total
 ```
 
 #### Redis Streams Approach
@@ -659,14 +674,17 @@ XREADGROUP GROUP workers consumer-1 BLOCK 0 STREAMS orders >  -- Consume
 XACK orders workers 1526569495631-0                   -- Acknowledge
 ```
 
-#### Why Legacy is Slow/Complicated
-| Problem | Legacy (DB Polling) | Redis Streams |
-|---------|---------------------|---------------|
-| Latency | 100ms polling interval | Instant push |
-| DB Load | Continuous queries | Zero polling |
-| Delivery Guarantee | Complex transactions | Built-in ACK |
-| Consumer Groups | Custom implementation | Native support |
-| Message Backpressure | Table bloat | Auto-trimming |
+#### Honest Assessment
+| Scenario | Best Choice | Why |
+|----------|-------------|-----|
+| Already using Redis, need simple queues | **Redis Streams** | Zero new infra |
+| Petabyte event streams, weeks retention | **Kafka** | Purpose-built for this |
+| Complex routing, AMQP required | **RabbitMQ** | Best routing flexibility |
+| Fully managed, AWS-native | **SQS/SNS** | Zero operations |
+| Sub-ms latency critical | **Redis Streams** | Fastest option |
+| Event sourcing, audit logs | **Kafka** | Immutable log design |
+
+> **💡 Key Insight:** Redis Streams isn't trying to replace Kafka. It's for teams who already use Redis and need simple, fast messaging without adding another system to maintain.
 
 ---
 
@@ -675,6 +693,7 @@ XACK orders workers 1526569495631-0                   -- Acknowledge
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Controls API request rates per user/IP to prevent abuse and ensure fair usage |
+| **Legacy issue it solves** | Database lock contention under high traffic, 5-20ms per rate check, manual cleanup of old rate windows |
 | **How Redis does it** | Atomic counters with TTL, or sliding window with Sorted Sets |
 | **Data Structures** | Strings (INCR + EXPIRE), Sorted Sets (sliding window) |
 
@@ -795,6 +814,7 @@ return current <= 100
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Prevents duplicate processing of events/messages with memory-efficient probabilistic data structures |
+| **Legacy issue it solves** | Huge lookup tables (500MB+ for 10M entries), slow SELECT EXISTS queries, table bloat without cleanup |
 | **How Redis does it** | Bloom Filters for "definitely not seen" checks, Cuckoo Filters for deletable entries |
 | **Commands** | BF.ADD, BF.EXISTS, CF.ADD, CF.EXISTS |
 
@@ -868,6 +888,7 @@ BF.EXISTS seen_messages "msg:xyz"    -- Check existence (O(k))
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Real-time full-text search with scoring, faceting, autocomplete, and fuzzy matching |
+| **Legacy issue it solves** | Elasticsearch sync lag (100ms-5s stale data), operational overhead of separate search cluster, SQL LIKE full table scans |
 | **How Redis does it** | RediSearch module with inverted indexes, stemming, phonetic matching, and field weighting |
 | **Commands** | FT.CREATE, FT.SEARCH, FT.AGGREGATE, FT.SUGADD |
 
@@ -964,7 +985,7 @@ WHERE to_tsvector('english', name || ' ' || description) @@ to_tsquery('wireless
 // - Separate backup strategy
 ```
 
-> **💡 Key Difference:** RediSearch indexes data in-place (same system as cache/sessions). Zero sync lag, single system to maintain.
+> **💡 Key Difference:** RediSearch indexes data in-place — the search index lives in the same system as the data itself. When you `HSET` a document, the index updates atomically. Zero sync lag, zero CDC pipelines, single system to maintain.
 
 #### How It Works
 ```redis
@@ -1018,6 +1039,7 @@ SELECT * FROM products WHERE name LIKE '%wireless%' AND category = 'electronics'
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Detects fraudulent transactions in real-time by analyzing patterns, velocity, and anomalies |
+| **Legacy issue it solves** | Batch fraud detection (detecting fraud hours/days later), 100-500ms decision latency during checkout, expensive velocity COUNT(*) queries |
 | **How Redis does it** | Combination of rate limiting, pattern matching, ML feature serving, and Bloom filters |
 | **Components** | Sorted Sets (velocity), Streams (event log), Bloom (known bad actors), ML features |
 
@@ -1181,6 +1203,7 @@ SELECT * FROM user_profiles WHERE user_id = 123;
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Stores locations and finds nearby points within radius, distance calculations |
+| **Legacy issue it solves** | Complex Haversine SQL formulas (50-200ms), PostGIS extension overhead, poor B-tree performance for geo queries |
 | **How Redis does it** | GEO commands using Sorted Sets with geohash encoding |
 | **Commands** | GEOADD, GEORADIUS, GEODIST, GEOPOS, GEOSEARCH |
 
@@ -1274,6 +1297,7 @@ WHERE ST_DWithin(location, ST_MakePoint(-122.4194, 37.7749)::geography, 2000);
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Coordinates access to shared resources across distributed systems, prevents race conditions |
+| **Legacy issue it solves** | Database row locks blocking transactions, Zookeeper complexity, deadlocks from forgotten locks, manual lock cleanup |
 | **How Redis does it** | Atomic SET with NX (not exists) and PX (expiration), or Redlock algorithm |
 | **Commands** | SET key value NX PX milliseconds, EVAL (Lua scripts) |
 
@@ -1361,6 +1385,7 @@ WHERE id = 123 AND version = ?;
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Manages background task execution with priorities, retries, and delayed jobs |
+| **Legacy issue it solves** | Database polling overhead, complex priority queue SQL, scheduled job cleanup crons, lack of blocking pop operations |
 | **How Redis does it** | Lists (simple FIFO), Sorted Sets (delayed/priority), Streams (consumer groups) |
 | **Patterns** | BRPOP (blocking pop), ZADD (delayed jobs), XREADGROUP (consumer groups) |
 
@@ -1456,6 +1481,7 @@ UPDATE jobs SET status = 'completed' WHERE id = ?;
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Automatically syncs data from primary databases to Redis using Change Data Capture (CDC) |
+| **Legacy issue it solves** | Cache-aside pattern failures (cold cache, stale data), manual cache invalidation bugs, TTL-based staleness |
 | **How Redis does it** | Captures changes from source DB (Oracle, PostgreSQL, MySQL, MongoDB), transforms, and ingests into Redis |
 | **Key Benefit** | Eliminates cache misses and stale data - cache is always "hot" |
 
@@ -1550,6 +1576,7 @@ db.execute("UPDATE customers SET balance = 5000 WHERE id = 12345")
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Tracks inventory positions across stores/warehouses with real-time updates and geo search |
+| **Legacy issue it solves** | ERP batch sync delays (showing sold-out items as available), expensive cross-store inventory queries, lack of geo-aware stock lookup |
 | **How Redis does it** | Hashes (product data), Sorted Sets (stock levels), Geo (store locations), Search (queries) |
 | **Key Features** | ATP (Available-to-Promise), store locator, stock alerts |
 
@@ -1605,6 +1632,7 @@ SET reservation:SKU-123:cart:ABC "5" EX 900  # 15 min hold
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Stores JWT/OAuth tokens, refresh tokens, and API keys with automatic expiration |
+| **Legacy issue it solves** | Database query on every authenticated request (5-20ms), scheduled jobs for token cleanup, slow "logout all devices" operations |
 | **How Redis does it** | Strings with TTL for tokens, Hashes for token metadata, Sets for token revocation |
 | **Key Benefit** | Sub-millisecond auth checks, automatic cleanup, instant revocation |
 
@@ -1656,6 +1684,7 @@ SET oauth:state:xyz789 '{"redirect":"/dashboard","provider":"google"}' EX 300
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Captures high-velocity data streams (IoT sensors, logs, events) at millions of ops/sec |
+| **Legacy issue it solves** | Database write bottlenecks at high TPS, complex Kafka/Kinesis setup for simple use cases, batch ingestion delays |
 | **How Redis does it** | Streams (persistent log), Pub/Sub (broadcast), Lists (queue), TimeSeries (metrics) |
 | **Throughput** | 200M+ operations/second |
 
@@ -1695,14 +1724,14 @@ PUBLISH ticker:AAPL '{"price":185.50,"volume":1000,"time":"10:30:01.456"}'
 LPUSH ingest:batch '{"sensor":"001","readings":[72.1,72.3,72.5]}'
 ```
 
-#### Why Legacy is Slow/Complicated
-| Problem | Legacy (Kafka/DB) | Redis Ingest |
-|---------|-------------------|--------------|
-| Latency | 10-50ms | < 1ms |
-| Setup | Complex cluster | Simple |
-| Throughput | ~100K/sec | 1M+/sec per node |
-| Consumer Groups | Native | Native (Streams) |
-| Time-Series | Separate DB | Built-in module |
+#### When Redis Ingest Wins vs Dedicated Solutions
+| Scenario | Redis Streams | Kafka | Why |
+|----------|---------------|-------|-----|
+| IoT sensor bursts, need < 1ms | ✅ Best | ⚠️ 2-10ms | Latency critical |
+| Already using Redis for cache | ✅ Best | ❌ New cluster | Operational simplicity |
+| Time-series + messaging combo | ✅ Best | ❌ + InfluxDB | Single system |
+| Petabyte event retention | ❌ | ✅ Best | Kafka's sweet spot |
+| Complex CDC pipelines | ⚠️ | ✅ Best | Kafka Connect ecosystem |
 
 ---
 
@@ -1713,6 +1742,7 @@ LPUSH ingest:batch '{"sensor":"001","readings":[72.1,72.3,72.5]}'
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Caches LLM responses based on semantic similarity, not exact matches. Returns cached answers for semantically similar questions |
+| **Legacy issue it solves** | Exact-match caches miss semantically equivalent queries, $$$$ wasted on duplicate LLM calls, no cache for paraphrased questions |
 | **How Redis does it** | Stores query embeddings + responses, uses vector search to find similar cached queries |
 | **Components** | Embedding model, Vector index (HNSW/FLAT), Similarity threshold |
 
@@ -1777,6 +1807,7 @@ cached = redis.get(cache_key)  # Miss for "How's the weather?"
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Finds semantically similar documents to augment LLM context with relevant knowledge |
+| **Legacy issue it solves** | Multi-system complexity (PostgreSQL + Pinecone + Elasticsearch), sync lag between document and vector stores, 50-200ms multi-hop queries |
 | **How Redis does it** | HNSW or FLAT vector indexes with hybrid search (vector + metadata filters) |
 | **Commands** | FT.CREATE (index), FT.SEARCH (hybrid query) |
 
@@ -1961,6 +1992,7 @@ LIMIT 5;
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Routes user requests to appropriate AI agents/handlers based on intent similarity |
+| **Legacy issue it solves** | Brittle regex/keyword routing that breaks with paraphrases, endless rule maintenance, poor multilingual support |
 | **How Redis does it** | Pre-embedded route examples, vector similarity to match incoming queries to routes |
 
 #### 📦 What's Actually Stored in Redis
@@ -2049,6 +2081,7 @@ else:
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Stores and retrieves conversation history and long-term memories for AI agents |
+| **Legacy issue it solves** | SQL JOINs for conversation history (5-20ms), no semantic recall from past conversations, stateless agents that forget context |
 | **How Redis does it** | Combination of Lists (recent history), Hashes (user profiles), Vector search (semantic recall) |
 
 #### 📦 What's Actually Stored in Redis
@@ -2139,6 +2172,7 @@ LIMIT 20;
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Serves pre-computed ML features with sub-millisecond latency for real-time inference |
+| **Legacy issue it solves** | Stale batch features (hours old), training/serving skew, 50-500ms on-the-fly feature computation blocking inference |
 | **How Redis does it** | Features stored as Hashes, retrieved in batch with MGET/HMGET, versioned with prefixes |
 
 #### 📦 What's Actually Stored in Redis
@@ -2321,6 +2355,7 @@ prediction = model.predict(features)
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Prevents duplicate processing of payments, orders, or API requests by tracking request IDs |
+| **Legacy issue it solves** | Race conditions in database idempotency checks, transaction lock contention, manual cleanup of old keys |
 | **How Redis does it** | SETNX (Set if Not Exists) with TTL ensures exactly-once processing |
 | **Critical For** | Payment processing, order submission, webhook handling, retry-safe APIs |
 
@@ -2400,6 +2435,7 @@ UPDATE idempotency_keys SET status = 'processed', response_data = '...' WHERE ..
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Counts unique items (DAU, unique visitors) and tracks top-K elements with minimal memory |
+| **Legacy issue it solves** | COUNT(DISTINCT) on millions of rows (5-60 seconds), storing every event for cardinality (500MB+ vs 12KB), expensive GROUP BY for top-K |
 | **How Redis does it** | HyperLogLog for cardinality (~0.81% error, 12KB max), TopK for frequency tracking |
 | **Commands** | PFADD, PFCOUNT, PFMERGE, TOPK.ADD, TOPK.LIST |
 
@@ -2499,6 +2535,7 @@ LIMIT 10;
 | Aspect | Description |
 |--------|-------------|
 | **What it does** | Stores, queries, and partially updates JSON documents without serialization overhead |
+| **Legacy issue it solves** | PostgreSQL JSONB rewrites entire document on partial update, MongoDB doc-level locking, separate systems for cache vs documents |
 | **How Redis does it** | RedisJSON module with JSONPath queries, atomic partial updates, and index support |
 | **Commands** | JSON.SET, JSON.GET, JSON.ARRAPPEND, JSON.NUMINCRBY |
 

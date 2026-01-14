@@ -4,39 +4,39 @@
 
 ---
 
-## 🧩 Welche Probleme löst Redis?
+## 🧩 What Problems Does Redis Solve?
 
-**Redis ist kein Ersatz für deine Datenbank.**  
-Redis ist die **Real-Time Data Layer** für alles, was schnell, temporär oder hochfrequent ist.
+**Redis is NOT a replacement for your database.**  
+Redis is the **Real-Time Data Layer** for everything that needs to be fast, temporary, or high-frequency.
 
-### Die 10 häufigsten Probleme, die Redis löst
+### The 10 Most Common Problems Redis Solves
 
-| # | ❌ Problem ohne Redis | ✅ Redis-Lösung | Use Case |
-|---|----------------------|-----------------|----------|
-| 1 | Langsame API-Antworten (50-500ms) | Sub-ms Caching | [Caching](#1--caching-cache-aside--read-through) |
-| 2 | Session-Stickiness, DB auf jeder Page | Zentraler Session-Store | [Sessions](#2--session-management) |
-| 3 | DB-Bottleneck bei Traffic-Spikes | Entlastung der Primär-DB | [Caching](#1--caching-cache-aside--read-through) |
-| 4 | Race Conditions bei parallelen Requests | Atomare Operationen & Locks | [Distributed Locks](#11--distributed-locks) |
-| 5 | Fraud-Erkennung erst Stunden später | Echtzeit-Checks in <5ms | [Fraud Detection](#9--real-time-fraud-detection) |
-| 6 | Hohe LLM-Kosten durch Wiederholungen | Semantic Cache | [Semantic Cache](#17--semantic-cache-ai) |
-| 7 | Kafka/RabbitMQ für einfache Messaging-Needs | Redis Streams (bereits vorhanden) | [Messaging](#5--real-time-messaging-pubsub--streams) |
-| 8 | Stale ML-Features (Stunden alt) | Realtime Feature Store | [Feature Store](#21--feature-store-mlai) |
-| 9 | COUNT(DISTINCT) auf Millionen Rows (Minuten) | HyperLogLog in <1ms | [Counters](#23--counters--analytics-hyperloglog-topk) |
-| 10 | Regex-Wartungshölle im Intent-Routing | Semantic Router mit Vektoren | [Semantic Router](#19-%EF%B8%8F-semantic-router-ai) |
+| # | ❌ Problem without Redis | ✅ Redis Solution | Use Case |
+|---|-------------------------|-------------------|----------|
+| 1 | Slow API responses (50-500ms) | Sub-ms Caching | [Caching](#1--caching-cache-aside--read-through) |
+| 2 | Session stickiness, DB hit on every page | Centralized Session Store | [Sessions](#2--session-management) |
+| 3 | DB bottleneck during traffic spikes | Offload Primary DB | [Caching](#1--caching-cache-aside--read-through) |
+| 4 | Race conditions with parallel requests | Atomic Operations & Locks | [Distributed Locks](#11--distributed-locks) |
+| 5 | Fraud detection hours too late | Real-time checks in <5ms | [Fraud Detection](#9--real-time-fraud-detection) |
+| 6 | High LLM costs from repeated queries | Semantic Cache | [Semantic Cache](#17--semantic-cache-ai) |
+| 7 | Kafka/RabbitMQ for simple messaging needs | Redis Streams (already there) | [Messaging](#5--real-time-messaging-pubsub--streams) |
+| 8 | Stale ML features (hours old) | Realtime Feature Store | [Feature Store](#21--feature-store-mlai) |
+| 9 | COUNT(DISTINCT) on millions of rows (minutes) | HyperLogLog in <1ms | [Counters](#23--counters--analytics-hyperloglog-topk) |
+| 10 | Regex maintenance hell in intent routing | Semantic Router with vectors | [Semantic Router](#19-%EF%B8%8F-semantic-router-ai) |
 
-### ⚠️ Was Redis NICHT ersetzt
+### ⚠️ What Redis Does NOT Replace
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  Redis ERGÄNZT deine Architektur – es ERSETZT sie nicht                     │
+│  Redis COMPLEMENTS your architecture – it does NOT REPLACE it               │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  ❌ Kein Ersatz für:                    ✅ Redis ist ideal für:              │
-│  ─────────────────────                  ─────────────────────               │
+│  ❌ Not a replacement for:              ✅ Redis is ideal for:               │
+│  ─────────────────────────              ─────────────────────               │
 │  • Primary Database (PostgreSQL, etc.)  • Caching & Sessions                │
 │  • Data Warehouse (Snowflake, BigQuery) • Real-Time Analytics               │
 │  • Object Storage (S3, Blob)            • Queues & Messaging                │
-│  • Langzeit-Archive                     • ML Feature Serving                │
+│  • Long-term Archives                   • ML Feature Serving                │
 │  • OLAP/Reporting                       • Vector Search & RAG               │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -44,33 +44,33 @@ Redis ist die **Real-Time Data Layer** für alles, was schnell, temporär oder h
 
 ---
 
-## 👥 Für wen ist dieses Dokument?
+## 👥 Who Is This Document For?
 
-| Rolle | Lies zuerst | Fokus | Zeitbedarf |
-|-------|-------------|-------|------------|
-| **Product Owner / Manager** | Diese Intro + Use Case Navigator | Business-Impact, Kosten, Nutzen | 10-15 min |
-| **Developer** | Use Cases + Code Blocks | Implementierung, Commands | 30-60 min |
-| **DevOps / SRE** | Enterprise Capabilities, HA, Memory | Betrieb, Monitoring, Skalierung | 20-30 min |
-| **Software Architect** | Architecture Patterns + AI Use Cases | Systemdesign, Entscheidungen | 30-45 min |
-| **Data Engineer** | RDI, Streams, Feature Store | Datenpipelines, CDC, ETL | 20-30 min |
+| Role | Read First | Focus | Time Needed |
+|------|------------|-------|-------------|
+| **Product Owner / Manager** | This Intro + Use Case Navigator | Business Impact, Costs, Benefits | 10-15 min |
+| **Developer** | Use Cases + Code Blocks | Implementation, Commands | 30-60 min |
+| **DevOps / SRE** | Enterprise Capabilities, HA, Memory | Operations, Monitoring, Scaling | 20-30 min |
+| **Software Architect** | Architecture Patterns + AI Use Cases | System Design, Decisions | 30-45 min |
+| **Data Engineer** | RDI, Streams, Feature Store | Data Pipelines, CDC, ETL | 20-30 min |
 | **ML Engineer** | AI Use Cases (17-21) | Vector Search, RAG, Feature Store | 20-30 min |
 | **Security Engineer** | Enterprise: Security & Governance | Auth, Encryption, Compliance | 15-20 min |
 | **CTO / VP Engineering** | Intro + Customer Success Stories | ROI, Strategic Decisions | 10-15 min |
 
 ---
 
-## 🚦 Komplexitätslevel der Use Cases
+## 🚦 Use Case Complexity Levels
 
-| Level | Bedeutung | Typische Implementierungszeit |
-|-------|-----------|------------------------------|
-| 🟢 **Einfach** | Wenige Befehle, klares Pattern, schneller Mehrwert | Stunden bis 1 Tag |
-| 🟡 **Mittel** | Mehrere Komponenten, etwas Architektur-Überlegung | 1-3 Tage |
-| 🔴 **Fortgeschritten** | Komplexe Patterns, ML-Integration, erfordert Expertise | 1-2 Wochen |
+| Level | Meaning | Typical Implementation Time |
+|-------|---------|----------------------------|
+| 🟢 **Simple** | Few commands, clear pattern, quick value | Hours to 1 day |
+| 🟡 **Medium** | Multiple components, some architecture thought | 1-3 days |
+| 🔴 **Advanced** | Complex patterns, ML integration, requires expertise | 1-2 weeks |
 
-### Use Cases nach Komplexität
+### Use Cases by Complexity
 
-| 🟢 Einfach | 🟡 Mittel | 🔴 Fortgeschritten |
-|-----------|----------|-------------------|
+| 🟢 Simple | 🟡 Medium | 🔴 Advanced |
+|-----------|----------|-------------|
 | Caching | Leaderboards | Vector Search / RAG |
 | Sessions | Streams / Messaging | Semantic Router |
 | Rate Limiting | Job Queues | Feature Store |
@@ -83,27 +83,27 @@ Redis ist die **Real-Time Data Layer** für alles, was schnell, temporär oder h
 
 ---
 
-## 🛒 End-to-End Beispiel: E-Commerce Checkout
+## 🛒 End-to-End Example: E-Commerce Checkout
 
-So arbeiten die Use Cases in einem realen System zusammen:
+Here's how the use cases work together in a real system:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                     Kunde klickt "Jetzt kaufen"                              │
+│                     Customer clicks "Buy Now"                                │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ 1️⃣  SESSION (Use Case 2)                                                    │
 │     Redis: GET session:abc123                                               │
-│     → User authentifiziert, Warenkorb geladen in <1ms                       │
+│     → User authenticated, cart loaded in <1ms                               │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ 2️⃣  RATE LIMITING (Use Case 6)                                              │
 │     Redis: INCR ratelimit:checkout:user:123                                 │
-│     → Max 5 Checkouts/Minute, Bot-Schutz                                    │
+│     → Max 5 checkouts/minute, bot protection                                │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -111,7 +111,7 @@ So arbeiten die Use Cases in einem realen System zusammen:
 │ 3️⃣  INVENTORY HOLD (Use Case 14)                                            │
 │     Redis: HINCRBY inventory:SKU-123:store:NYC available -1                 │
 │     Redis: SET reservation:SKU-123:cart:abc "1" EX 900                      │
-│     → Artikel 15 Min reserviert, andere sehen korrekten Bestand            │
+│     → Item reserved 15 min, others see accurate stock                       │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -120,14 +120,14 @@ So arbeiten die Use Cases in einem realen System zusammen:
 │     Redis: BF.EXISTS blocklist:cards "4111..."                              │
 │     Redis: ZCOUNT transactions:card:1234 (now-3600) now                     │
 │     Redis: HMGET user:123:features risk_score avg_amount                    │
-│     → Entscheidung in <5ms: ✅ Allow / ❌ Block / ⚠️ Review                 │
+│     → Decision in <5ms: ✅ Allow / ❌ Block / ⚠️ Review                      │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ 5️⃣  IDEMPOTENCY KEY (Use Case 22)                                           │
 │     Redis: SET idempotency:payment:charge_abc123 "processing" NX EX 86400   │
-│     → Verhindert doppelte Abbuchung bei Retry/Timeout                       │
+│     → Prevents double charge on retry/timeout                               │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -139,7 +139,7 @@ So arbeiten die Use Cases in einem realen System zusammen:
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ 7️⃣  EVENT STREAM (Use Case 5)                                               │
 │     Redis: XADD orders:completed * order_id ORD-123 customer_id 456 ...     │
-│     → Event für Fulfillment, Analytics, Notifications                       │
+│     → Event for fulfillment, analytics, notifications                       │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -147,22 +147,22 @@ So arbeiten die Use Cases in einem realen System zusammen:
 │ 8️⃣  FEATURE UPDATE (Use Case 21)                                            │
 │     Redis: HINCRBY user:123:features purchase_count_30d 1                   │
 │     Redis: HSET user:123:features last_purchase "2024-01-15"                │
-│     → ML-Features sofort aktuell für nächste Empfehlungen                   │
+│     → ML features instantly updated for next recommendations                │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ ✅  CHECKOUT COMPLETE                                                        │
-│     Gesamtzeit Redis-Operationen: ~10ms                                     │
-│     (vs. 200-500ms mit traditioneller DB-Architektur)                       │
+│     Total Redis operations time: ~10ms                                      │
+│     (vs. 200-500ms with traditional DB architecture)                        │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 **Business Impact:**
-- **50x schnellerer Checkout** → Weniger Abbrüche
-- **Echtzeit-Fraud-Erkennung** → Weniger Chargebacks
-- **Korrekte Bestandsanzeige** → Keine Überverkäufe
-- **Idempotenz** → Keine doppelten Abbuchungen bei Retries
+- **50x faster checkout** → Fewer abandoned carts
+- **Real-time fraud detection** → Fewer chargebacks
+- **Accurate inventory display** → No overselling
+- **Idempotency** → No double charges on retries
 
 ---
 
@@ -291,15 +291,15 @@ Redis Request Flow:
 
 ### 1. 🚀 Caching (Cache-Aside Pattern)
 
-**🚦 Komplexität:** 🟢 Einfach
+**🚦 Complexity:** 🟢 Simple
 
-> **🧠 Warum Caching?**
+> **🧠 Why Caching?**
 > 
-> Ein Produktkatalog wird **1 Million Mal gelesen**, aber nur **1.000 Mal geändert**.  
-> Ohne Cache wird die Datenbank bei jedem Request belastet – unnötig und teuer.
+> A product catalog is **read 1 million times**, but only **updated 1,000 times**.  
+> Without cache, every request hits the database – unnecessary and expensive.
 > 
-> **Business-Problem:** Langsame Seiten → Nutzer springen ab → Umsatzverlust  
-> **Redis-Lösung:** Antwort einmal speichern, millionenfach in <1ms ausliefern
+> **Business Problem:** Slow pages → Users bounce → Revenue loss  
+> **Redis Solution:** Store response once, serve millions of times in <1ms
 
 | Aspect | Description |
 |--------|-------------|
@@ -387,15 +387,15 @@ User Request → Application → Redis (< 1ms) → Response
 
 ### 2. 📊 Session Management
 
-**🚦 Komplexität:** 🟢 Einfach
+**🚦 Complexity:** 🟢 Simple
 
-> **🧠 Warum Session Management?**
+> **🧠 Why Session Management?**
 > 
-> Jeder eingeloggte Nutzer braucht einen Session-State. Bei **10.000 aktiven Nutzern** 
-> bedeutet das 10.000 DB-Queries – pro Sekunde, auf jeder Seite.
+> Every logged-in user needs a session state. With **10,000 active users**,  
+> that's 10,000 DB queries – per second, on every page.
 > 
-> **Business-Problem:** Sticky Sessions verhindern Auto-Scaling, Session-Tabellen wachsen endlos  
-> **Redis-Lösung:** Zentraler Session-Store mit automatischer TTL-Bereinigung
+> **Business Problem:** Sticky sessions prevent auto-scaling, session tables grow endlessly  
+> **Redis Solution:** Centralized session store with automatic TTL cleanup
 
 | Aspect | Description |
 |--------|-------------|
@@ -872,15 +872,15 @@ XACK orders workers 1526569495631-0                   -- Acknowledge
 
 ### 6. 🔐 Rate Limiting
 
-**🚦 Komplexität:** 🟢 Einfach
+**🚦 Complexity:** 🟢 Simple
 
-> **🧠 Warum Rate Limiting?**
+> **🧠 Why Rate Limiting?**
 > 
-> Ein Bot kann **10.000 Requests/Sekunde** auf deine API feuern.
-> Ohne Rate Limiting geht dein Service in die Knie – und legitime Nutzer leiden.
+> A bot can fire **10,000 requests/second** at your API.  
+> Without rate limiting, your service goes down – and legitimate users suffer.
 > 
-> **Business-Problem:** API-Missbrauch, DDoS, unfaire Nutzung, Infrastrukturkosten explodieren  
-> **Redis-Lösung:** Atomarer Counter mit TTL – jeder Check in <0.5ms, keine DB-Locks
+> **Business Problem:** API abuse, DDoS, unfair usage, infrastructure costs explode  
+> **Redis Solution:** Atomic counter with TTL – every check in <0.5ms, no DB locks
 
 | Aspect | Description |
 |--------|-------------|
@@ -1228,15 +1228,15 @@ SELECT * FROM products WHERE name LIKE '%wireless%' AND category = 'electronics'
 
 ### 9. 🚨 Real-Time Fraud Detection
 
-**🚦 Komplexität:** 🟡 Mittel
+**🚦 Complexity:** 🟡 Medium
 
-> **🧠 Warum Real-Time Fraud Detection?**
+> **🧠 Why Real-Time Fraud Detection?**
 > 
-> Betrüger warten nicht. Wenn Fraud erst **Stunden später** im Batch erkannt wird,
-> ist das Geld längst weg und der Chargeback unterwegs.
+> Fraudsters don't wait. If fraud is detected **hours later** in batch processing,  
+> the money is long gone and the chargeback is on its way.
 > 
-> **Business-Problem:** $4.2M durchschnittlicher jährlicher Fraud-Schaden pro Unternehmen  
-> **Redis-Lösung:** Entscheidung in <5ms während der Transaktion – Block, Allow, oder Review
+> **Business Problem:** $4.2M average annual fraud damage per company  
+> **Redis Solution:** Decision in <5ms during the transaction – Block, Allow, or Review
 
 | Aspect | Description |
 |--------|-------------|
@@ -1941,15 +1941,15 @@ LPUSH ingest:batch '{"sensor":"001","readings":[72.1,72.3,72.5]}'
 
 ### 17. 🧠 Semantic Caching (LangCache)
 
-**🚦 Komplexität:** 🔴 Fortgeschritten
+**🚦 Complexity:** 🔴 Advanced
 
-> **🧠 Warum Semantic Caching?**
+> **🧠 Why Semantic Caching?**
 > 
-> "Was ist die Hauptstadt von Frankreich?" und "Frankreichs Hauptstadt?" sind
-> **semantisch identisch** – aber ein normaler Cache erkennt das nicht.
+> "What is the capital of France?" and "France's capital?" are  
+> **semantically identical** – but a normal cache doesn't recognize that.
 > 
-> **Business-Problem:** $0.03-0.06 pro GPT-4 Anfrage × 100.000 ähnliche Fragen = $3.000-6.000 verschwendet  
-> **Redis-Lösung:** Semantic Cache erkennt ähnliche Fragen und liefert gecachte Antwort in <10ms
+> **Business Problem:** $0.03-0.06 per GPT-4 request × 100,000 similar questions = $3,000-6,000 wasted  
+> **Redis Solution:** Semantic cache recognizes similar questions and delivers cached answer in <10ms
 
 | Aspect | Description |
 |--------|-------------|
@@ -2016,15 +2016,15 @@ cached = redis.get(cache_key)  # Miss for "How's the weather?"
 
 ### 18. 🔎 Vector Search / RAG (Retrieval-Augmented Generation)
 
-**🚦 Komplexität:** 🔴 Fortgeschritten
+**🚦 Complexity:** 🔴 Advanced
 
-> **🧠 Warum Vector Search / RAG?**
+> **🧠 Why Vector Search / RAG?**
 > 
-> LLMs halluzinieren. RAG gibt ihnen **echte Dokumente als Kontext** –
-> aber traditionelle Architekturen brauchen 3+ Systeme dafür.
+> LLMs hallucinate. RAG gives them **real documents as context** –  
+> but traditional architectures need 3+ systems for that.
 > 
-> **Business-Problem:** PostgreSQL + Pinecone + Elasticsearch = 3 Systeme, Sync-Probleme, 50-200ms Latenz  
-> **Redis-Lösung:** Dokumente + Vektoren + Suche in EINEM System, <1ms Latenz
+> **Business Problem:** PostgreSQL + Pinecone + Elasticsearch = 3 systems, sync issues, 50-200ms latency  
+> **Redis Solution:** Documents + vectors + search in ONE system, <1ms latency
 
 | Aspect | Description |
 |--------|-------------|
@@ -2391,15 +2391,15 @@ LIMIT 20;
 
 ### 21. 📊 Feature Store (Real-Time ML Features)
 
-**🚦 Komplexität:** 🔴 Fortgeschritten
+**🚦 Complexity:** 🔴 Advanced
 
-> **🧠 Warum Feature Store?**
+> **🧠 Why Feature Store?**
 > 
-> ML-Modelle brauchen Features in Echtzeit. Wenn "purchase_count_30d" erst **gestern Nacht**
-> berechnet wurde, empfiehlt das Modell falsch – Training/Serving Skew.
+> ML models need features in real-time. If "purchase_count_30d" was **calculated last night**,  
+> the model recommends wrong – training/serving skew.
 > 
-> **Business-Problem:** Features 12-24h veraltet, unterschiedliche Pipelines für Training vs. Serving  
-> **Redis-Lösung:** Features in <1ms abrufbar, Updates in Echtzeit, gleiche Daten für Train+Serve
+> **Business Problem:** Features 12-24h stale, different pipelines for training vs. serving  
+> **Redis Solution:** Features retrievable in <1ms, real-time updates, same data for train+serve
 
 | Aspect | Description |
 |--------|-------------|

@@ -44,9 +44,17 @@ Each use case follows a consistent structure to help you understand both **what 
    - Distributed Locks, Job Queues, RDI (CDC), Inventory, Auth Tokens, Data Ingest
 3. [Redis for AI Use Cases](#redis-for-ai-use-cases) (17-21)
    - Semantic Caching, Vector Search/RAG, Semantic Router, Agent Memory, Feature Store
-4. [Performance Benchmarks](#performance-benchmarks)
-5. [Customer Success Stories](#customer-success-stories)
-6. [Quick Reference Tables](#quick-reference-tables)
+4. [Additional Use Cases](#additional-use-cases) (22-24)
+   - Idempotency Keys, Counters & Analytics, Document Store (RedisJSON)
+5. [🔧 Enterprise Capabilities](#-enterprise-capabilities)
+   - Persistence & Durability, High Availability, Security & Governance
+   - Memory Management, Observability & Debugging
+6. [📐 Architecture Patterns](#-architecture-patterns)
+7. [🚫 When NOT to Use Redis](#-when-not-to-use-redis)
+8. [⚠️ Anti-Patterns to Avoid](#️-anti-patterns-to-avoid)
+9. [Performance Benchmarks](#performance-benchmarks)
+10. [Customer Success Stories](#customer-success-stories)
+11. [Quick Reference Tables](#quick-reference-tables)
 
 ### 📊 Use Case Quick Navigator
 
@@ -74,19 +82,25 @@ Each use case follows a consistent structure to help you understand both **what 
 | 19 | 🛣️ Semantic Router | Vector | Regex maintenance |
 | 20 | 🧠 Agent Memory | List + Vector | No semantic recall |
 | 21 | 📊 Feature Store | Hash | Training/serving skew |
+| **Additional** |||
+| 22 | 🔑 Idempotency Keys | String + NX | Double-processing |
+| 23 | 📈 Counters & Analytics | HyperLogLog, TopK | Count(*) nightmares |
+| 24 | 📄 Document Store | RedisJSON | JSON serialization |
 
 ---
 
 ## Why Redis? The Core Advantage
 
 ### In-Memory Architecture
-Redis stores all data in RAM, enabling **sub-millisecond latency** compared to disk-based databases that require I/O operations.
+Redis stores all data in RAM, enabling **sub-millisecond p99 latency** compared to disk-based databases that require I/O operations.
 
 | Metric | Redis | Traditional DB | Difference |
 |--------|-------|----------------|------------|
-| Read Latency | < 1ms | 5-50ms | 50-500x faster |
-| Write Latency | < 1ms | 10-100ms | 100-1000x faster |
-| Throughput | 200M ops/sec | 10K-100K ops/sec | 2000x higher |
+| Read Latency (p99) | < 1ms | 5-50ms | 50-500x faster |
+| Write Latency (p99) | < 1ms | 10-100ms | 100-1000x faster |
+| Throughput | Hundreds of millions ops/sec* | 10K-100K ops/sec | 1000x+ higher |
+
+> *Benchmarked in optimized conditions. Real-world performance varies based on data size, network, and workload patterns.
 
 ### Why Disk-Based Databases Are Slow
 ```
@@ -448,9 +462,9 @@ TS.ADD metrics:memory:server1 * 78.5
 TS.ADD metrics:network:server1 * 1024567
 ```
 
-#### 🗄️ What's Stored in Legacy Database (PostgreSQL/InfluxDB)
+#### 🗄️ What's Stored in Legacy Database (PostgreSQL)
 ```sql
--- Traditional time-series table (bloats quickly!)
+-- Traditional RDBMS time-series table (not optimized for time-series!)
 ┌────────────────────────────────────────────────────────────────────────────────┐
 │                              sensor_readings                                    │
 ├─────────┬───────────────────────────┬─────────┬──────────┬─────────┬───────────┤
@@ -462,9 +476,9 @@ TS.ADD metrics:network:server1 * 1024567
 │ ...     │ ...                       │ ...     │ ...      │ ...     │ ...       │
 │ 86400000│ 2024-01-16 10:00:00.000   │ temp-1  │ floor1   │ 23.1    │ celsius   │
 └─────────┴───────────────────────────┴─────────┴──────────┴─────────┴───────────┘
--- ⚠️ 1 reading/ms = 86.4M rows/day per sensor!
+-- ⚠️ PostgreSQL/MySQL: 1 reading/ms = 86.4M rows/day per sensor!
 
--- Aggregation query (expensive GROUP BY):
+-- Aggregation query (expensive GROUP BY on general-purpose DB):
 SELECT 
     DATE_TRUNC('minute', timestamp) AS bucket,
     AVG(value) AS avg_temp
@@ -473,7 +487,7 @@ WHERE sensor = 'temp-1'
     AND timestamp BETWEEN '2024-01-15 10:00:00' AND '2024-01-15 11:00:00'
 GROUP BY DATE_TRUNC('minute', timestamp)
 ORDER BY bucket;
--- ⚠️ Full scan of millions of rows: 2-10 seconds!
+-- ⚠️ On PostgreSQL: Full scan + GROUP BY can take 2-10 seconds on millions of rows
 
 -- Must run scheduled jobs for downsampling:
 INSERT INTO sensor_readings_hourly 
@@ -483,7 +497,29 @@ GROUP BY 1, 2;
 -- ⚠️ ETL complexity, data freshness lag
 ```
 
-> **💡 Key Difference:** RedisTimeSeries stores data in compressed chunks with automatic downsampling rules. No ETL jobs, instant aggregation queries.
+#### 📊 InfluxDB Comparison (Specialized Time-Series DB)
+```
+InfluxDB is a PURPOSE-BUILT time-series database with:
+✅ Columnar compression (efficient storage)
+✅ Built-in downsampling & retention policies
+✅ Flux query language optimized for time-series
+✅ Good for long-term historical analytics
+
+When to use InfluxDB vs Redis TimeSeries:
+┌─────────────────────────────┬────────────────────────┬──────────────────────────┐
+│ Requirement                 │ InfluxDB               │ Redis TimeSeries         │
+├─────────────────────────────┼────────────────────────┼──────────────────────────┤
+│ Long-term historical data   │ ✅ Better (disk-based) │ ⚠️ RAM cost at scale     │
+│ Cold data analytics         │ ✅ Designed for this   │ ❌ Not ideal              │
+│ Sub-millisecond queries     │ ⚠️ 5-50ms typical      │ ✅ < 1ms                  │
+│ Real-time dashboards        │ ✅ Good                │ ✅ Excellent              │
+│ Combined with cache layer   │ ❌ Separate system     │ ✅ Same Redis instance    │
+│ Combined with vectors/AI    │ ❌ Not possible        │ ✅ Unified platform       │
+│ Edge/IoT with low latency   │ ⚠️ Higher latency      │ ✅ Sub-ms response        │
+└─────────────────────────────┴────────────────────────┴──────────────────────────┘
+```
+
+> **💡 Key Difference:** InfluxDB excels at historical time-series analytics. Redis TimeSeries excels at **real-time** metrics with sub-millisecond queries, especially when you already use Redis for caching, AI, or sessions. Choose based on your latency needs and existing stack.
 
 #### Legacy Approach: SQL Time-Series
 ```sql
@@ -2278,7 +2314,992 @@ prediction = model.predict(features)
 
 ---
 
-## Performance Benchmarks
+## Additional Use Cases
+
+### 22. 🔑 Idempotency Keys (Payment & API Safety)
+
+| Aspect | Description |
+|--------|-------------|
+| **What it does** | Prevents duplicate processing of payments, orders, or API requests by tracking request IDs |
+| **How Redis does it** | SETNX (Set if Not Exists) with TTL ensures exactly-once processing |
+| **Critical For** | Payment processing, order submission, webhook handling, retry-safe APIs |
+
+#### 📦 What's Actually Stored in Redis
+```redis
+# Idempotency key for payment (String with NX + TTL)
+SET idempotency:payment:charge_abc123 "processed" NX EX 86400
+# → Returns OK if first time (proceed with payment)
+# → Returns nil if already exists (return cached result)
+
+# Store the result for replay
+HSET idempotency:result:charge_abc123
+     status "success"
+     payment_id "pay_xyz789"
+     amount "99.99"
+     processed_at "2024-01-15T10:00:00Z"
+EXPIRE idempotency:result:charge_abc123 86400
+
+# Order submission idempotency
+SET idempotency:order:client_ref_12345 "ORD-67890" NX EX 3600
+# → Prevents double-ordering on network retry
+
+# Webhook idempotency (prevent duplicate event processing)
+SET webhook:processed:evt_stripe_abc123 "1" NX EX 604800
+# → 7 days TTL for webhook deduplication
+
+# API request idempotency with request hash
+SET idempotency:api:user:123:hash:a1b2c3d4 
+    '{"response":{"id":456},"status":201}' 
+    NX EX 3600
+```
+
+#### 🗄️ What's Stored in Legacy Database (PostgreSQL)
+```sql
+-- Idempotency keys table
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                                 idempotency_keys                                         │
+├────────────────────────────┬────────────┬───────────────────────────┬───────────────────┤
+│ idempotency_key            │ status     │ response_data             │ created_at        │
+├────────────────────────────┼────────────┼───────────────────────────┼───────────────────┤
+│ charge_abc123              │ processed  │ {"payment_id":"pay_xyz"}  │ 2024-01-15 10:00  │
+│ charge_def456              │ processing │ NULL                      │ 2024-01-15 10:01  │
+│ order_ref_12345            │ processed  │ {"order_id":"ORD-67890"}  │ 2024-01-15 09:55  │
+└────────────────────────────┴────────────┴───────────────────────────┴───────────────────┘
+
+-- ⚠️ Race condition without proper locking:
+BEGIN;
+SELECT * FROM idempotency_keys WHERE idempotency_key = 'charge_abc123' FOR UPDATE;
+-- If not found:
+INSERT INTO idempotency_keys (idempotency_key, status) VALUES ('charge_abc123', 'processing');
+COMMIT;
+-- Process payment...
+UPDATE idempotency_keys SET status = 'processed', response_data = '...' WHERE ...;
+
+-- ⚠️ Problems:
+-- 1. Requires transaction + row locking
+-- 2. Two concurrent requests can both pass SELECT (before INSERT)
+-- 3. Must manually clean up old keys with scheduled job
+-- 4. 5-20ms per check under load
+```
+
+> **💡 Key Difference:** Redis SETNX is atomic and lock-free. The key either exists or it doesn't - no race conditions. TTL auto-cleans old keys.
+
+#### Why Legacy is Slow/Complicated
+| Problem | Legacy (SQL) | Redis Idempotency |
+|---------|--------------|-------------------|
+| Atomicity | Transaction + lock | Atomic SETNX |
+| Race Conditions | Possible without SERIALIZABLE | Impossible |
+| Cleanup | Cron job | Automatic TTL |
+| Latency | 5-20ms | < 0.5ms |
+| Concurrent Requests | Lock contention | Lock-free |
+
+---
+
+### 23. 📈 Counters & Analytics (HyperLogLog, TopK)
+
+| Aspect | Description |
+|--------|-------------|
+| **What it does** | Counts unique items (DAU, unique visitors) and tracks top-K elements with minimal memory |
+| **How Redis does it** | HyperLogLog for cardinality (~0.81% error, 12KB max), TopK for frequency tracking |
+| **Commands** | PFADD, PFCOUNT, PFMERGE, TOPK.ADD, TOPK.LIST |
+
+#### 📦 What's Actually Stored in Redis
+```redis
+# Daily Active Users (HyperLogLog - 12KB regardless of count!)
+PFADD dau:2024-01-15 user:123 user:456 user:789
+PFADD dau:2024-01-15 user:123  # Duplicate, ignored
+PFADD dau:2024-01-15 user:1000 user:1001
+
+PFCOUNT dau:2024-01-15
+# → Returns ~5 (approximate unique count)
+
+# Monthly Active Users (merge daily HLLs)
+PFMERGE mau:2024-01 dau:2024-01-01 dau:2024-01-02 ... dau:2024-01-31
+PFCOUNT mau:2024-01
+# → Returns unique users across entire month
+
+# Unique page visitors per page
+PFADD pageviews:/products/widget user:123 user:456
+PFADD pageviews:/products/gadget user:123 user:789
+PFCOUNT pageviews:/products/widget
+# → ~2
+
+# Top-K trending products (probabilistic)
+TOPK.RESERVE trending:products 10 50 3 0.9
+TOPK.ADD trending:products SKU-123 SKU-456 SKU-123 SKU-789 SKU-123
+TOPK.LIST trending:products
+# → ["SKU-123", "SKU-456", "SKU-789", ...]
+
+# Top search queries
+TOPK.RESERVE trending:searches 100 200 5 0.95
+TOPK.ADD trending:searches "wireless headphones" "iphone case" "wireless headphones"
+TOPK.LIST trending:searches WITHCOUNT
+# → ["wireless headphones", 2, "iphone case", 1, ...]
+
+# Real-time counters (exact, for small cardinality)
+INCR pageviews:total:2024-01-15
+HINCRBY stats:product:SKU-123 views 1
+HINCRBY stats:product:SKU-123 purchases 1
+```
+
+#### 🗄️ What's Stored in Legacy Database (PostgreSQL)
+```sql
+-- Unique visitors table (stores every event!)
+┌───────────────────────────────────────────────────────────────────────────┐
+│                           page_visits                                      │
+├────────────┬─────────────┬───────────────────┬───────────────────────────┤
+│ id         │ user_id     │ page              │ visited_at                │
+├────────────┼─────────────┼───────────────────┼───────────────────────────┤
+│ 1          │ 123         │ /products/widget  │ 2024-01-15 10:00:00       │
+│ 2          │ 456         │ /products/widget  │ 2024-01-15 10:00:01       │
+│ 3          │ 123         │ /products/widget  │ 2024-01-15 10:05:00       │ ← duplicate!
+│ ...        │ ...         │ ...               │ ...                       │
+│ 10000000   │ 789         │ /products/gadget  │ 2024-01-15 23:59:59       │
+└────────────┴─────────────┴───────────────────┴───────────────────────────┘
+
+-- ⚠️ Count unique visitors (SLOW!)
+SELECT COUNT(DISTINCT user_id) FROM page_visits 
+WHERE page = '/products/widget' AND DATE(visited_at) = '2024-01-15';
+-- Full table scan: 5-60 seconds on 10M rows!
+
+-- ⚠️ DAU query
+SELECT COUNT(DISTINCT user_id) FROM page_visits 
+WHERE DATE(visited_at) = '2024-01-15';
+-- Even slower: 30-120 seconds!
+
+-- ⚠️ Top-K requires full aggregation
+SELECT page, COUNT(*) as views 
+FROM page_visits 
+WHERE visited_at > NOW() - INTERVAL '1 hour'
+GROUP BY page 
+ORDER BY views DESC 
+LIMIT 10;
+-- 10-60 seconds, locks table during read
+
+-- Storage comparison:
+-- 10M unique users/day × 365 days × 50 bytes = 182 GB/year
+-- HyperLogLog: 12KB × 365 = 4.3 MB/year (42,000x less!)
+```
+
+> **💡 Key Difference:** HyperLogLog counts 10M unique items in 12KB with <1% error. SQL COUNT(DISTINCT) requires storing every row.
+
+#### Why Legacy is Slow/Complicated
+| Problem | Legacy (SQL) | Redis HyperLogLog |
+|---------|--------------|-------------------|
+| Storage for 10M uniques | 500MB+ | 12KB |
+| COUNT DISTINCT time | 5-60 seconds | < 1ms |
+| Merge date ranges | Complex UNION | PFMERGE |
+| Top-K | Full aggregation | O(N) stream |
+| Real-time | Batch only | Instant |
+
+---
+
+### 24. 📄 Document Store (RedisJSON)
+
+| Aspect | Description |
+|--------|-------------|
+| **What it does** | Stores, queries, and partially updates JSON documents without serialization overhead |
+| **How Redis does it** | RedisJSON module with JSONPath queries, atomic partial updates, and index support |
+| **Commands** | JSON.SET, JSON.GET, JSON.ARRAPPEND, JSON.NUMINCRBY |
+
+#### 📦 What's Actually Stored in Redis
+```redis
+# Full JSON document
+JSON.SET user:123 $ '{
+    "id": 123,
+    "name": "John Doe",
+    "email": "john@example.com",
+    "preferences": {
+        "theme": "dark",
+        "language": "en",
+        "notifications": {
+            "email": true,
+            "push": false,
+            "sms": true
+        }
+    },
+    "orders": [
+        {"id": "ORD-001", "total": 99.99, "status": "delivered"},
+        {"id": "ORD-002", "total": 149.99, "status": "shipped"}
+    ],
+    "metadata": {
+        "created_at": "2024-01-01",
+        "last_login": "2024-01-15T10:00:00Z",
+        "login_count": 42
+    }
+}'
+
+# Read specific nested fields (no deserialization!)
+JSON.GET user:123 $.preferences.theme
+# → "dark"
+
+JSON.GET user:123 $.orders[*].status
+# → ["delivered", "shipped"]
+
+# Partial update (atomic, no read-modify-write!)
+JSON.SET user:123 $.preferences.theme '"light"'
+JSON.SET user:123 $.metadata.last_login '"2024-01-15T11:00:00Z"'
+
+# Increment nested counter
+JSON.NUMINCRBY user:123 $.metadata.login_count 1
+# → 43
+
+# Append to array
+JSON.ARRAPPEND user:123 $.orders '{"id":"ORD-003","total":79.99,"status":"pending"}'
+
+# Search JSON documents with RediSearch
+FT.CREATE users_idx ON JSON PREFIX 1 user: 
+    SCHEMA 
+        $.name AS name TEXT
+        $.email AS email TAG
+        $.preferences.theme AS theme TAG
+        $.metadata.login_count AS logins NUMERIC
+```
+
+#### 🗄️ What's Stored in Legacy Database (PostgreSQL JSONB / MongoDB)
+```sql
+-- PostgreSQL JSONB column
+┌─────────┬───────────────────────────────────────────────────────────────────────────┐
+│ id      │ data (JSONB)                                                               │
+├─────────┼───────────────────────────────────────────────────────────────────────────┤
+│ 123     │ {"id":123,"name":"John","preferences":{"theme":"dark",...},"orders":[...]}│
+└─────────┴───────────────────────────────────────────────────────────────────────────┘
+
+-- ⚠️ Partial update requires read-modify-write:
+UPDATE users 
+SET data = jsonb_set(data, '{preferences,theme}', '"light"')
+WHERE id = 123;
+-- Rewrites entire JSON blob even for tiny change!
+
+-- ⚠️ Array append is awkward:
+UPDATE users 
+SET data = jsonb_set(data, '{orders}', data->'orders' || '{"id":"ORD-003"}'::jsonb)
+WHERE id = 123;
+
+-- ⚠️ Increment nested value:
+UPDATE users 
+SET data = jsonb_set(data, '{metadata,login_count}', 
+    ((data->'metadata'->>'login_count')::int + 1)::text::jsonb)
+WHERE id = 123;
+-- Not atomic! Race condition possible.
+
+-- ⚠️ Index limitations:
+CREATE INDEX idx_theme ON users ((data->'preferences'->>'theme'));
+-- Must create index per path, can't search arbitrary paths efficiently
+```
+
+```javascript
+// MongoDB partial update (better, but still has overhead)
+db.users.updateOne(
+    { _id: 123 },
+    { 
+        $set: { "preferences.theme": "light" },
+        $inc: { "metadata.login_count": 1 },
+        $push: { orders: { id: "ORD-003", total: 79.99 } }
+    }
+);
+// ⚠️ Still requires document-level locking
+// ⚠️ Separate system from cache layer
+```
+
+> **💡 Key Difference:** RedisJSON updates fields in-place without rewriting the entire document. Same system as cache, vectors, and streams.
+
+#### Why Legacy is Slow/Complicated
+| Problem | PostgreSQL JSONB | MongoDB | RedisJSON |
+|---------|------------------|---------|-----------|
+| Partial Update | Rewrite entire doc | Doc-level lock | In-place atomic |
+| Array Append | Complex syntax | Good | Simple |
+| Nested Increment | Not atomic | Good | Atomic |
+| Combined with Cache | Separate system | Separate | Same system |
+| Combined with Vectors | Not possible | Not native | Same index |
+
+---
+
+### 🔍 Pub/Sub vs Streams Decision Table
+
+A common question: When to use Pub/Sub vs Streams?
+
+| Requirement | Use Pub/Sub | Use Streams |
+|-------------|-------------|-------------|
+| Message persistence | ❌ Fire-and-forget | ✅ Persisted log |
+| Replay old messages | ❌ Not possible | ✅ XRANGE from any point |
+| Consumer groups | ❌ Broadcast only | ✅ Native support |
+| Guaranteed delivery | ❌ At-most-once | ✅ At-least-once with ACK |
+| Message acknowledgment | ❌ None | ✅ XACK |
+| Dead letter handling | ❌ Manual | ✅ XPENDING + XCLAIM |
+| Pattern subscriptions | ✅ PSUBSCRIBE | ❌ Not applicable |
+| Lightweight broadcast | ✅ Best choice | ⚠️ Overhead |
+| Real-time notifications | ✅ Instant | ✅ Instant |
+| Event sourcing | ❌ No history | ✅ Complete history |
+| Microservice messaging | ⚠️ Simple cases | ✅ Production-ready |
+
+```redis
+# Pub/Sub: Real-time broadcast (no persistence)
+PUBLISH notifications:user:123 '{"type":"alert","msg":"New message!"}'
+# If no subscribers online, message is lost!
+
+# Streams: Reliable messaging (persisted)
+XADD notifications:user:123 * type alert msg "New message!"
+# Message persisted, can be read later with XREAD
+```
+
+---
+
+### 🔍 Hybrid Search Pattern (RAG Best Practice)
+
+When building RAG (Retrieval-Augmented Generation) systems, use **Hybrid Search** for best results:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Hybrid Search = Vector + Text + Filters                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   ┌─────────────┐     ┌─────────────┐     ┌─────────────┐                  │
+│   │   Vector    │  +  │    Text     │  +  │   Filters   │                  │
+│   │  (KNN/ANN)  │     │  (BM25/FT)  │     │  (Tags/Num) │                  │
+│   └─────────────┘     └─────────────┘     └─────────────┘                  │
+│         │                   │                   │                           │
+│         ▼                   ▼                   ▼                           │
+│   Semantic Match      Keyword Match       Access Control                    │
+│   "What's revenue?"   "Q4 2024"          source:internal                   │
+│   finds "earnings"    finds exact term    department:finance               │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+```redis
+# Hybrid search combining all three
+FT.SEARCH docs_idx 
+    "(@department:{finance} @year:[2024 2024]) revenue earnings =>[KNN 10 @embedding $vec AS score]"
+    PARAMS 2 vec "\x00\x01..."
+    RETURN 4 title text department score
+    SORTBY score
+```
+
+| Component | Purpose | Example |
+|-----------|---------|---------|
+| **Vector** | Semantic relevance | "revenue" matches "earnings report" |
+| **Text** | Precision keywords | Exact match for "Q4 2024" |
+| **Filters** | Control & security | Only finance dept, year=2024 |
+
+---
+
+## 🔧 Enterprise Capabilities
+
+### Persistence & Durability (AOF, RDB, Active-Active)
+
+| Aspect | Description |
+|--------|-------------|
+| **What it does** | Ensures data survives restarts, crashes, and disasters with multiple persistence options |
+| **Why it matters** | Financial services, healthcare, and AI feature stores require durability guarantees |
+| **Key Message** | Redis is NOT "just a cache" — it's a durable, enterprise-grade database |
+
+#### 📦 Persistence Options in Redis
+
+```redis
+# RDB Snapshots (Point-in-time backups)
+CONFIG SET save "900 1 300 10 60 10000"
+# → Save if: 900s & 1 change, 300s & 10 changes, or 60s & 10000 changes
+
+BGSAVE  # Manual snapshot trigger
+# Creates dump.rdb file
+
+# AOF (Append-Only File) - Write log
+CONFIG SET appendonly yes
+CONFIG SET appendfsync everysec  # Options: always, everysec, no
+# → 'always': fsync every write (safest, slower)
+# → 'everysec': fsync every second (balanced) ✅ Recommended
+# → 'no': OS decides (fastest, less safe)
+
+# Check persistence status
+INFO persistence
+# → rdb_last_save_time, aof_enabled, aof_rewrite_in_progress
+
+# AOF rewrite (compact the log)
+BGREWRITEAOF
+```
+
+#### Persistence Comparison
+
+| Feature | RDB | AOF | RDB + AOF |
+|---------|-----|-----|-----------|
+| Data Loss on Crash | Up to last snapshot | 1 second (everysec) | 1 second |
+| Recovery Speed | Fast (load dump) | Slower (replay log) | Fast + safe |
+| File Size | Compact | Larger (log format) | Both files |
+| I/O Impact | Periodic spike | Continuous small writes | Combined |
+| Best For | Backups, replicas | Durability-critical | Production ✅ |
+
+#### Redis Enterprise Durability
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Redis Enterprise Durability Stack                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                     Active-Active (CRDTs)                            │   │
+│   │  • Multi-region writes with automatic conflict resolution            │   │
+│   │  • No data loss on region failure                                    │   │
+│   │  • Sub-millisecond local reads/writes globally                       │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                     Instant Failover                                 │   │
+│   │  • Automatic replica promotion (< 1 second)                          │   │
+│   │  • No data loss with AOF + replication                              │   │
+│   │  • Zero client-side changes required                                │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                     Flash Storage Tiering                            │   │
+│   │  • Hot data in RAM, warm data on NVMe                               │   │
+│   │  • 10x more data at same cost                                       │   │
+│   │  • Transparent to application                                        │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+| Feature | Redis OSS | Redis Enterprise | Legacy DB |
+|---------|-----------|------------------|-----------|
+| Crash Recovery | RDB/AOF replay | Instant failover | WAL replay (minutes) |
+| Active-Active | ❌ | ✅ CRDTs | ❌ Complex |
+| Geo-Replication | Manual | Native, automatic | Complex setup |
+| RPO | 1 second (AOF) | Near-zero | Varies |
+| RTO | Seconds-minutes | < 1 second | Minutes-hours |
+
+---
+
+### High Availability & Failover
+
+| Aspect | Description |
+|--------|-------------|
+| **What it does** | Ensures continuous service during node failures, network partitions, and maintenance |
+| **Why it matters** | Auth, fraud detection, AI memory, and payments cannot tolerate downtime |
+| **Key Components** | Redis Sentinel (OSS), Redis Enterprise auto-failover, Cluster mode |
+
+#### 📦 High Availability Architectures
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│              Redis Sentinel (Open Source HA)                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   ┌─────────────┐       ┌─────────────┐       ┌─────────────┐              │
+│   │  Sentinel 1 │       │  Sentinel 2 │       │  Sentinel 3 │              │
+│   └──────┬──────┘       └──────┬──────┘       └──────┬──────┘              │
+│          │                     │                     │                      │
+│          └─────────────────────┼─────────────────────┘                      │
+│                                │ Monitors & votes                           │
+│                                ▼                                            │
+│   ┌─────────────┐       ┌─────────────┐       ┌─────────────┐              │
+│   │   Primary   │──────▶│  Replica 1  │──────▶│  Replica 2  │              │
+│   │   (write)   │ sync  │   (read)    │ sync  │   (read)    │              │
+│   └─────────────┘       └─────────────┘       └─────────────┘              │
+│                                                                              │
+│   Primary fails → Sentinels elect new primary → Clients auto-redirect       │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+```redis
+# Sentinel configuration
+sentinel monitor mymaster 127.0.0.1 6379 2  # Quorum of 2
+sentinel down-after-milliseconds mymaster 5000
+sentinel failover-timeout mymaster 60000
+
+# Check Sentinel status
+SENTINEL masters
+SENTINEL get-master-addr-by-name mymaster
+```
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│              Redis Enterprise (Automatic HA)                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   Primary fails:                                                             │
+│   ──────────────────────────────────────────────────────────────────────    │
+│   1. Failure detected (< 1 second)                                          │
+│   2. Replica automatically promoted                                          │
+│   3. Cluster updates routing                                                │
+│   4. Clients reconnect transparently                                         │
+│   5. New replica provisioned                                                 │
+│                                                                              │
+│   ✅ No Sentinel configuration required                                      │
+│   ✅ No application code changes                                             │
+│   ✅ Works across availability zones                                         │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### HA Comparison
+
+| Feature | Redis OSS | Redis Sentinel | Redis Enterprise |
+|---------|-----------|----------------|------------------|
+| Automatic Failover | ❌ Manual | ✅ Sentinel-managed | ✅ Built-in |
+| Failover Time | Minutes | 10-30 seconds | < 1 second |
+| Configuration | None | Complex | Automatic |
+| Split-Brain Protection | ❌ | ✅ Quorum | ✅ Raft consensus |
+| Cross-AZ | Manual | Possible | Native |
+
+---
+
+### Security, Access Control & Compliance
+
+| Aspect | Description |
+|--------|-------------|
+| **What it does** | Protects data with authentication, encryption, fine-grained permissions, and audit logging |
+| **Why it matters** | Enterprise buyers require SOC2, HIPAA, PCI-DSS compliance and multi-tenant isolation |
+| **Key Features** | ACLs, TLS, key-level permissions, audit logging, RBAC |
+
+#### 📦 Security Configuration in Redis
+
+```redis
+# Create users with fine-grained permissions (ACLs)
+ACL SETUSER analyst on >securePassword123 ~features:* +@read
+# → User 'analyst' can only READ keys matching 'features:*'
+
+ACL SETUSER writer on >writerPass456 ~features:* ~cache:* +@write +@read
+# → User 'writer' can read/write to features:* and cache:*
+
+ACL SETUSER admin on >adminPass789 ~* +@all
+# → Full access
+
+# View user permissions
+ACL LIST
+ACL GETUSER analyst
+
+# Key pattern restrictions
+ACL SETUSER tenant_a on >pass ~tenant:a:* +@all
+ACL SETUSER tenant_b on >pass ~tenant:b:* +@all
+# → Multi-tenant isolation at key level!
+
+# Command restrictions
+ACL SETUSER readonly on >pass ~* +get +mget +hget +hgetall -set -del -flushdb
+# → Can only read, cannot modify
+
+# Category-based permissions
+ACL SETUSER ml_service on >pass ~model:* ~features:* +@read +@hash +@string -@dangerous
+```
+
+#### TLS/SSL Encryption
+
+```redis
+# Enable TLS (redis.conf)
+tls-port 6380
+tls-cert-file /path/to/redis.crt
+tls-key-file /path/to/redis.key
+tls-ca-cert-file /path/to/ca.crt
+tls-auth-clients yes  # Require client certificates
+
+# Connect with TLS
+redis-cli --tls --cert /path/to/client.crt --key /path/to/client.key -p 6380
+```
+
+#### Security Comparison
+
+| Feature | Redis OSS | Redis Enterprise | Legacy DB |
+|---------|-----------|------------------|-----------|
+| Authentication | Password + ACL | LDAP/SAML/SSO | Varies |
+| Encryption in Transit | TLS | TLS + FIPS 140-2 | TLS |
+| Encryption at Rest | ❌ | ✅ AES-256 | Varies |
+| Key-Level Permissions | ✅ ACLs | ✅ + Policies | Table-level |
+| Audit Logging | Limited | ✅ Comprehensive | ✅ |
+| SOC2/HIPAA/PCI | Self-managed | ✅ Certified | Varies |
+| Multi-Tenant Isolation | ACL patterns | ✅ Database separation | Schema-based |
+
+---
+
+### Memory Management & Eviction
+
+| Aspect | Description |
+|--------|-------------|
+| **What it does** | Controls behavior when Redis approaches memory limits with intelligent eviction policies |
+| **Why it matters** | Production Redis must gracefully handle memory pressure without crashing or losing critical data |
+| **Common Question** | "What happens when Redis memory fills up?" |
+
+#### 📦 Memory Configuration
+
+```redis
+# Set maximum memory
+CONFIG SET maxmemory 4gb
+
+# Set eviction policy
+CONFIG SET maxmemory-policy allkeys-lfu
+# Options:
+# - noeviction: Return errors when memory full (safe but fails writes)
+# - allkeys-lru: Evict least recently used (good for cache)
+# - allkeys-lfu: Evict least frequently used (best for AI workloads) ✅
+# - volatile-lru: Evict LRU among keys with TTL
+# - volatile-ttl: Evict keys with shortest TTL
+# - volatile-random: Random eviction among TTL keys
+
+# Check memory usage
+INFO memory
+# → used_memory, maxmemory, evicted_keys, mem_fragmentation_ratio
+
+MEMORY DOCTOR  # Diagnose memory issues
+MEMORY USAGE key123  # Check specific key size
+
+# Memory-efficient data structures
+CONFIG SET hash-max-ziplist-entries 512
+CONFIG SET hash-max-ziplist-value 64
+# → Small hashes use ziplist (less memory)
+```
+
+#### Eviction Policy Selection Guide
+
+| Policy | Best For | Behavior |
+|--------|----------|----------|
+| `noeviction` | Critical data, no loss acceptable | Returns OOM error |
+| `allkeys-lru` | General caching | Evicts least recently used |
+| `allkeys-lfu` | AI/ML workloads, hot data | Evicts least frequently used ✅ |
+| `volatile-lru` | Sessions with TTL | LRU among expiring keys only |
+| `volatile-ttl` | Time-sensitive cache | Evicts soonest-expiring first |
+| `allkeys-random` | Unknown access patterns | Random eviction |
+
+#### Redis Enterprise: Tiered Storage
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│              Redis Enterprise: RAM + Flash Tiering                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                          HOT DATA                                    │   │
+│   │                       (RAM - fastest)                                │   │
+│   │                      Most accessed keys                              │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                              ▲                                              │
+│                              │ Automatic                                    │
+│                              │ tiering                                      │
+│                              ▼                                              │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                         WARM DATA                                    │   │
+│   │                     (NVMe Flash - fast)                              │   │
+│   │                  Less frequently accessed                            │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│   ✅ 10x more data at same cost                                             │
+│   ✅ Transparent to application (no code changes)                           │
+│   ✅ Hot data stays in RAM for sub-ms latency                               │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Observability & Debugging
+
+| Aspect | Description |
+|--------|-------------|
+| **What it does** | Monitors performance, identifies slow commands, and diagnoses issues in production |
+| **Why it matters** | SREs need visibility to trust Redis in production and troubleshoot problems |
+| **Key Tools** | SLOWLOG, LATENCY, INFO, MONITOR, Redis Insight |
+
+#### 📦 Observability Commands
+
+```redis
+# Slow query log
+CONFIG SET slowlog-log-slower-than 10000  # Log queries > 10ms
+CONFIG SET slowlog-max-len 128
+
+SLOWLOG GET 10  # Get last 10 slow queries
+# → Returns: [id, timestamp, duration_us, command, client_info]
+
+SLOWLOG RESET  # Clear the log
+
+# Latency monitoring
+LATENCY DOCTOR  # Diagnose latency issues
+# → "Dave, I have some reports for you..."
+
+LATENCY HISTORY command  # History of latency spikes
+LATENCY LATEST          # Most recent latency events
+
+CONFIG SET latency-monitor-threshold 100  # Track events > 100ms
+
+# Real-time stats
+INFO stats
+# → total_connections_received, total_commands_processed
+# → instantaneous_ops_per_sec, keyspace_hits, keyspace_misses
+
+INFO clients
+# → connected_clients, blocked_clients
+
+INFO memory
+# → used_memory_human, mem_fragmentation_ratio
+
+# Keyspace notifications (for external monitoring)
+CONFIG SET notify-keyspace-events KEA
+# → K: Keyspace events, E: Keyevent events, A: All commands
+
+SUBSCRIBE __keyevent@0__:expired  # Watch for key expirations
+
+# Debug specific operations
+DEBUG SLEEP 0.1  # Test latency handling
+CLIENT LIST      # See all connected clients
+CLIENT KILL ID 123  # Disconnect problematic client
+
+# Memory analysis
+MEMORY STATS
+MEMORY USAGE mykey
+SCAN 0 COUNT 1000 TYPE hash  # Find keys by type
+```
+
+#### Redis Insight (GUI)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Redis Insight Dashboard                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   📊 Real-time Metrics        🔍 Browser                💻 CLI              │
+│   • Ops/sec: 125,432          • Key explorer            • Inline terminal   │
+│   • Memory: 2.3GB/4GB         • Data visualization      • Command history   │
+│   • Clients: 47               • TTL viewer              • Auto-complete     │
+│   • Hit rate: 94.2%           • Search across keys                          │
+│                                                                              │
+│   📈 Profiler                 ⚡ Slow Log               🔔 Alerts           │
+│   • Command breakdown         • Top slow queries        • Memory threshold  │
+│   • Latency percentiles       • Time analysis           • Connection spike  │
+│   • Key access patterns       • Command patterns        • Error rate        │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Download: https://redis.io/insight/
+```
+
+#### Observability Comparison
+
+| Feature | Redis OSS | Redis Enterprise | Legacy DB |
+|---------|-----------|------------------|-----------|
+| Slow Query Log | ✅ SLOWLOG | ✅ + Dashboard | ✅ pg_stat |
+| Latency Analysis | ✅ LATENCY | ✅ + Percentiles | Manual |
+| Memory Profiling | ✅ MEMORY | ✅ + Alerts | OS-level |
+| GUI Dashboard | Redis Insight | ✅ Built-in | pgAdmin/etc |
+| Distributed Tracing | Manual | ✅ Integrated | External |
+| Prometheus Export | Community | ✅ Native | Varies |
+
+---
+
+## 📐 Architecture Patterns
+
+### Common Redis Architecture Patterns
+
+| Pattern | Description | When to Use |
+|---------|-------------|-------------|
+| **Cache-Aside** | App checks cache, loads from DB on miss | General caching |
+| **Read-Through** | Cache automatically loads from DB | Transparent caching |
+| **Write-Through** | Write to cache AND DB synchronously | Strong consistency |
+| **Write-Behind** | Write to cache, async write to DB | High write throughput |
+| **CQRS** | Separate read/write paths | Complex domains |
+| **RAG** | Vector search + LLM augmentation | AI applications |
+
+#### Cache-Aside (Most Common)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Cache-Aside Pattern                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   App                       Redis                      Database              │
+│   ───                       ─────                      ────────              │
+│    │                                                                         │
+│    │──── 1. GET key ────────▶│                                              │
+│    │◀─── 2. Miss (nil) ──────│                                              │
+│    │                                                                         │
+│    │──── 3. SELECT * FROM... ──────────────────────────▶│                   │
+│    │◀─── 4. Data ──────────────────────────────────────│                   │
+│    │                                                                         │
+│    │──── 5. SET key data ───▶│                                              │
+│    │                                                                         │
+│                                                                              │
+│   ✅ Simple implementation                                                   │
+│   ⚠️ Cache miss = slow (DB query)                                           │
+│   ⚠️ Stale data possible (TTL-based)                                        │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Write-Through
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        Write-Through Pattern                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   App                       Redis                      Database              │
+│   ───                       ─────                      ────────              │
+│    │                                                                         │
+│    │──── 1. Write data ─────▶│──── 2. Write to DB ────▶│                    │
+│    │                         │◀─── 3. Confirm ─────────│                    │
+│    │◀─── 4. Confirm ─────────│                                              │
+│    │                                                                         │
+│                                                                              │
+│   ✅ Strong consistency (cache always matches DB)                            │
+│   ⚠️ Higher write latency (must wait for DB)                                │
+│   ✅ Best for: Auth tokens, user profiles                                    │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Write-Behind (Write-Back)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        Write-Behind Pattern                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   App                       Redis                      Database              │
+│   ───                       ─────                      ────────              │
+│    │                                                                         │
+│    │──── 1. Write data ─────▶│                                              │
+│    │◀─── 2. Confirm ─────────│ (async)                                      │
+│    │                         │──── 3. Batch write ─────▶│                    │
+│    │                         │                          │                    │
+│                                                                              │
+│   ✅ Lowest write latency (immediate confirm)                                │
+│   ✅ Batch writes reduce DB load                                             │
+│   ⚠️ Risk: Data loss if Redis fails before DB write                         │
+│   ✅ Best for: Analytics, logging, counters                                  │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### CQRS with Redis
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        CQRS Pattern with Redis                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│                           ┌─────────────────┐                               │
+│                           │    Commands     │                               │
+│                           │  (Write Path)   │                               │
+│                           └────────┬────────┘                               │
+│                                    │                                        │
+│                                    ▼                                        │
+│   ┌─────────────┐         ┌─────────────────┐         ┌─────────────┐      │
+│   │  API/App    │────────▶│   PostgreSQL    │────────▶│ Redis Sync  │      │
+│   └─────────────┘         │  (Write Model)  │  CDC    │  (via RDI)  │      │
+│         │                 └─────────────────┘         └──────┬──────┘      │
+│         │                                                    │              │
+│         │                           ┌─────────────────┐      │              │
+│         │                           │    Queries      │      │              │
+│         │                           │   (Read Path)   │      │              │
+│         │                           └────────┬────────┘      │              │
+│         │                                    │               │              │
+│         │                                    ▼               ▼              │
+│         └───────────────────────────▶┌─────────────────────────┐           │
+│                                      │        Redis            │           │
+│                                      │  (Read Model - fast!)   │           │
+│                                      └─────────────────────────┘           │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🚫 When NOT to Use Redis
+
+Redis excels at many things, but it's not the right tool for every job. **Knowing when NOT to use Redis builds trust.**
+
+### ❌ Not Ideal For
+
+| Use Case | Why Not Redis | Better Alternative |
+|----------|---------------|-------------------|
+| **Long-term analytical storage** | RAM cost at petabyte scale | Data warehouse (Snowflake, BigQuery) |
+| **Complex ad-hoc joins** | No native JOIN support | PostgreSQL, analytical DB |
+| **Cold historical archives** | Expensive to keep in RAM | S3, data lake |
+| **Write-heavy OLAP** | Not optimized for analytics | ClickHouse, TimescaleDB |
+| **Binary large objects (BLOBs)** | Inefficient for 100MB+ files | Object storage (S3) |
+| **Full ACID transactions** | Limited multi-key transactions | PostgreSQL, MySQL |
+| **Primary source of truth** | Designed as cache/datastore layer | Primary database + Redis |
+
+### ⚠️ Consider Carefully
+
+| Scenario | Consideration |
+|----------|---------------|
+| **Dataset > available RAM** | Use Redis Enterprise with flash tiering, or reconsider |
+| **Strong consistency required** | Redis is eventually consistent in cluster mode |
+| **Complex queries needed** | RediSearch helps, but not a full query engine |
+| **Regulatory data retention** | Ensure persistence and backup strategy meets compliance |
+
+### ✅ Perfect For
+
+```
+Real-time data layer:
+  ✅ Caching
+  ✅ Sessions
+  ✅ Real-time analytics
+  ✅ AI/ML feature serving
+  ✅ Vector search
+  ✅ Pub/Sub messaging
+  ✅ Rate limiting
+  ✅ Leaderboards
+```
+
+---
+
+## ⚠️ Anti-Patterns to Avoid
+
+### Common Mistakes in Production
+
+| Anti-Pattern | Problem | Solution |
+|--------------|---------|----------|
+| **Using `KEYS *` in production** | Blocks server, scans all keys | Use `SCAN` with cursor |
+| **Storing huge blobs without TTL** | Memory fills up, no eviction | Set TTL, use object storage for large files |
+| **Not setting `maxmemory`** | Redis uses all RAM, OOM kill | Always set `maxmemory` + eviction policy |
+| **Single Redis instance (no HA)** | Single point of failure | Use Sentinel or Redis Enterprise |
+| **Ignoring slow queries** | Hidden performance issues | Monitor `SLOWLOG`, set thresholds |
+| **Too much Lua for simple ops** | Complexity, debugging difficulty | Use native commands when possible |
+| **Treating Redis as data lake** | Wrong tool, expensive | Use proper data lake (S3, Snowflake) |
+| **No connection pooling** | Connection overhead per request | Use connection pool in client |
+| **Unbounded lists/streams** | Memory grows forever | Use `LTRIM`, `MAXLEN` |
+
+### ❌ Don't Do This
+
+```redis
+# ❌ NEVER in production
+KEYS *                    # Blocks server
+KEYS user:*               # Still scans everything
+FLUSHALL                  # Deletes everything!
+DEBUG SEGFAULT            # Crashes server (testing only)
+
+# ❌ Memory bombs
+SET huge_key <100MB blob without TTL>
+LPUSH unbounded_list <forever without LTRIM>
+
+# ❌ Hot key problems
+INCR global_counter       # Single key, all traffic
+# → Shard counters: INCR counter:{shard_id}
+```
+
+### ✅ Do This Instead
+
+```redis
+# ✅ Iterate safely
+SCAN 0 MATCH user:* COUNT 100
+
+# ✅ Bounded data structures
+LPUSH mylist item
+LTRIM mylist 0 999                    # Keep max 1000 items
+
+XADD mystream MAXLEN ~ 10000 * field value  # Auto-trim stream
+
+# ✅ Always set TTL on cache keys
+SET cache:key value EX 3600
+
+# ✅ Shard hot keys
+INCR counter:user_views:{user_id % 16}  # 16 shards
+
+# ✅ Use connection pooling (client-side)
+# Python: redis.ConnectionPool(max_connections=50)
+# Node.js: ioredis with connection pool
+```
+
+---
 
 ### Vector Database Comparison (Official Redis Benchmarks, 2024)
 

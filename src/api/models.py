@@ -122,6 +122,13 @@ class WorkflowExecution(BaseModel):
     handoff_count: Optional[int] = Field(None, description="Number of agent handoffs")
 
 
+class ModelConfig(BaseModel):
+    """LLM model configuration info for transparency"""
+    llm_model: str = Field(..., description="LLM model deployment name (e.g., gpt-4o)")
+    embedding_model: str = Field(..., description="Embedding model name")
+    llm_api_version: str = Field(..., description="Azure OpenAI API version")
+
+
 class SessionMetrics(BaseModel):
     """Current session statistics"""
     session_id: str = Field(..., description="Session identifier")
@@ -158,15 +165,17 @@ class EnhancedQueryResponse(BaseModel):
     timestamp: datetime = Field(..., description="Query completion timestamp")
     query_id: str = Field(..., description="Unique query identifier")
     
+    # Model configuration (for transparency)
+    model_config_info: Optional[ModelConfig] = Field(None, description="LLM model configuration used")
+    
     # Workflow execution
     workflow: WorkflowExecution = Field(..., description="Workflow orchestration details")
     
     # Agent execution details
     agents: List[AgentExecution] = Field(..., description="Per-agent execution metrics")
     
-    # Caching metrics
+    # Caching metrics (each layer has independent hit rate)
     cache_layers: List[CacheLayerMetrics] = Field(..., description="Multi-layer cache performance")
-    overall_cache_hit: bool = Field(..., description="Whether any cache layer hit")
     
     # Cost analysis
     cost: CostBreakdown = Field(..., description="Detailed cost breakdown")

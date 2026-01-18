@@ -9,11 +9,12 @@ import './MetricsPanel.css'
 
 interface MetricsPanelProps {
   response: EnhancedQueryResponse | null
+  allResponses?: EnhancedQueryResponse[]
 }
 
 type Tab = 'overview' | 'agents' | 'timeline' | 'costs'
 
-export default function MetricsPanel({ response }: MetricsPanelProps) {
+export default function MetricsPanel({ response, allResponses = [] }: MetricsPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>('overview')
 
   if (!response) {
@@ -70,7 +71,7 @@ export default function MetricsPanel({ response }: MetricsPanelProps) {
         {activeTab === 'overview' && <OverviewTab response={response} />}
         {activeTab === 'agents' && <AgentsTabEnhanced response={response} />}
         {activeTab === 'timeline' && <TimelineTabEnhanced response={response} />}
-        {activeTab === 'costs' && <CostsTab response={response} />}
+        {activeTab === 'costs' && <CostsTab response={response} allResponses={allResponses} />}
       </div>
     </div>
   )

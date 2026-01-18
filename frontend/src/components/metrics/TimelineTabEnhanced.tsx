@@ -14,86 +14,159 @@ const EVENT_REDIS_MAPPING: Record<string, {
   pattern: string
   patternKey: keyof typeof REDIS_PATTERN_EXPLANATIONS
   benefit: string
+  explanation: string
   icon: React.ReactNode
   color: string
 }> = {
-  cache_check: {
-    pattern: 'Semantic Cache',
+  // === STEP 1: Query Processing & Embedding ===
+  query_processing: {
+    pattern: 'Query Processing',
     patternKey: 'semantic_cache',
-    benefit: 'Checking if a semantically similar query was answered before - saves LLM costs and latency',
+    benefit: 'Starting the query pipeline - orchestrating all subsequent steps',
+    explanation: 'This is the master orchestration step that coordinates the entire query flow. It manages the sequence: embed the question → check cache → route to agents → execute workflow → cache result. Think of it as the "conductor" of the AI orchestra.',
+    icon: <Clock size={14} />,
+    color: 'var(--color-text-primary)'
+  },
+  embedding_generation: {
+    pattern: 'Query Embedding',
+    patternKey: 'semantic_cache',
+    benefit: 'Converting your question into a vector for semantic matching',
+    explanation: 'The user\'s question is converted into a numerical vector (embedding) using Azure OpenAI. This vector captures the "meaning" of the question, enabling semantic similarity search. The same question worded differently will have similar vectors, which is how we find cached answers for paraphrased questions.',
+    icon: <Brain size={14} />,
+    color: 'var(--color-info)'
+  },
+
+  // === STEP 2: Cache Operations ===
+  cache_check: {
+    pattern: 'Semantic Cache Lookup',
+    patternKey: 'semantic_cache',
+    benefit: 'Searching Redis for semantically similar questions already answered',
+    explanation: 'Redis Vector Search compares the query embedding against previously cached question-answer pairs. If a similar question (>85% similarity) exists, we return that answer instantly. This typically saves $0.01-0.03 and 2-3 seconds per cache hit.',
     icon: <Database size={14} />,
     color: 'var(--color-success)'
   },
   cache_hit: {
     pattern: 'Semantic Cache HIT',
     patternKey: 'semantic_cache',
-    benefit: '🎉 Found cached response! Saved ~$0.01 and ~2 seconds by reusing previous answer',
+    benefit: '🎉 Found a cached answer! Skipping LLM call entirely',
+    explanation: 'Success! A semantically similar question was found. The cached answer is returned immediately without calling the LLM. This is where Redis delivers massive value: instant responses at near-zero cost. The hit rate improves over time as more queries are cached.',
     icon: <Zap size={14} />,
     color: 'var(--color-warning)'
   },
   cache_miss: {
     pattern: 'Semantic Cache MISS',
     patternKey: 'semantic_cache',
-    benefit: 'No similar query found - will process and cache this for future requests',
+    benefit: 'No similar question found - proceeding to generate fresh answer',
+    explanation: 'No matching question found in the cache (similarity below threshold). The query will be processed normally by the AI agents, and the result will be cached for future similar questions. This is expected for novel questions.',
     icon: <Database size={14} />,
     color: 'var(--color-text-muted)'
+  },
+  cache_set: {
+    pattern: 'Cache Storage',
+    patternKey: 'semantic_cache',
+    benefit: 'Storing the answer for future similar questions',
+    explanation: 'The question-answer pair is being stored in Redis with its embedding vector. Future questions with similar meaning will match against this entry. Entries have a TTL (time-to-live) to ensure data freshness for time-sensitive information.',
+    icon: <Database size={14} />,
+    color: 'var(--color-success)'
+  },
+
+  // === STEP 3: Context & Routing ===
+  context_loading: {
+    pattern: 'User Context',
+    patternKey: 'contextual_memory',
+    benefit: 'Loading conversation history and user preferences from Redis',
+    explanation: 'Redis retrieves the user\'s session data: conversation history, preferences, portfolio holdings, and previous interactions. This context enables personalized responses ("Based on your interest in tech stocks...") without asking the user to repeat information.',
+    icon: <Brain size={14} />,
+    color: 'var(--color-primary)'
   },
   routing: {
     pattern: 'Semantic Router',
     patternKey: 'semantic_routing',
-    benefit: 'AI analyzes query intent to route to the best agent - faster than asking every agent',
+    benefit: 'Determining which specialized agent should handle this query',
+    explanation: 'Instead of asking every agent (slow and expensive), Redis Vector Search matches the query intent against predefined route patterns. For example, "What\'s AAPL trading at?" routes to the Market Data agent, while "Explain P/E ratio" routes to the Research agent. This is like an intelligent switchboard.',
     icon: <Brain size={14} />,
     color: 'var(--color-primary)'
   },
+
+  // === STEP 4: RAG & Document Retrieval ===
+  rag_retrieval: {
+    pattern: 'Document Context (RAG)',
+    patternKey: 'document_store',
+    benefit: 'Finding relevant SEC filings and documents to ground the response',
+    explanation: 'Retrieval-Augmented Generation: Redis performs vector similarity search across our document corpus (SEC filings, earnings reports, news). The most relevant passages are retrieved in milliseconds and provided to the LLM as context, ensuring responses are grounded in real data rather than hallucinated.',
+    icon: <Database size={14} />,
+    color: 'var(--color-info)'
+  },
+  rag_query: {
+    pattern: 'Document Search',
+    patternKey: 'document_store',
+    benefit: 'Vector similarity search finding relevant document passages',
+    explanation: 'A specific RAG query is being executed. Redis searches through indexed documents using vector similarity, returning the top-K most relevant passages. These passages become part of the LLM prompt, dramatically improving answer accuracy for factual questions.',
+    icon: <Database size={14} />,
+    color: 'var(--color-info)'
+  },
+
+  // === STEP 5: Agent Execution ===
   agent_start: {
-    pattern: 'Agent Execution',
+    pattern: 'Agent Starting',
     patternKey: 'contextual_memory',
-    benefit: 'Agent starting work - may use cached tool results and contextual memory',
+    benefit: 'Specialized AI agent beginning work on your query',
+    explanation: 'A specialized agent is starting to process the query. Each agent has domain expertise (market data, portfolio analysis, research) and access to specific tools. The agent uses cached tool results and conversation memory from Redis to work efficiently.',
     icon: <Brain size={14} />,
     color: 'var(--color-info)'
   },
   agent_end: {
     pattern: 'Agent Complete',
     patternKey: 'workflow_persistence',
-    benefit: 'Agent finished - results persisted for recovery and future reference',
+    benefit: 'Agent finished - results saved for recovery and audit',
+    explanation: 'The agent has completed its task. Results and workflow state are persisted to Redis, enabling: (1) recovery if a later step fails, (2) audit trail for compliance, and (3) debugging visibility. This ensures reliability in production environments.',
     icon: <CheckCircle size={14} />,
     color: 'var(--color-success)'
   },
-  tool_call: {
-    pattern: 'Tool Cache',
-    patternKey: 'tool_cache',
-    benefit: 'Calling external API/tool - results will be cached with TTL for repeated calls',
-    icon: <Zap size={14} />,
-    color: 'var(--color-accent)'
-  },
-  rag_query: {
-    pattern: 'Document Store (RAG)',
-    patternKey: 'document_store',
-    benefit: 'Vector similarity search across SEC filings and news - finds relevant context instantly',
-    icon: <Database size={14} />,
-    color: 'var(--color-info)'
-  },
-  memory_lookup: {
-    pattern: 'Contextual Memory',
-    patternKey: 'contextual_memory',
-    benefit: 'Retrieving conversation history and user preferences for personalized response',
+
+  // === STEP 6: Workflow Execution ===
+  workflow_execution: {
+    pattern: 'Workflow Running',
+    patternKey: 'workflow_persistence',
+    benefit: 'Coordinating multiple agents to answer your question',
+    explanation: 'A multi-agent workflow is executing. This may involve sequential agents (one after another) or parallel execution. Redis maintains workflow state, enabling checkpointing and recovery. Complex questions may trigger multiple specialized agents working together.',
     icon: <Brain size={14} />,
     color: 'var(--color-primary)'
   },
   workflow_checkpoint: {
-    pattern: 'Workflow Persistence',
+    pattern: 'Workflow Checkpoint',
     patternKey: 'workflow_persistence',
-    benefit: 'Saving checkpoint - if process fails, can resume from here instead of starting over',
+    benefit: 'Saving progress - can resume from here if something fails',
+    explanation: 'A checkpoint is saved to Redis capturing current workflow state. If the system crashes or an error occurs later, processing resumes from this checkpoint rather than restarting. Critical for long-running operations and enterprise reliability requirements.',
     icon: <Shield size={14} />,
     color: 'var(--color-success)'
+  },
+
+  // === Tool & Memory Operations ===
+  tool_call: {
+    pattern: 'Tool Execution',
+    patternKey: 'tool_cache',
+    benefit: 'Calling external API - result will be cached with TTL',
+    explanation: 'The agent is calling an external service (stock quotes, news API, financial data). Results are cached in Redis with appropriate TTL. For example, stock prices might cache for 1 minute, while company profiles cache for 24 hours. This reduces API costs and latency for repeated requests.',
+    icon: <Zap size={14} />,
+    color: 'var(--color-accent)'
+  },
+  memory_lookup: {
+    pattern: 'Memory Retrieval',
+    patternKey: 'contextual_memory',
+    benefit: 'Retrieving relevant memories for personalized response',
+    explanation: 'Redis retrieves relevant conversation memories using vector similarity. The system finds past interactions related to the current query ("You asked about AAPL last week"). This enables coherent, contextual conversations across sessions.',
+    icon: <Brain size={14} />,
+    color: 'var(--color-primary)'
   }
 }
 
 // Fallback for unknown event types
 const DEFAULT_EVENT_INFO = {
-  pattern: 'Processing',
+  pattern: 'Processing Step',
   patternKey: 'semantic_cache' as const,
-  benefit: 'Processing step in the workflow',
+  benefit: 'Processing step in the AI workflow',
+  explanation: 'A processing step in the query pipeline. The system is performing operations that may involve Redis for caching, state management, or vector operations. Each step contributes to generating an accurate, fast response.',
   icon: <Clock size={14} />,
   color: 'var(--color-text-muted)'
 }
@@ -224,6 +297,13 @@ export default function TimelineTabEnhanced({ response }: TimelineTabEnhancedPro
                   <div className="benefit-explanation">
                     <Info size={12} />
                     <span>{eventInfo.benefit}</span>
+                  </div>
+                )}
+
+                {/* PO-Friendly Explanation */}
+                {showExplanations && (
+                  <div className="po-explanation">
+                    <p>{eventInfo.explanation}</p>
                   </div>
                 )}
 

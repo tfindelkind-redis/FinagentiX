@@ -159,3 +159,10 @@ code {
 .text-secondary {
   color: var(--color-text-secondary);
 }
+
+/* Page content container */
+.page-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-lg);
+}

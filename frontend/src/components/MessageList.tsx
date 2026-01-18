@@ -14,9 +14,10 @@ interface MessageData {
 interface MessageListProps {
   messages: MessageData[]
   isLoading: boolean
+  hiddenCount?: number
 }
 
-export default function MessageList({ messages, isLoading }: MessageListProps) {
+export default function MessageList({ messages, isLoading, hiddenCount = 0 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -33,9 +34,16 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
           <p>Ask me anything about stocks, portfolios, or market analysis.</p>
         </div>
       ) : (
-        messages.map((message) => (
-          <Message key={message.id} message={message} />
-        ))
+        <>
+          {hiddenCount > 0 && (
+            <div className="hidden-messages-notice">
+              {hiddenCount} older message{hiddenCount > 1 ? 's' : ''} not shown
+            </div>
+          )}
+          {messages.map((message) => (
+            <Message key={message.id} message={message} />
+          ))}
+        </>
       )}
 
       {isLoading && (

@@ -1,14 +1,14 @@
 .cache-controls {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-  align-items: flex-end;
+  flex-direction: row;
+  gap: var(--spacing-md);
+  align-items: center;
 }
 
 .cache-action {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: row;
+  align-items: center;
   gap: var(--spacing-xs);
 }
 
@@ -22,13 +22,14 @@
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-xs);
-  padding: var(--spacing-xs) var(--spacing-md);
+  padding: var(--spacing-xs) var(--spacing-sm);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background-color: var(--color-bg-tertiary);
   color: var(--color-text-primary);
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 500;
+  white-space: nowrap;
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
@@ -52,12 +53,16 @@
   border: 1px solid var(--color-border);
   background-color: var(--color-bg-tertiary);
   color: var(--color-text-primary);
-  font-size: 0.85rem;
-  min-width: 180px;
+  font-size: 0.75rem;
+  width: 120px;
+}
+
+.cache-input::placeholder {
+  color: var(--color-text-muted);
 }
 
 .cache-status {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--color-text-secondary);
 }
 

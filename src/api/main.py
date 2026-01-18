@@ -31,6 +31,7 @@ from .models import (
     WorkflowExecution,
     SessionMetrics,
     ExecutionTimeline,
+    ModelConfig,
 )
 from .dependencies import (
     get_semantic_cache,
@@ -179,23 +180,30 @@ async def query_enhanced(
             query_embedding=query_embedding
         )
         
-        # Record cache check with metrics
+        # Determine if semantic cache hit
         cache_hit = bool(
             cached_response
             and cached_response.get("cache_hit", False)
             and cached_response.get("response")
         )
+        
+        # Record cache check with metrics - calculate real cost savings
+        # GPT-4o pricing: $2.50/1M input, $10.00/1M output
+        # Typical query: ~750 input tokens, ~500 output tokens
+        # Saved cost = (750 * 2.50 / 1_000_000) + (500 * 10.00 / 1_000_000) = ~$0.0069
+        semantic_cache_cost_saved = 0.0069 if cache_hit else 0.0
         metrics.record_cache_check(
             layer_name="semantic_cache",
             hit=cache_hit,
             similarity=cached_response.get("similarity", 0.0) if cached_response else 0.0,
             query_time_ms=cached_response.get("query_time_ms", 0) if cached_response else 0,
-            cost_saved=0.015 if cache_hit else 0.0  # Estimated savings per cache hit
+            cost_saved=semantic_cache_cost_saved
         )
         metrics.end_event(cache_event_id, status="hit" if cache_hit else "miss")
         
         if cache_hit:
-            # Cache hit! Build response from cached data
+            # Cache hit! Build response from cached data - FAST PATH
+            # Only embedding was generated, skip all other processing
             metrics.end_event(query_event_id, status="success")
             
             # Get timeline and costs
@@ -208,6 +216,11 @@ async def query_enhanced(
                 response=cached_response["response"],
                 timestamp=datetime.now(),
                 query_id=metrics.query_id,
+                model_config_info=ModelConfig(
+                    llm_model=settings.AZURE_OPENAI_GPT4_DEPLOYMENT,
+                    embedding_model=settings.AZURE_OPENAI_EMBEDDING_DEPLOYMENT,
+                    llm_api_version=settings.AZURE_OPENAI_API_VERSION
+                ),
                 workflow=WorkflowExecution(
                     workflow_name="CachedResponse",
                     orchestration_pattern="sequential",
@@ -223,11 +236,10 @@ async def query_enhanced(
                         hit=True,
                         similarity=cached_response.get("similarity", 0.0),
                         query_time_ms=cached_response.get("query_time_ms", 0),
-                        cost_saved_usd=0.015,
+                        cost_saved_usd=semantic_cache_cost_saved,
                         matched_query=cached_response.get("cached_query")
                     )
                 ],
-                overall_cache_hit=True,
                 cost=CostBreakdown(**costs),
                 performance=PerformanceMetrics(**perf_metrics),
                 session=SessionMetrics(
@@ -266,13 +278,19 @@ async def query_enhanced(
             routing_event_id,
             status="success" if route and routing_status == "success" else routing_status,
         )
+        
+        # Router cache hit saves an LLM call for intent classification
+        # GPT-4o router cost: ~200 input tokens, ~30 output tokens
+        # Router cost saved = (200 * 2.50 / 1_000_000) + (30 * 10.00 / 1_000_000) = ~$0.0008
+        router_cache_hit = route is not None
+        router_cost_saved = 0.0008 if router_cache_hit else 0.0
         metrics.record_cache_check(
             layer_name="router_cache",
-            hit=route is not None,
+            hit=router_cache_hit,
             similarity=route.get("similarity") if route else None,
             query_time_ms=routing_time,
             matched_query=route.get("matched_pattern") if route else None,
-            cost_saved=0.0,
+            cost_saved=router_cost_saved,
         )
         
         derived_ticker = request.ticker or _extract_ticker(request.query)
@@ -432,7 +450,8 @@ async def query_enhanced(
         costs = metrics.calculate_costs(workflow_name)
         perf_metrics = metrics.get_performance_metrics(timeline['total_duration_ms'])
         agent_catalogue = sorted({agent for cfg in workflow_registry.values() for agent in cfg["agents"]})
-        overall_cache_hit = any(layer.get("hit") for layer in metrics.cache_checks)
+        
+        # Calculate per-layer hit rates (no aggregation needed - each layer is independent)
         
         # Generate synthetic agent data from tool invocations if no agents recorded
         agent_executions = metrics.agent_executions
@@ -495,11 +514,20 @@ async def query_enhanced(
                     "timestamp": datetime.now().isoformat()
                 })
         
+        # Calculate session cache hit rate based on individual layer hits
+        semantic_cache_hits = sum(1 for layer in metrics.cache_checks if layer.get("layer_name") == "semantic_cache" and layer.get("hit"))
+        session_cache_hit_rate = 100.0 if semantic_cache_hits > 0 else 0.0
+        
         return EnhancedQueryResponse(
             query=request.query,
             response=response_text,
             timestamp=datetime.now(),
             query_id=metrics.query_id,
+            model_config_info=ModelConfig(
+                llm_model=settings.AZURE_OPENAI_GPT4_DEPLOYMENT,
+                embedding_model=settings.AZURE_OPENAI_EMBEDDING_DEPLOYMENT,
+                llm_api_version=settings.AZURE_OPENAI_API_VERSION
+            ),
             workflow=WorkflowExecution(
                 workflow_name=workflow_name,
                 orchestration_pattern=orchestration_pattern,
@@ -509,7 +537,6 @@ async def query_enhanced(
             ),
             agents=agent_executions,
             cache_layers=metrics.cache_checks,
-            overall_cache_hit=overall_cache_hit,
             cost=CostBreakdown(**costs),
             performance=PerformanceMetrics(**perf_metrics),
             session=SessionMetrics(
@@ -517,7 +544,7 @@ async def query_enhanced(
                 query_count=1,
                 avg_latency_ms=timeline['total_duration_ms'],
                 total_cost_usd=costs['total_cost_usd'],
-                cache_hit_rate=100.0 if overall_cache_hit else 0.0
+                cache_hit_rate=session_cache_hit_rate
             ),
             timeline=ExecutionTimeline(**timeline)
         )

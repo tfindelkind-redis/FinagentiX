@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, Lightbulb, Play, BookOpen, Zap, HelpCircle } from 'lucide-react'
+import { ChevronDown, Lightbulb, Play, BookOpen, Zap, HelpCircle, ChevronRight, X } from 'lucide-react'
 import { 
   LEARN_MODE_QUESTIONS, 
   QUESTION_CATEGORIES,
@@ -15,7 +15,7 @@ interface LearnModeProps {
 export default function LearnMode({ onSelectQuestion, isDisabled }: LearnModeProps) {
   const [isExpanded, setIsExpanded] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [hoveredQuestion, setHoveredQuestion] = useState<LearnModeQuestion | null>(null)
+  const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null)
 
   const filteredQuestions = selectedCategory
     ? LEARN_MODE_QUESTIONS.filter(q => q.category === selectedCategory)
@@ -26,6 +26,11 @@ export default function LearnMode({ onSelectQuestion, isDisabled }: LearnModePro
       onSelectQuestion(question.question)
       setIsExpanded(false) // Close the panel after selection
     }
+  }
+
+  const toggleQuestionDetails = (e: React.MouseEvent, questionId: string) => {
+    e.stopPropagation() // Don't trigger the question selection
+    setExpandedQuestion(expandedQuestion === questionId ? null : questionId)
   }
 
   return (
@@ -75,23 +80,42 @@ export default function LearnMode({ onSelectQuestion, isDisabled }: LearnModePro
             {filteredQuestions.map((q) => (
               <div
                 key={q.id}
-                className={`question-item ${isDisabled ? 'disabled' : ''} ${q.id.includes('cache-demo') ? 'featured' : ''}`}
-                onMouseEnter={() => setHoveredQuestion(q)}
-                onMouseLeave={() => setHoveredQuestion(null)}
-                onClick={() => handleQuestionClick(q)}
+                className={`question-item ${isDisabled ? 'disabled' : ''} ${q.id.includes('cache-demo') ? 'featured' : ''} ${expandedQuestion === q.id ? 'expanded' : ''}`}
               >
                 <div className="question-main">
+                  <button
+                    className="question-expand-btn"
+                    onClick={(e) => toggleQuestionDetails(e, q.id)}
+                    title={expandedQuestion === q.id ? 'Hide details' : 'Show details'}
+                  >
+                    <ChevronRight className={`expand-chevron ${expandedQuestion === q.id ? 'rotated' : ''}`} size={14} />
+                  </button>
                   <span 
                     className="question-category-dot"
                     style={{ backgroundColor: QUESTION_CATEGORIES[q.category].color }}
                   />
-                  <span className="question-text">{q.question}</span>
-                  <Play className="play-icon" size={16} />
+                  <span 
+                    className="question-text"
+                    onClick={() => handleQuestionClick(q)}
+                  >
+                    {q.question}
+                  </span>
+                  <Play 
+                    className="play-icon" 
+                    size={16} 
+                    onClick={() => handleQuestionClick(q)}
+                  />
                 </div>
 
-                {/* Hover Details */}
-                {hoveredQuestion?.id === q.id && (
+                {/* Expandable Details (click to toggle) */}
+                {expandedQuestion === q.id && (
                   <div className="question-details">
+                    <button 
+                      className="close-details-btn"
+                      onClick={(e) => toggleQuestionDetails(e, q.id)}
+                    >
+                      <X size={14} />
+                    </button>
                     <p className="question-description">{q.description}</p>
                     
                     <div className="question-meta">

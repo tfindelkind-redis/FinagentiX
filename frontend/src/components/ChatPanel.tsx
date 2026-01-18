@@ -1,15 +1,19 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Send } from 'lucide-react'
+import { Send, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import MessageList from './MessageList'
 import LearnMode from './LearnMode'
 import type { EnhancedQueryResponse } from '@/types/api'
 import './ChatPanel.css'
 
+// Maximum number of message pairs to keep visible
+const MAX_VISIBLE_MESSAGES = 20
+
 interface ChatPanelProps {
   sessionId: string
   onResponseReceived: (response: EnhancedQueryResponse) => void
+  onClearHistory?: () => void
 }
 
 interface Message {
@@ -20,7 +24,7 @@ interface Message {
   metrics?: EnhancedQueryResponse
 }
 
-export default function ChatPanel({ sessionId, onResponseReceived }: ChatPanelProps) {
+export default function ChatPanel({ sessionId, onResponseReceived, onClearHistory }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
 
@@ -62,14 +66,38 @@ export default function ChatPanel({ sessionId, onResponseReceived }: ChatPanelPr
     setInput('')
   }
 
+  // Keep only the most recent messages for display
+  const visibleMessages = messages.slice(-MAX_VISIBLE_MESSAGES)
+  const hiddenCount = messages.length - visibleMessages.length
+
+  const handleClearHistory = () => {
+    setMessages([])
+    onClearHistory?.()
+  }
+
   return (
     <div className="chat-panel">
       <div className="chat-header">
         <h2>Chat</h2>
-        <span className="message-count">{messages.length} messages</span>
+        <div className="chat-header-actions">
+          <span className="message-count">{messages.length} messages</span>
+          {messages.length > 0 && (
+            <button 
+              className="clear-history-btn" 
+              onClick={handleClearHistory}
+              title="Clear chat history"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
-      <MessageList messages={messages} isLoading={queryMutation.isPending} />
+      <MessageList 
+        messages={visibleMessages} 
+        isLoading={queryMutation.isPending}
+        hiddenCount={hiddenCount}
+      />
 
       <LearnMode 
         onSelectQuestion={(question) => setInput(question)}

@@ -40,7 +40,7 @@ class SemanticCache:
         index_name: str = "idx:semantic_cache",
         prefix: str = "cache:",
         similarity_threshold: float = 0.92,
-        ttl_seconds: int = 300,  # 5 minutes
+        ttl_seconds: int = 3600,  # 1 hour - sufficient for demos and workshops
     ):
         """
         Initialize semantic cache

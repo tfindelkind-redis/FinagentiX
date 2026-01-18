@@ -8,6 +8,27 @@ interface AgentsTabProps {
   response: EnhancedQueryResponse
 }
 
+// Helper to get agent info from various naming conventions
+function getAgentInfo(agentName: string) {
+  // Try direct match first
+  let info = AGENT_EXPLANATIONS[agentName]
+  if (info) return info
+  
+  // Try lowercase/snake_case version
+  const snakeCase = agentName.toLowerCase().replace(/\s+/g, '_').replace(/agent$/i, '').replace(/_$/, '')
+  info = AGENT_EXPLANATIONS[snakeCase]
+  if (info) return info
+  
+  // Default fallback
+  return {
+    name: agentName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+    role: 'AI Agent analyzing your query',
+    icon: '🤖',
+    redisIntegration: 'Integrated with Redis for caching and performance.',
+    benefits: ['Fast response times', 'Cached results']
+  }
+}
+
 export default function AgentsTab({ response }: AgentsTabProps) {
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null)
   const [showExplanations, setShowExplanations] = useState(true)
@@ -115,14 +136,10 @@ export default function AgentsTab({ response }: AgentsTabProps) {
       {/* Agent Cards */}
       <div className="agents-list">
         {response.agents.map((agent) => {
-          const explanation = AGENT_EXPLANATIONS[agent.agent_name]
+          const agentInfo = getAgentInfo(agent.agent_name)
           const isExpanded = expandedAgent === agent.agent_id
           const cacheHits = agent.tools_invoked.filter(t => t.cache_hit).length
           const totalTools = agent.tools_invoked.length
-          // Get friendly display name and icon
-          const displayName = explanation?.name || agent.agent_name.replace(/Agent$/, ' Agent').replace(/([A-Z])/g, ' $1').trim()
-          const agentIcon = explanation?.icon || '🤖'
-          const agentRole = explanation?.role || 'AI Agent processing your query'
 
           return (
             <div 
@@ -134,13 +151,10 @@ export default function AgentsTab({ response }: AgentsTabProps) {
                 onClick={() => toggleAgent(agent.agent_id)}
               >
                 <div className="agent-info">
-                  <div className="agent-icon">{agentIcon}</div>
+                  <div className="agent-icon">{agentInfo.icon}</div>
                   <div className="agent-details">
-                    <h4 className="agent-name">{displayName}</h4>
-                    <p className="agent-role">{agentRole}</p>
-                    {agent.model_used && (
-                      <span className="agent-model">{agent.model_used}</span>
-                    )}
+                    <h4 className="agent-name">{agentInfo.name}</h4>
+                    <p className="agent-role">{agentInfo.role}</p>
                   </div>
                 </div>
                 
@@ -169,16 +183,15 @@ export default function AgentsTab({ response }: AgentsTabProps) {
               {isExpanded && (
                 <div className="agent-card-body">
                   {/* Redis Benefits Explanation */}
-                  {showExplanations && explanation && (
+                  {showExplanations && (
                     <div className="redis-explanation">
                       <div className="explanation-header">
                         <Database size={14} />
                         <span>Redis Integration Benefits</span>
                       </div>
-                      <p className="explanation-role">{explanation.role}</p>
-                      <p className="explanation-redis">{explanation.redisIntegration}</p>
+                      <p className="explanation-redis">{agentInfo.redisIntegration}</p>
                       <ul className="explanation-benefits">
-                        {explanation.benefits.map((benefit, bidx) => (
+                        {agentInfo.benefits.map((benefit, bidx) => (
                           <li key={bidx}>
                             <CheckCircle size={12} />
                             {benefit}

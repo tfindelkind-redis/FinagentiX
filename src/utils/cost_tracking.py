@@ -12,16 +12,40 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 
 
-# Azure OpenAI Pricing (as of January 2025)
+# Azure OpenAI Pricing (as of January 2026)
 # Source: https://azure.microsoft.com/pricing/details/cognitive-services/openai-service/
 PRICING = {
+    "gpt-5": {
+        "input_per_1k": 0.00125,  # $1.25 per 1M = $0.00125 per 1K input tokens
+        "output_per_1k": 0.0100,  # $10.00 per 1M = $0.01 per 1K output tokens
+    },
+    "gpt-5.1": {
+        "input_per_1k": 0.00175,  # $1.75 per 1M = $0.00175 per 1K input tokens
+        "output_per_1k": 0.0140,  # $14.00 per 1M = $0.014 per 1K output tokens
+    },
+    "gpt-4.1": {
+        "input_per_1k": 0.0020,   # $2.00 per 1M = $0.002 per 1K input tokens
+        "output_per_1k": 0.0080,  # $8.00 per 1M = $0.008 per 1K output tokens
+    },
     "gpt-4o": {
-        "input_per_1k": 0.0050,   # $0.005 per 1K input tokens
-        "output_per_1k": 0.0150,  # $0.015 per 1K output tokens
+        "input_per_1k": 0.0025,   # $2.50 per 1M = $0.0025 per 1K input tokens
+        "output_per_1k": 0.0100,  # $10.00 per 1M = $0.01 per 1K output tokens
     },
     "gpt-4o-mini": {
-        "input_per_1k": 0.00015,  # $0.00015 per 1K input tokens
-        "output_per_1k": 0.0006,  # $0.0006 per 1K output tokens
+        "input_per_1k": 0.00015,  # $0.15 per 1M = $0.00015 per 1K input tokens
+        "output_per_1k": 0.0006,  # $0.60 per 1M = $0.0006 per 1K output tokens
+    },
+    "o3": {
+        "input_per_1k": 0.0100,   # $10.00 per 1M = $0.01 per 1K input tokens
+        "output_per_1k": 0.0400,  # $40.00 per 1M = $0.04 per 1K output tokens
+    },
+    "o3-mini": {
+        "input_per_1k": 0.0011,   # $1.10 per 1M = $0.0011 per 1K input tokens
+        "output_per_1k": 0.0044,  # $4.40 per 1M = $0.0044 per 1K output tokens
+    },
+    "o4-mini": {
+        "input_per_1k": 0.0011,   # $1.10 per 1M = $0.0011 per 1K input tokens
+        "output_per_1k": 0.0044,  # $4.40 per 1M = $0.0044 per 1K output tokens
     },
     "gpt-4": {
         "input_per_1k": 0.03,     # $0.03 per 1K input tokens
@@ -32,10 +56,10 @@ PRICING = {
         "output_per_1k": 0.002,   # $0.002 per 1K output tokens
     },
     "text-embedding-3-large": {
-        "per_1k": 0.0010,         # $0.001 per 1K tokens
+        "per_1k": 0.00013,        # $0.13 per 1M = $0.00013 per 1K tokens
     },
     "text-embedding-3-small": {
-        "per_1k": 0.0002,         # $0.0002 per 1K tokens
+        "per_1k": 0.00002,        # $0.02 per 1M = $0.00002 per 1K tokens
     },
     "text-embedding-ada-002": {
         "per_1k": 0.0001,         # $0.0001 per 1K tokens
@@ -59,7 +83,7 @@ class CostCalculator:
         Initialize cost calculator
         
         Args:
-            model: LLM model name for token counting
+            model: LLM model name for token counting (default matches AZURE_OPENAI_GPT4_DEPLOYMENT)
             embedding_model: Embedding model for cost calculation
         """
         self.model = model

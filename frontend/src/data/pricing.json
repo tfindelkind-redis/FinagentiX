@@ -1,0 +1,658 @@
+{
+  "metadata": {
+    "lastUpdated": "2026-01-16",
+    "sources": {
+      "azureOpenAI": "https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/",
+      "openAI": "https://openai.com/pricing",
+      "azureManagedRedis": "https://azure.microsoft.com/en-us/pricing/details/azure-cache-for-redis/"
+    },
+    "notes": "Prices in USD. Run scripts/update-pricing.ts to refresh."
+  },
+  
+  "models": {
+    "gpt-5": {
+      "name": "GPT-5",
+      "provider": "Azure OpenAI",
+      "versions": ["2025-08-07"],
+      "contextWindow": 200000,
+      "pricing": {
+        "payAsYouGo": {
+          "inputPer1MTokens": 1.25,
+          "outputPer1MTokens": 10.00,
+          "cachedInputPer1MTokens": 0.13
+        },
+        "batch": {
+          "inputPer1MTokens": 0.63,
+          "outputPer1MTokens": 5.00,
+          "cachedInputPer1MTokens": 0.07
+        },
+        "provisioned": {
+          "costPerPTUPerHour": 1.00,
+          "minPTUs": 15,
+          "monthlyPer100PTU": 26000
+        }
+      },
+      "rateLimits": {
+        "standard": { "rpm": 100, "tpm": 200000 },
+        "provisioned": { "rpm": "unlimited", "tpm": "per PTU" }
+      },
+      "bestFor": ["Complex reasoning", "Multimodal", "Agentic planning", "Enterprise workloads"],
+      "latencyProfile": "medium"
+    },
+
+    "gpt-5-mini": {
+      "name": "GPT-5 Mini",
+      "provider": "Azure OpenAI",
+      "versions": ["2025-08-07"],
+      "contextWindow": 200000,
+      "pricing": {
+        "payAsYouGo": {
+          "inputPer1MTokens": 0.25,
+          "outputPer1MTokens": 2.00,
+          "cachedInputPer1MTokens": 0.03
+        }
+      },
+      "rateLimits": {
+        "standard": { "rpm": 500, "tpm": 500000 }
+      },
+      "bestFor": ["High volume", "Cost-sensitive", "Simple tasks"],
+      "latencyProfile": "fast"
+    },
+
+    "gpt-5-nano": {
+      "name": "GPT-5 Nano",
+      "provider": "Azure OpenAI",
+      "versions": ["2025-08-07"],
+      "contextWindow": 128000,
+      "pricing": {
+        "payAsYouGo": {
+          "inputPer1MTokens": 0.05,
+          "outputPer1MTokens": 0.40,
+          "cachedInputPer1MTokens": 0.01
+        }
+      },
+      "rateLimits": {
+        "standard": { "rpm": 1000, "tpm": 1000000 }
+      },
+      "bestFor": ["Ultra high volume", "Edge deployment", "Lightweight tasks"],
+      "latencyProfile": "ultra-fast"
+    },
+
+    "gpt-5.1": {
+      "name": "GPT-5.1",
+      "provider": "Azure OpenAI",
+      "versions": ["2025-12-01"],
+      "contextWindow": 200000,
+      "pricing": {
+        "payAsYouGo": {
+          "inputPer1MTokens": 1.25,
+          "outputPer1MTokens": 10.00,
+          "cachedInputPer1MTokens": 0.13
+        }
+      },
+      "rateLimits": {
+        "standard": { "rpm": 100, "tpm": 200000 }
+      },
+      "bestFor": ["Adaptive reasoning", "Improved latency", "Cost efficiency"],
+      "latencyProfile": "fast"
+    },
+
+    "gpt-4.1": {
+      "name": "GPT-4.1",
+      "provider": "Azure OpenAI",
+      "versions": ["2025-04-14"],
+      "contextWindow": 1000000,
+      "pricing": {
+        "payAsYouGo": {
+          "inputPer1MTokens": 2.00,
+          "outputPer1MTokens": 8.00,
+          "cachedInputPer1MTokens": 0.50
+        },
+        "batch": {
+          "inputPer1MTokens": 1.00,
+          "outputPer1MTokens": 4.00
+        },
+        "provisioned": {
+          "costPerPTUPerHour": 1.00,
+          "minPTUs": 15,
+          "monthlyPer100PTU": 26000
+        }
+      },
+      "rateLimits": {
+        "standard": { "rpm": 100, "tpm": 200000 }
+      },
+      "bestFor": ["1M context window", "Creative tasks", "Agentic planning"],
+      "latencyProfile": "medium"
+    },
+
+    "gpt-4.1-mini": {
+      "name": "GPT-4.1 Mini",
+      "provider": "Azure OpenAI",
+      "versions": ["2025-04-14"],
+      "contextWindow": 1000000,
+      "pricing": {
+        "payAsYouGo": {
+          "inputPer1MTokens": 0.40,
+          "outputPer1MTokens": 1.60,
+          "cachedInputPer1MTokens": 0.10
+        },
+        "batch": {
+          "inputPer1MTokens": 0.20,
+          "outputPer1MTokens": 0.80
+        }
+      },
+      "rateLimits": {
+        "standard": { "rpm": 500, "tpm": 500000 }
+      },
+      "bestFor": ["High volume", "Long context", "Cost-efficient"],
+      "latencyProfile": "fast"
+    },
+
+    "gpt-4.1-nano": {
+      "name": "GPT-4.1 Nano",
+      "provider": "Azure OpenAI",
+      "versions": ["2025-04-14"],
+      "contextWindow": 128000,
+      "pricing": {
+        "payAsYouGo": {
+          "inputPer1MTokens": 0.10,
+          "outputPer1MTokens": 0.40,
+          "cachedInputPer1MTokens": 0.03
+        },
+        "batch": {
+          "inputPer1MTokens": 0.05,
+          "outputPer1MTokens": 0.20
+        }
+      },
+      "rateLimits": {
+        "standard": { "rpm": 1000, "tpm": 1000000 }
+      },
+      "bestFor": ["Ultra-efficient", "Edge computing", "Simple tasks"],
+      "latencyProfile": "ultra-fast"
+    },
+
+    "o3": {
+      "name": "o3",
+      "provider": "Azure OpenAI",
+      "versions": ["2025-04-16"],
+      "contextWindow": 200000,
+      "pricing": {
+        "payAsYouGo": {
+          "inputPer1MTokens": 2.00,
+          "outputPer1MTokens": 8.00,
+          "cachedInputPer1MTokens": 0.50
+        },
+        "batch": {
+          "inputPer1MTokens": 1.00,
+          "outputPer1MTokens": 4.00
+        },
+        "provisioned": {
+          "costPerPTUPerHour": 1.00,
+          "minPTUs": 15,
+          "monthlyPer100PTU": 26000
+        }
+      },
+      "rateLimits": {
+        "standard": { "rpm": 30, "tpm": 100000 }
+      },
+      "bestFor": ["Complex reasoning", "Multi-step problems", "Coding", "Math", "Science"],
+      "latencyProfile": "slow"
+    },
+
+    "o3-mini": {
+      "name": "o3 Mini",
+      "provider": "Azure OpenAI",
+      "versions": ["2025-01-31"],
+      "contextWindow": 200000,
+      "pricing": {
+        "payAsYouGo": {
+          "inputPer1MTokens": 1.10,
+          "outputPer1MTokens": 4.40,
+          "cachedInputPer1MTokens": 0.55
+        },
+        "batch": {
+          "inputPer1MTokens": 0.55,
+          "outputPer1MTokens": 2.20
+        },
+        "provisioned": {
+          "costPerPTUPerHour": 1.00,
+          "minPTUs": 15,
+          "monthlyPer100PTU": 26000
+        }
+      },
+      "rateLimits": {
+        "standard": { "rpm": 50, "tpm": 150000 }
+      },
+      "bestFor": ["Reasoning at lower cost", "Coding", "Math"],
+      "latencyProfile": "medium"
+    },
+
+    "o4-mini": {
+      "name": "o4 Mini",
+      "provider": "Azure OpenAI",
+      "versions": ["2025-04-16"],
+      "contextWindow": 200000,
+      "pricing": {
+        "payAsYouGo": {
+          "inputPer1MTokens": 1.10,
+          "outputPer1MTokens": 4.40,
+          "cachedInputPer1MTokens": 0.28
+        },
+        "batch": {
+          "inputPer1MTokens": 0.55,
+          "outputPer1MTokens": 2.20
+        },
+        "provisioned": {
+          "costPerPTUPerHour": 1.00,
+          "minPTUs": 15,
+          "monthlyPer100PTU": 26000
+        }
+      },
+      "rateLimits": {
+        "standard": { "rpm": 50, "tpm": 150000 }
+      },
+      "bestFor": ["Efficient reasoning", "Math", "Coding", "Visual tasks"],
+      "latencyProfile": "medium"
+    },
+
+    "gpt-4o": {
+      "name": "GPT-4o",
+      "provider": "Azure OpenAI",
+      "versions": ["2024-11-20", "2024-08-06", "2024-05-13"],
+      "contextWindow": 128000,
+      "pricing": {
+        "payAsYouGo": {
+          "inputPer1MTokens": 2.50,
+          "outputPer1MTokens": 10.00,
+          "cachedInputPer1MTokens": 1.25
+        },
+        "batch": {
+          "inputPer1MTokens": 1.25,
+          "outputPer1MTokens": 5.00
+        },
+        "provisioned": {
+          "costPerPTUPerHour": 1.00,
+          "minPTUs": 15,
+          "monthlyPer100PTU": 26000
+        }
+      },
+      "rateLimits": {
+        "standard": { "rpm": 60, "tpm": 150000 },
+        "provisioned": { "rpm": "unlimited", "tpm": "per PTU" }
+      },
+      "bestFor": ["Legacy compatibility", "Multimodal", "Vision tasks"],
+      "latencyProfile": "medium"
+    },
+    
+    "gpt-4o-mini": {
+      "name": "GPT-4o Mini",
+      "provider": "Azure OpenAI",
+      "versions": ["2024-07-18"],
+      "contextWindow": 128000,
+      "pricing": {
+        "payAsYouGo": {
+          "inputPer1MTokens": 0.15,
+          "outputPer1MTokens": 0.60,
+          "cachedInputPer1MTokens": 0.075
+        },
+        "batch": {
+          "inputPer1MTokens": 0.075,
+          "outputPer1MTokens": 0.30
+        },
+        "provisioned": {
+          "costPerPTUPerHour": 1.00,
+          "minPTUs": 15,
+          "monthlyPer100PTU": 26000
+        }
+      },
+      "rateLimits": {
+        "standard": { "rpm": 500, "tpm": 500000 }
+      },
+      "bestFor": ["High volume", "Cost-sensitive", "Simple tasks"],
+      "latencyProfile": "fast"
+    },
+    
+    "o1": {
+      "name": "o1",
+      "provider": "Azure OpenAI",
+      "versions": ["2024-12-17"],
+      "contextWindow": 200000,
+      "pricing": {
+        "payAsYouGo": {
+          "inputPer1MTokens": 15.00,
+          "outputPer1MTokens": 60.00,
+          "cachedInputPer1MTokens": 7.50
+        }
+      },
+      "rateLimits": {
+        "standard": { "rpm": 10, "tpm": 50000 }
+      },
+      "bestFor": ["Complex reasoning", "Multi-step problems", "Research"],
+      "latencyProfile": "very-slow"
+    },
+    
+    "o1-mini": {
+      "name": "o1 Mini",
+      "provider": "Azure OpenAI",
+      "versions": ["2024-09-12"],
+      "contextWindow": 128000,
+      "pricing": {
+        "payAsYouGo": {
+          "inputPer1MTokens": 1.10,
+          "outputPer1MTokens": 4.40,
+          "cachedInputPer1MTokens": 0.55
+        }
+      },
+      "rateLimits": {
+        "standard": { "rpm": 30, "tpm": 150000 }
+      },
+      "bestFor": ["Reasoning at lower cost", "Coding", "Math"],
+      "latencyProfile": "slow"
+    },
+
+    "gpt-4-turbo": {
+      "name": "GPT-4 Turbo (Legacy)",
+      "provider": "Azure OpenAI",
+      "versions": ["2024-04-09"],
+      "contextWindow": 128000,
+      "pricing": {
+        "payAsYouGo": {
+          "inputPer1MTokens": 11.00,
+          "outputPer1MTokens": 33.00
+        }
+      },
+      "rateLimits": {
+        "standard": { "rpm": 30, "tpm": 80000 }
+      },
+      "bestFor": ["Legacy compatibility"],
+      "latencyProfile": "slow",
+      "deprecated": true
+    },
+    
+    "gpt-35-turbo": {
+      "name": "GPT-3.5 Turbo (Legacy)",
+      "provider": "Azure OpenAI",
+      "versions": ["0125", "1106"],
+      "contextWindow": 16385,
+      "pricing": {
+        "payAsYouGo": {
+          "inputPer1MTokens": 0.55,
+          "outputPer1MTokens": 1.65
+        }
+      },
+      "rateLimits": {
+        "standard": { "rpm": 300, "tpm": 300000 }
+      },
+      "bestFor": ["Legacy compatibility", "Simple chat"],
+      "latencyProfile": "fast",
+      "deprecated": true
+    }
+  },
+  
+  "embeddings": {
+    "text-embedding-3-large": {
+      "name": "text-embedding-3-large",
+      "provider": "Azure OpenAI",
+      "dimensions": 3072,
+      "maxTokens": 8191,
+      "pricing": {
+        "per1MTokens": 0.13
+      },
+      "bestFor": ["High accuracy", "Semantic caching", "RAG"]
+    },
+    "text-embedding-3-small": {
+      "name": "text-embedding-3-small",
+      "provider": "Azure OpenAI",
+      "dimensions": 1536,
+      "maxTokens": 8191,
+      "pricing": {
+        "per1MTokens": 0.02
+      },
+      "bestFor": ["Cost-sensitive", "High volume", "Simple similarity"]
+    },
+    "text-embedding-ada-002": {
+      "name": "text-embedding-ada-002",
+      "provider": "Azure OpenAI",
+      "dimensions": 1536,
+      "maxTokens": 8191,
+      "pricing": {
+        "per1MTokens": 0.10
+      },
+      "bestFor": ["Legacy compatibility"]
+    }
+  },
+  
+  "redis": {
+    "amr": {
+      "name": "Azure Managed Redis",
+      "description": "Redis 7.4+ with full Redis Stack (Search, JSON, TimeSeries, Bloom)",
+      "tiers": {
+        "memory-optimized": {
+          "name": "Memory Optimized",
+          "description": "Best for caching, sessions, semantic cache",
+          "skus": {
+            "M10": { "memory": "10 GB", "monthlyPrice": 438, "vCPUs": 2, "connections": 10000, "bestFor": "Dev/Test, Small apps" },
+            "M20": { "memory": "20 GB", "monthlyPrice": 876, "vCPUs": 2, "connections": 10000, "bestFor": "Small production" },
+            "M50": { "memory": "50 GB", "monthlyPrice": 2190, "vCPUs": 4, "connections": 16000, "bestFor": "Medium production" },
+            "M100": { "memory": "100 GB", "monthlyPrice": 4380, "vCPUs": 8, "connections": 20000, "bestFor": "Large production" },
+            "M150": { "memory": "150 GB", "monthlyPrice": 6570, "vCPUs": 12, "connections": 25000, "bestFor": "High-memory workloads" },
+            "M250": { "memory": "250 GB", "monthlyPrice": 10950, "vCPUs": 16, "connections": 40000, "bestFor": "Enterprise" },
+            "M350": { "memory": "350 GB", "monthlyPrice": 15330, "vCPUs": 24, "connections": 50000, "bestFor": "Large enterprise" },
+            "M500": { "memory": "500 GB", "monthlyPrice": 21900, "vCPUs": 32, "connections": 65000, "bestFor": "Mission critical" },
+            "M700": { "memory": "700 GB", "monthlyPrice": 30660, "vCPUs": 48, "connections": 80000, "bestFor": "Extreme scale" },
+            "M1000": { "memory": "1 TB", "monthlyPrice": 43800, "vCPUs": 64, "connections": 120000, "bestFor": "Maximum capacity" }
+          }
+        },
+        "balanced": {
+          "name": "Balanced (Compute + Memory)",
+          "description": "Best for complex queries, vector search, analytics",
+          "skus": {
+            "B0": { "memory": "0.5 GB", "monthlyPrice": 22, "vCPUs": 1, "connections": 256, "bestFor": "Prototyping" },
+            "B1": { "memory": "1 GB", "monthlyPrice": 44, "vCPUs": 1, "connections": 1000, "bestFor": "Dev/Test" },
+            "B3": { "memory": "3 GB", "monthlyPrice": 131, "vCPUs": 2, "connections": 2000, "bestFor": "Small apps" },
+            "B5": { "memory": "5 GB", "monthlyPrice": 219, "vCPUs": 2, "connections": 4000, "bestFor": "Small production" },
+            "B10": { "memory": "10 GB", "monthlyPrice": 438, "vCPUs": 4, "connections": 10000, "bestFor": "Vector search" },
+            "B20": { "memory": "20 GB", "monthlyPrice": 876, "vCPUs": 4, "connections": 12000, "bestFor": "RAG applications" },
+            "B50": { "memory": "50 GB", "monthlyPrice": 2190, "vCPUs": 8, "connections": 16000, "bestFor": "Large RAG" },
+            "B100": { "memory": "100 GB", "monthlyPrice": 4380, "vCPUs": 16, "connections": 20000, "bestFor": "Enterprise search" }
+          }
+        },
+        "compute-optimized": {
+          "name": "Compute Optimized",
+          "description": "Best for high throughput, real-time processing",
+          "skus": {
+            "C1": { "memory": "1 GB", "monthlyPrice": 88, "vCPUs": 4, "connections": 2000, "bestFor": "High RPS, low data" },
+            "C3": { "memory": "3 GB", "monthlyPrice": 175, "vCPUs": 4, "connections": 4000, "bestFor": "Rate limiting" },
+            "C5": { "memory": "5 GB", "monthlyPrice": 263, "vCPUs": 8, "connections": 6000, "bestFor": "Leaderboards" },
+            "C10": { "memory": "10 GB", "monthlyPrice": 526, "vCPUs": 16, "connections": 10000, "bestFor": "Gaming" },
+            "C20": { "memory": "20 GB", "monthlyPrice": 1052, "vCPUs": 32, "connections": 16000, "bestFor": "High throughput" }
+          }
+        },
+        "flash-optimized": {
+          "name": "Flash Optimized",
+          "description": "Best for large datasets with tiered storage (RAM + NVMe)",
+          "skus": {
+            "F300": { "memory": "384 GB (64 RAM + 320 Flash)", "monthlyPrice": 5110, "vCPUs": 8, "connections": 30000, "bestFor": "Large datasets" },
+            "F700": { "memory": "896 GB (128 RAM + 768 Flash)", "monthlyPrice": 10220, "vCPUs": 16, "connections": 50000, "bestFor": "Very large datasets" },
+            "F1500": { "memory": "1.79 TB (256 RAM + 1.5TB Flash)", "monthlyPrice": 18615, "vCPUs": 32, "connections": 80000, "bestFor": "Huge datasets" }
+          }
+        }
+      },
+      "features": ["Vector Search", "RedisJSON", "RediSearch", "RedisTimeSeries", "RedisBloom", "Active-Active Geo"],
+      "redisVersion": "7.4+"
+    },
+    
+    "acre": {
+      "name": "Azure Cache for Redis Enterprise",
+      "description": "Legacy enterprise Redis on Azure",
+      "tiers": {
+        "enterprise": {
+          "name": "Enterprise",
+          "skus": {
+            "E10": { "memory": "12 GB", "monthlyPrice": 685, "bestFor": "Small enterprise" },
+            "E20": { "memory": "25 GB", "monthlyPrice": 1370, "bestFor": "Medium enterprise" },
+            "E50": { "memory": "50 GB", "monthlyPrice": 2740, "bestFor": "Large enterprise" },
+            "E100": { "memory": "100 GB", "monthlyPrice": 5480, "bestFor": "Very large" }
+          }
+        },
+        "enterpriseFlash": {
+          "name": "Enterprise Flash",
+          "skus": {
+            "E10 Flash": { "memory": "384 GB", "monthlyPrice": 5114, "bestFor": "Large flash" },
+            "E20 Flash": { "memory": "768 GB", "monthlyPrice": 10228, "bestFor": "Very large flash" }
+          }
+        }
+      },
+      "features": ["Search", "JSON", "TimeSeries", "Bloom"],
+      "redisVersion": "6.x",
+      "notes": "Consider migrating to AMR for Redis 7.4+ features"
+    }
+  },
+  
+  "skuGuidance": {
+    "byUserCount": {
+      "upTo1000": {
+        "users": "Up to 1,000",
+        "description": "Small application or pilot",
+        "recommended": {
+          "model": "gpt-4o-mini",
+          "redis": "AMR B5 or M10",
+          "reasoning": "Low cost entry, sufficient for validation"
+        },
+        "monthlyEstimate": {
+          "llmCost": "$500-1,500",
+          "redisCost": "$219-438",
+          "total": "$720-1,940"
+        }
+      },
+      "upTo10000": {
+        "users": "1,000 - 10,000",
+        "description": "Growing production application",
+        "recommended": {
+          "model": "gpt-4o with semantic cache",
+          "redis": "AMR M20 or B10",
+          "reasoning": "Quality responses, cache reduces LLM costs 60-80%"
+        },
+        "monthlyEstimate": {
+          "llmCost": "$3,000-8,000 (with cache)",
+          "redisCost": "$438-876",
+          "total": "$3,440-8,880"
+        }
+      },
+      "upTo50000": {
+        "users": "10,000 - 50,000",
+        "description": "Scale production",
+        "recommended": {
+          "model": "gpt-4o with PTU",
+          "redis": "AMR M50 or B20",
+          "reasoning": "PTU for predictable costs, larger cache for hit rate"
+        },
+        "monthlyEstimate": {
+          "llmCost": "$15,000-40,000",
+          "redisCost": "$876-2,190",
+          "total": "$15,880-42,200"
+        }
+      },
+      "over50000": {
+        "users": "50,000+",
+        "description": "Enterprise scale",
+        "recommended": {
+          "model": "gpt-4o with high PTU count",
+          "redis": "AMR M100+ or Flash",
+          "reasoning": "Reserved capacity, large cache, geo-replication"
+        },
+        "monthlyEstimate": {
+          "llmCost": "$50,000+",
+          "redisCost": "$4,380+",
+          "total": "$54,000+"
+        }
+      }
+    },
+    
+    "byConcurrency": {
+      "low": {
+        "range": "< 10 concurrent",
+        "model": "Pay-as-you-go any model",
+        "redis": "Balanced tier",
+        "notes": "Standard rate limits sufficient"
+      },
+      "medium": {
+        "range": "10-100 concurrent",
+        "model": "gpt-4o-mini or PTU consideration",
+        "redis": "Memory Optimized",
+        "notes": "Watch rate limits, cache helps significantly"
+      },
+      "high": {
+        "range": "100-1000 concurrent",
+        "model": "PTU recommended",
+        "redis": "Compute Optimized or clustered",
+        "notes": "Must have PTU to avoid rate limiting"
+      },
+      "extreme": {
+        "range": "1000+ concurrent",
+        "model": "PTU required + multiple deployments",
+        "redis": "Clustered with geo-replication",
+        "notes": "Multi-region architecture needed"
+      }
+    },
+    
+    "byLatencyRequirement": {
+      "realtime": {
+        "requirement": "< 200ms P95",
+        "approach": "Aggressive caching (95%+ target hit rate)",
+        "model": "gpt-4o-mini for misses",
+        "redis": "Memory or Compute optimized",
+        "notes": "Most responses must come from cache"
+      },
+      "interactive": {
+        "requirement": "< 2s P95",
+        "approach": "Standard caching (70-80% hit rate)",
+        "model": "gpt-4o",
+        "redis": "Balanced tier",
+        "notes": "Users tolerate LLM latency occasionally"
+      },
+      "batch": {
+        "requirement": "> 2s acceptable",
+        "approach": "Optional caching, cost focus",
+        "model": "o1-mini for complex, gpt-4o-mini for simple",
+        "redis": "Any tier",
+        "notes": "Optimize for cost over speed"
+      }
+    },
+    
+    "byUseCase": {
+      "semanticCache": {
+        "name": "Semantic Caching for LLM",
+        "description": "Cache similar queries to reduce LLM costs",
+        "recommendedRedis": "AMR Memory Optimized (M-series)",
+        "sizing": "Estimate: 1KB per cached response, 10M responses = 10GB",
+        "model": "gpt-4o + text-embedding-3-large",
+        "expectedSavings": "60-80% LLM cost reduction"
+      },
+      "ragVectorSearch": {
+        "name": "RAG / Vector Search",
+        "description": "Retrieve documents for LLM context",
+        "recommendedRedis": "AMR Balanced (B-series) for vector indexes",
+        "sizing": "1KB per doc chunk × embedding, 1M chunks = ~5GB",
+        "model": "gpt-4o + text-embedding-3-large",
+        "notes": "B-series has better compute for vector queries"
+      },
+      "agentMemory": {
+        "name": "AI Agent Memory",
+        "description": "Conversation history and semantic recall",
+        "recommendedRedis": "AMR Memory Optimized",
+        "sizing": "~2KB per message, 1M conversations × 20 msgs = 40GB",
+        "model": "Any",
+        "notes": "Fast reads critical for conversation flow"
+      },
+      "featureStore": {
+        "name": "ML Feature Store",
+        "description": "Real-time feature serving for ML inference",
+        "recommendedRedis": "AMR Compute Optimized",
+        "sizing": "Depends on feature count and cardinality",
+        "model": "N/A",
+        "notes": "High RPS, low latency critical"
+      }
+    }
+  }
+}

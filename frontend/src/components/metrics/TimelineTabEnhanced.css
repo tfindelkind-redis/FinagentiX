@@ -148,6 +148,22 @@
   margin-top: 2px;
 }
 
+/* PO-Friendly Explanation */
+.po-explanation {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background-color: var(--color-bg-tertiary);
+  border-left: 3px solid var(--color-primary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.po-explanation p {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
 /* Expand Details Button */
 .expand-details-btn {
   display: flex;

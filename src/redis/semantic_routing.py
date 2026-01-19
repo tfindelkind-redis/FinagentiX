@@ -481,20 +481,24 @@ class SemanticRouter:
         """
         cleared = 0
         
+        def matches_pattern(key: bytes, pat: str) -> bool:
+            """Check if a key matches the pattern"""
+            key_str = key.decode() if isinstance(key, bytes) else key
+            return pat in key_str
+        
         try:
             # Clear vector search examples (learned routes)
             if self.vector_enabled:
                 example_keys = list(self.redis.scan_iter(f"{self.example_prefix}*", count=200))
                 if pattern:
-                    # Filter by pattern if provided
-                    example_keys = [k for k in example_keys if pattern.encode() in k or pattern in k.decode() if isinstance(k, bytes) else pattern in k]
+                    example_keys = [k for k in example_keys if matches_pattern(k, pattern)]
                 if example_keys:
                     cleared += self.redis.delete(*example_keys)
             
             # Clear usage counters
             usage_keys = list(self.redis.scan_iter(f"{self.prefix}usage:*", count=200))
             if pattern:
-                usage_keys = [k for k in usage_keys if pattern.encode() in k or pattern in k.decode() if isinstance(k, bytes) else pattern in k]
+                usage_keys = [k for k in usage_keys if matches_pattern(k, pattern)]
             if usage_keys:
                 cleared += self.redis.delete(*usage_keys)
             

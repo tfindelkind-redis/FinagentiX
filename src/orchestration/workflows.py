@@ -171,13 +171,15 @@ class BaseWorkflow:
         )
 
         if cache_checked or cache_hit:
+            # Tool cache hit saves ~$0.003 (external API call + processing)
+            tool_cache_cost_saved = 0.003 if cache_hit else 0.0
             self.metrics.record_cache_check(
                 layer_name=cache_layer,
                 hit=cache_hit,
                 similarity=1.0 if cache_hit else None,
                 query_time_ms=duration_ms,
                 matched_query=f"{tool_name}:{parameters}",
-                cost_saved=0.0,
+                cost_saved=tool_cache_cost_saved,
             )
 
     def _structure_market_result(self, ticker: str, payload: Dict[str, Any]) -> Dict[str, Any]:

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Sparkles, Trash2 } from 'lucide-react'
-import { clearSemanticCache, clearToolCache } from '@/lib/api'
+import { Sparkles, Trash2, Route } from 'lucide-react'
+import { clearSemanticCache, clearToolCache, clearRouterCache } from '@/lib/api'
 import type { CacheOperationResult } from '@/types/api'
 import './CacheControls.css'
 
@@ -21,6 +21,7 @@ function formatClearedMessage(result: CacheOperationResult, label?: string) {
 
 export default function CacheControls() {
   const [semanticStatus, setSemanticStatus] = useState<OperationStatus>(initialStatus)
+  const [routerStatus, setRouterStatus] = useState<OperationStatus>(initialStatus)
   const [toolStatus, setToolStatus] = useState<OperationStatus>(initialStatus)
   const [toolName, setToolName] = useState('')
 
@@ -35,6 +36,20 @@ export default function CacheControls() {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to clear semantic cache'
       setSemanticStatus({ state: 'error', message })
+    }
+  }
+
+  const handleRouterClear = async () => {
+    setRouterStatus({ state: 'loading', message: null })
+    try {
+      const result = await clearRouterCache()
+      setRouterStatus({
+        state: 'success',
+        message: formatClearedMessage(result, 'Router cache'),
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to clear router cache'
+      setRouterStatus({ state: 'error', message })
     }
   }
 
@@ -67,6 +82,21 @@ export default function CacheControls() {
         </button>
         {semanticStatus.message && (
           <span className={`cache-status ${semanticStatus.state}`}>{semanticStatus.message}</span>
+        )}
+      </div>
+
+      <div className="cache-action">
+        <button
+          type="button"
+          className={`cache-button ${routerStatus.state}`}
+          onClick={handleRouterClear}
+          disabled={routerStatus.state === 'loading'}
+        >
+          <Route size={16} />
+          <span>Clear Router Cache</span>
+        </button>
+        {routerStatus.message && (
+          <span className={`cache-status ${routerStatus.state}`}>{routerStatus.message}</span>
         )}
       </div>
 

@@ -280,10 +280,10 @@ async def query_enhanced(
         )
         
         # Router cache hit saves an LLM call for intent classification
-        # GPT-4o router cost: ~200 input tokens, ~30 output tokens
-        # Router cost saved = (200 * 2.50 / 1_000_000) + (30 * 10.00 / 1_000_000) = ~$0.0008
+        # GPT-4o router cost: ~500 input tokens (system prompt + examples), ~50 output tokens
+        # Router cost saved = (500 * 2.50 / 1_000_000) + (50 * 10.00 / 1_000_000) = ~$0.002
         router_cache_hit = route is not None
-        router_cost_saved = 0.0008 if router_cache_hit else 0.0
+        router_cost_saved = 0.002 if router_cache_hit else 0.0
         metrics.record_cache_check(
             layer_name="router_cache",
             hit=router_cache_hit,
@@ -1301,6 +1301,38 @@ async def clear_semantic_cache_endpoint(
         return {
             "success": False,
             "cleared_count": 0,
+            "error": str(e)
+        }
+
+
+@app.post("/api/cache/router/clear")
+async def clear_router_cache_endpoint(
+    request: CacheClearRequest = CacheClearRequest(),
+    semantic_router: SemanticRouter = Depends(get_semantic_router),
+) -> Dict[str, Any]:
+    """
+    Clear router cache entries (learned routes and usage counters)
+    
+    Args:
+        pattern: Optional route_id pattern to match (default: clear all learned routes)
+    
+    Returns:
+        Number of entries cleared
+    """
+    try:
+        cleared = semantic_router.clear(request.pattern)
+        return {
+            "success": True,
+            "cleared_count": cleared,
+            "cleared_entries": cleared,
+            "pattern": request.pattern or "*",
+            "message": f"Cleared {cleared} router cache entries"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "cleared_count": 0,
+            "cleared_entries": 0,
             "error": str(e)
         }
 

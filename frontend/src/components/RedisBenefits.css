@@ -629,29 +629,129 @@
   background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(59, 130, 246, 0.1));
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: var(--spacing-md);
-  margin-bottom: var(--spacing-lg);
+  padding: 0;
+  margin-bottom: var(--spacing-md);
 }
 
-.estimate-header {
+.estimated-hit-rate-panel > summary {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
   color: var(--color-text-primary);
   font-weight: 600;
-  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  cursor: pointer;
+  list-style: none;
+}
+
+.estimated-hit-rate-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.estimated-hit-rate-panel > summary::before {
+  content: '▶';
+  font-size: 0.7rem;
+  transition: transform 0.2s ease;
+  color: var(--color-text-muted);
+}
+
+.estimated-hit-rate-panel[open] > summary::before {
+  transform: rotate(90deg);
 }
 
 .estimate-header svg {
   color: var(--color-success);
 }
 
+.estimate-value-inline {
+  margin-left: auto;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-success);
+}
+
 .estimate-content {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
+  padding: 0 var(--spacing-md) var(--spacing-md);
 }
 
+.estimate-main-compact {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.estimate-main-compact .estimate-label {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.estimate-main-compact .estimate-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-success);
+}
+
+.estimate-main-compact .estimate-range {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.estimate-main-compact .info-icon {
+  color: var(--color-info);
+  cursor: help;
+}
+
+/* Compact Cache Layers - Inline Tags */
+.cache-layers-compact {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+}
+
+.cache-layers-compact .layer-tag {
+  background: var(--color-bg-tertiary);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+
+.cache-layers-compact .layer-note {
+  color: var(--color-success);
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+/* Compact Estimate Factors - Inline */
+.estimate-factors-compact {
+  display: flex;
+  gap: var(--spacing-md);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  flex-wrap: wrap;
+}
+
+.estimate-factors-compact span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.estimate-factors-compact span::before {
+  content: '•';
+  color: var(--color-border);
+}
+
+.estimate-factors-compact span:first-child::before {
+  display: none;
+}
+
+/* Keep old styles for backwards compatibility but hide them */
 .estimate-main {
   display: flex;
   align-items: baseline;
@@ -1533,8 +1633,8 @@
   border-left: 3px solid var(--color-success);
 }
 
-.memory-card.cosmosdb-memory {
-  border-left: 3px solid var(--color-warning);
+.memory-card.dynamodb-memory {
+  border-left: 3px solid #FF9900;  /* AWS Orange */
 }
 
 .memory-header {

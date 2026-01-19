@@ -10,6 +10,13 @@ export default function OverviewTab({ response }: OverviewTabProps) {
   const metrics = response.performance
   const costs = response.cost
 
+  // Calculate actual cache hit rate from cache layers
+  // Only count layers that were actually checked
+  const cacheHits = response.cache_layers.filter(l => l.hit).length
+  const cacheMisses = response.cache_layers.filter(l => l.checked && !l.hit).length
+  const totalChecked = cacheHits + cacheMisses
+  const cacheHitRate = totalChecked > 0 ? (cacheHits / totalChecked * 100) : 0
+
   return (
     <div className="overview-tab">
       <div className="overview-grid">
@@ -45,9 +52,9 @@ export default function OverviewTab({ response }: OverviewTabProps) {
           </div>
           <div className="metric-details">
             <div className="metric-label">Cache Hit Rate</div>
-            <div className="metric-value">{response.overall_cache_hit ? '100' : '0'}%</div>
+            <div className="metric-value">{cacheHitRate.toFixed(0)}%</div>
             <div className="metric-sublabel">
-              {response.cache_layers.filter(l => l.hit).length} hits • {response.cache_layers.filter(l => !l.hit && l.checked).length} misses
+              {cacheHits} hits • {cacheMisses} misses
             </div>
           </div>
         </div>

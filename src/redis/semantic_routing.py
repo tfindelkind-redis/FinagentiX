@@ -468,6 +468,52 @@ class SemanticRouter:
             print(f"❌ Error getting all routes: {e}")
             return []
     
+    def clear(self, pattern: Optional[str] = None) -> int:
+        """
+        Clear router cache entries
+        
+        Args:
+            pattern: Optional pattern to match (e.g., route_id). If None, clears all learned routes
+                     but preserves the default routes.
+        
+        Returns:
+            Number of entries cleared
+        """
+        cleared = 0
+        
+        try:
+            # Clear vector search examples (learned routes)
+            if self.vector_enabled:
+                example_keys = list(self.redis.scan_iter(f"{self.example_prefix}*", count=200))
+                if pattern:
+                    # Filter by pattern if provided
+                    example_keys = [k for k in example_keys if pattern.encode() in k or pattern in k.decode() if isinstance(k, bytes) else pattern in k]
+                if example_keys:
+                    cleared += self.redis.delete(*example_keys)
+            
+            # Clear usage counters
+            usage_keys = list(self.redis.scan_iter(f"{self.prefix}usage:*", count=200))
+            if pattern:
+                usage_keys = [k for k in usage_keys if pattern.encode() in k or pattern in k.decode() if isinstance(k, bytes) else pattern in k]
+            if usage_keys:
+                cleared += self.redis.delete(*usage_keys)
+            
+            # Clear pattern hash mappings
+            pattern_keys = list(self.redis.scan_iter(f"{self.prefix}pattern:*", count=200))
+            if pattern_keys:
+                cleared += self.redis.delete(*pattern_keys)
+            
+            # Re-initialize default routes (restores them after clearing)
+            self._route_cache.clear()
+            self._init_default_routes()
+            
+            print(f"✅ Cleared {cleared} router cache entries")
+            return cleared
+            
+        except Exception as e:
+            print(f"❌ Error clearing router cache: {e}")
+            return cleared
+    
     def get_stats(self) -> Dict[str, Any]:
         """Get routing statistics"""
         routes = self.get_all_routes()

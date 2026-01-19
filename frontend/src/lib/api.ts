@@ -105,6 +105,14 @@ export async function clearToolCache(toolName?: string): Promise<CacheOperationR
   });
 }
 
+export async function clearRouterCache(pattern?: string): Promise<CacheOperationResult> {
+  const body = pattern ? { pattern } : {};
+  return fetchJSON<CacheOperationResult>('/api/cache/router/clear', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
 // ==================== Health Endpoint ====================
 
 export async function getHealth(): Promise<{
@@ -131,6 +139,7 @@ export const api = {
   cache: {
     clearSemantic: clearSemanticCache,
     clearTool: clearToolCache,
+    clearRouter: clearRouterCache,
   },
   health: getHealth,
 };

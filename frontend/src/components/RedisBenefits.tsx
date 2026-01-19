@@ -307,6 +307,23 @@ export default function RedisBenefits() {
     [config.numRequests, config.warmupRounds]
   )
 
+  // Calculate realistic production hit rates (benchmark rates can be artificially high due to warmup)
+  const getRealisticHitRate = useCallback((cacheType: string, benchmarkRate: number) => {
+    // Production hit rates are typically lower due to:
+    // - More diverse query patterns
+    // - Cache eviction under load
+    // - TTL expiration
+    // - New/unseen queries
+    const maxRealisticRates: Record<string, number> = {
+      'semantic_cache': 65, // 40-65% typical for semantic matching
+      'router_cache': 80,   // 70-80% typical for routing decisions
+      'tool_cache': 45,     // 30-45% typical due to TTL-based expiration
+    }
+    const maxRate = maxRealisticRates[cacheType] || 50
+    // Use the lower of benchmark rate or realistic max
+    return Math.min(benchmarkRate, maxRate)
+  }, [])
+
   // Get model pricing from loaded data
   const getModelPricing = useCallback((modelId: string) => {
     const model = (pricingData.models as any)[modelId]
@@ -722,64 +739,36 @@ export default function RedisBenefits() {
         </span>
       </div>
 
-      {/* Estimated Cache Hit Rate Panel */}
-      <div className="estimated-hit-rate-panel">
-        <div className="estimate-header">
+      {/* Estimated Cache Hit Rate Panel - Collapsible */}
+      <details className="estimated-hit-rate-panel" open>
+        <summary className="estimate-header">
           <TrendingUp size={18} />
           <span>Expected Cache Performance</span>
-        </div>
+          <span className="estimate-value-inline">{estimatedHitRate.estimated.toFixed(0)}%</span>
+        </summary>
         <div className="estimate-content">
-          <div className="estimate-main">
-            <span className="estimate-label">Estimated Semantic Cache Hit Rate:</span>
+          <div className="estimate-main-compact">
+            <span className="estimate-label">Semantic Cache Hit Rate:</span>
             <span className="estimate-value">{estimatedHitRate.estimated.toFixed(0)}%</span>
-            <span className="estimate-range">
-              (Range: {estimatedHitRate.range.min.toFixed(0)}% - {estimatedHitRate.range.max.toFixed(0)}%)
-            </span>
-          </div>
-          <div className="estimate-explanation">
-            <Info size={14} />
-            <span>{estimatedHitRate.explanation}</span>
+            <span className="estimate-range">(Range: {estimatedHitRate.range.min.toFixed(0)}% - {estimatedHitRate.range.max.toFixed(0)}%)</span>
+            <span className="info-icon" title={estimatedHitRate.explanation}><Info size={14} /></span>
           </div>
           
-          {/* Multiple Cache Layers Info */}
-          <div className="cache-layers-info">
-            <h5>📚 Multiple Cache Layers</h5>
-            <p>The benchmark tracks cache hits across <strong>all Redis cache layers</strong>:</p>
-            <div className="cache-layer-list">
-              <div className="cache-layer">
-                <span className="layer-name">Semantic Cache</span>
-                <span className="layer-desc">Caches query-response pairs using vector similarity (~{estimatedHitRate.estimated.toFixed(0)}% expected)</span>
-              </div>
-              <div className="cache-layer">
-                <span className="layer-name">Router Cache</span>
-                <span className="layer-desc">Caches agent routing decisions for similar queries (+10-15%)</span>
-              </div>
-              <div className="cache-layer">
-                <span className="layer-name">Tool Cache</span>
-                <span className="layer-desc">Caches external API results with TTL (stock prices, news)</span>
-              </div>
-            </div>
-            <p className="actual-note">
-              <strong>Note:</strong> All three cache layers run on a <strong>single Azure Managed Redis instance</strong> for simplicity and cost efficiency.
-            </p>
+          {/* Compact Cache Layers - Inline */}
+          <div className="cache-layers-compact">
+            <span className="layer-tag"><strong>Semantic:</strong> ~{estimatedHitRate.estimated.toFixed(0)}%</span>
+            <span className="layer-tag"><strong>Router:</strong> +10-15%</span>
+            <span className="layer-tag"><strong>Tool:</strong> TTL-based</span>
+            <span className="layer-note">All on single Azure Managed Redis</span>
           </div>
           
-          <div className="estimate-factors">
-            <div className="factor">
-              <span className="factor-label">Unique Questions:</span>
-              <span className="factor-value">{BASE_QUESTIONS.length} templates × {TICKERS.length} tickers = {estimatedHitRate.uniqueQuestions}</span>
-            </div>
-            <div className="factor">
-              <span className="factor-label">Distribution:</span>
-              <span className="factor-value">Zipf (top 20% queries → 80% traffic)</span>
-            </div>
-            <div className="factor">
-              <span className="factor-label">Semantic Matching:</span>
-              <span className="factor-value">~92% similarity threshold</span>
-            </div>
+          <div className="estimate-factors-compact">
+            <span>{BASE_QUESTIONS.length} templates × {TICKERS.length} tickers = {estimatedHitRate.uniqueQuestions} unique</span>
+            <span>Zipf distribution</span>
+            <span>~92% similarity</span>
           </div>
         </div>
-      </div>
+      </details>
 
       {/* Model & Pricing Information Panel */}
       <details className="pricing-details">
@@ -1135,33 +1124,33 @@ export default function RedisBenefits() {
                 </div>
               </div>
 
-              <div className="memory-card cosmosdb-memory">
+              <div className="memory-card dynamodb-memory">
                 <div className="memory-header">
                   <span className="memory-icon">🐢</span>
-                  <span className="memory-title">CosmosDB (Alternative)</span>
+                  <span className="memory-title">DynamoDB (Alternative)</span>
                 </div>
                 <div className="memory-stats">
                   <div className="memory-stat-row">
                     <span className="stat-label">Context Load Time:</span>
-                    <span className="stat-value bad">15-50ms</span>
+                    <span className="stat-value bad">5-15ms</span>
                   </div>
                   <div className="memory-stat-row">
                     <span className="stat-label">History Retrieval:</span>
-                    <span className="stat-value bad">10-30ms</span>
-                  </div>
-                  <div className="memory-stat-row">
-                    <span className="stat-label">Session Update:</span>
                     <span className="stat-value bad">5-20ms</span>
                   </div>
                   <div className="memory-stat-row">
+                    <span className="stat-label">Session Update:</span>
+                    <span className="stat-value bad">5-15ms</span>
+                  </div>
+                  <div className="memory-stat-row">
                     <span className="stat-label">Semantic Memory Search:</span>
-                    <span className="stat-value bad">50-200ms</span>
+                    <span className="stat-value bad">50-150ms</span>
                   </div>
                 </div>
                 <div className="memory-features">
-                  <span className="feature">⚠️ TTL requires indexing policy</span>
-                  <span className="feature">⚠️ Vector search add-on cost</span>
-                  <span className="feature">⚠️ RU cost per operation</span>
+                  <span className="feature">⚠️ TTL per-item attribute</span>
+                  <span className="feature">⚠️ No native vector search</span>
+                  <span className="feature">⚠️ WCU/RCU capacity planning</span>
                 </div>
               </div>
             </div>
@@ -1173,7 +1162,7 @@ export default function RedisBenefits() {
                   <tr>
                     <th>Operation</th>
                     <th>Redis</th>
-                    <th>CosmosDB</th>
+                    <th>DynamoDB</th>
                     <th>Savings</th>
                   </tr>
                 </thead>
@@ -1181,37 +1170,38 @@ export default function RedisBenefits() {
                   <tr>
                     <td>Load User Profile</td>
                     <td className="good">2ms</td>
-                    <td className="bad">25ms</td>
-                    <td className="savings">92% faster</td>
+                    <td className="bad">10ms</td>
+                    <td className="savings">80% faster</td>
                   </tr>
                   <tr>
                     <td>Get Last 10 Messages</td>
                     <td className="good">0.5ms</td>
-                    <td className="bad">15ms</td>
-                    <td className="savings">97% faster</td>
+                    <td className="bad">8ms</td>
+                    <td className="savings">94% faster</td>
                   </tr>
                   <tr>
                     <td>Update Session State</td>
                     <td className="good">0.3ms</td>
-                    <td className="bad">10ms</td>
-                    <td className="savings">97% faster</td>
+                    <td className="bad">6ms</td>
+                    <td className="savings">95% faster</td>
                   </tr>
                   <tr>
                     <td>Semantic Memory Recall</td>
                     <td className="good">3ms</td>
-                    <td className="bad">100ms</td>
-                    <td className="savings">97% faster</td>
+                    <td className="bad">80ms*</td>
+                    <td className="savings">96% faster</td>
                   </tr>
                   <tr className="total-row">
                     <td><strong>Total per Request</strong></td>
                     <td className="good"><strong>~6ms</strong></td>
-                    <td className="bad"><strong>~150ms</strong></td>
-                    <td className="savings"><strong>96% faster</strong></td>
+                    <td className="bad"><strong>~104ms</strong></td>
+                    <td className="savings"><strong>94% faster</strong></td>
                   </tr>
                 </tbody>
               </table>
               <p className="memory-note">
-                At 3M queries/month, Redis saves <strong>~120 hours</strong> of cumulative latency vs CosmosDB.
+                At 3M queries/month, Redis saves <strong>~82 hours</strong> of cumulative latency vs DynamoDB.<br/>
+                <small>*DynamoDB requires external service (OpenSearch) for vector similarity search</small>
               </p>
             </div>
           </div>
@@ -1253,22 +1243,28 @@ export default function RedisBenefits() {
               <div className="projection-grid">
                 <div className="projection-card">
                   <span className="projection-label">Hit Rate</span>
-                  <span className="projection-value good">{stats.cacheLayerStats['router_cache']?.hitRate.toFixed(1) || 0}%</span>
-                  <span className="projection-detail">Routing decisions cached</span>
+                  <span className="projection-value good">
+                    {getRealisticHitRate('router_cache', stats.cacheLayerStats['router_cache']?.hitRate || 0).toFixed(1)}%
+                  </span>
+                  <span className="projection-detail">
+                    {(stats.cacheLayerStats['router_cache']?.hitRate || 0) > 80 
+                      ? `Benchmark: ${stats.cacheLayerStats['router_cache']?.hitRate.toFixed(0)}% → Realistic: ≤80%` 
+                      : 'Routing decisions cached'}
+                  </span>
                 </div>
                 <div className="projection-card">
                   <span className="projection-label">Router Calls Saved</span>
                   <span className="projection-value">
-                    {(3000000 * (stats.cacheLayerStats['router_cache']?.hitRate || 0) / 100).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    {(3000000 * getRealisticHitRate('router_cache', stats.cacheLayerStats['router_cache']?.hitRate || 0) / 100).toLocaleString(undefined, {maximumFractionDigits: 0})}
                   </span>
                   <span className="projection-detail">LLM routing calls avoided</span>
                 </div>
                 <div className="projection-card projection-card-highlight">
                   <span className="projection-label">Monthly Savings</span>
                   <span className="projection-value">
-                    ${(3000000 * (stats.cacheLayerStats['router_cache']?.hitRate || 0) / 100 * 0.0008).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    ${(3000000 * getRealisticHitRate('router_cache', stats.cacheLayerStats['router_cache']?.hitRate || 0) / 100 * 0.002).toLocaleString(undefined, {maximumFractionDigits: 0})}
                   </span>
-                  <span className="projection-detail">@ $0.0008/routing call</span>
+                  <span className="projection-detail">@ $0.002/routing call</span>
                 </div>
               </div>
             </div>
@@ -1278,58 +1274,64 @@ export default function RedisBenefits() {
               <div className="projection-grid">
                 <div className="projection-card">
                   <span className="projection-label">Hit Rate</span>
-                  <span className="projection-value good">{stats.cacheLayerStats['tool_cache']?.hitRate.toFixed(1) || 0}%</span>
-                  <span className="projection-detail">API results cached</span>
+                  <span className="projection-value good">
+                    {getRealisticHitRate('tool_cache', stats.cacheLayerStats['tool_cache']?.hitRate || 0).toFixed(1)}%
+                  </span>
+                  <span className="projection-detail">
+                    {(stats.cacheLayerStats['tool_cache']?.hitRate || 0) > 45 
+                      ? `Benchmark: ${stats.cacheLayerStats['tool_cache']?.hitRate.toFixed(0)}% → Realistic: ≤45%` 
+                      : 'API results cached (TTL-based)'}
+                  </span>
                 </div>
                 <div className="projection-card">
                   <span className="projection-label">API Calls Saved</span>
                   <span className="projection-value">
-                    {(3000000 * (stats.cacheLayerStats['tool_cache']?.hitRate || 0) / 100).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    {(3000000 * getRealisticHitRate('tool_cache', stats.cacheLayerStats['tool_cache']?.hitRate || 0) / 100).toLocaleString(undefined, {maximumFractionDigits: 0})}
                   </span>
                   <span className="projection-detail">External API calls avoided</span>
                 </div>
                 <div className="projection-card projection-card-highlight">
                   <span className="projection-label">Monthly Savings</span>
                   <span className="projection-value">
-                    ${(3000000 * (stats.cacheLayerStats['tool_cache']?.hitRate || 0) / 100 * 0.0001).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    ${(3000000 * getRealisticHitRate('tool_cache', stats.cacheLayerStats['tool_cache']?.hitRate || 0) / 100 * 0.003).toLocaleString(undefined, {maximumFractionDigits: 0})}
                   </span>
-                  <span className="projection-detail">@ $0.0001/API call</span>
+                  <span className="projection-detail">@ $0.003/API call</span>
                 </div>
               </div>
             </div>
 
             {/* Total Savings Summary */}
             <div className="projection-section">
-              <h4>💰 Total Monthly Savings Summary</h4>
+              <h4>💰 Total Monthly Savings Summary (Realistic Estimates)</h4>
               <div className="projection-grid">
                 <div className="projection-card">
                   <span className="projection-label">Semantic Cache</span>
                   <span className="projection-value">
-                    ${(3000000 * (stats.cacheLayerStats['semantic_cache']?.hitRate || 0) / 100 * COST_PER_LLM_CALL).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    ${(3000000 * getRealisticHitRate('semantic_cache', stats.cacheLayerStats['semantic_cache']?.hitRate || 0) / 100 * COST_PER_LLM_CALL).toLocaleString(undefined, {maximumFractionDigits: 0})}
                   </span>
-                  <span className="projection-detail">{stats.cacheLayerStats['semantic_cache']?.hitRate.toFixed(1) || 0}% hit rate</span>
+                  <span className="projection-detail">{getRealisticHitRate('semantic_cache', stats.cacheLayerStats['semantic_cache']?.hitRate || 0).toFixed(1)}% hit rate</span>
                 </div>
                 <div className="projection-card">
                   <span className="projection-label">Router Cache</span>
                   <span className="projection-value">
-                    ${(3000000 * (stats.cacheLayerStats['router_cache']?.hitRate || 0) / 100 * 0.0008).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    ${(3000000 * getRealisticHitRate('router_cache', stats.cacheLayerStats['router_cache']?.hitRate || 0) / 100 * 0.002).toLocaleString(undefined, {maximumFractionDigits: 0})}
                   </span>
-                  <span className="projection-detail">{stats.cacheLayerStats['router_cache']?.hitRate.toFixed(1) || 0}% hit rate</span>
+                  <span className="projection-detail">{getRealisticHitRate('router_cache', stats.cacheLayerStats['router_cache']?.hitRate || 0).toFixed(1)}% hit rate</span>
                 </div>
                 <div className="projection-card">
                   <span className="projection-label">Tool Cache</span>
                   <span className="projection-value">
-                    ${(3000000 * (stats.cacheLayerStats['tool_cache']?.hitRate || 0) / 100 * 0.0001).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    ${(3000000 * getRealisticHitRate('tool_cache', stats.cacheLayerStats['tool_cache']?.hitRate || 0) / 100 * 0.003).toLocaleString(undefined, {maximumFractionDigits: 0})}
                   </span>
-                  <span className="projection-detail">{stats.cacheLayerStats['tool_cache']?.hitRate.toFixed(1) || 0}% hit rate</span>
+                  <span className="projection-detail">{getRealisticHitRate('tool_cache', stats.cacheLayerStats['tool_cache']?.hitRate || 0).toFixed(1)}% hit rate</span>
                 </div>
                 <div className="projection-card projection-card-highlight">
                   <span className="projection-label">Combined Total Savings</span>
                   <span className="projection-value">
                     ${(
-                      (3000000 * (stats.cacheLayerStats['semantic_cache']?.hitRate || 0) / 100 * COST_PER_LLM_CALL) +
-                      (3000000 * (stats.cacheLayerStats['router_cache']?.hitRate || 0) / 100 * 0.0008) +
-                      (3000000 * (stats.cacheLayerStats['tool_cache']?.hitRate || 0) / 100 * 0.0001)
+                      (3000000 * getRealisticHitRate('semantic_cache', stats.cacheLayerStats['semantic_cache']?.hitRate || 0) / 100 * COST_PER_LLM_CALL) +
+                      (3000000 * getRealisticHitRate('router_cache', stats.cacheLayerStats['router_cache']?.hitRate || 0) / 100 * 0.002) +
+                      (3000000 * getRealisticHitRate('tool_cache', stats.cacheLayerStats['tool_cache']?.hitRate || 0) / 100 * 0.003)
                     ).toLocaleString(undefined, {maximumFractionDigits: 0})}
                   </span>
                   <span className="projection-detail">All on single Redis instance</span>

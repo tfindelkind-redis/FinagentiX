@@ -1294,6 +1294,7 @@ async def clear_semantic_cache_endpoint(
         return {
             "success": True,
             "cleared_count": cleared,
+            "cleared_entries": cleared,
             "pattern": request.pattern or "*",
             "message": f"Cleared {cleared} semantic cache entries"
         }
@@ -1301,6 +1302,7 @@ async def clear_semantic_cache_endpoint(
         return {
             "success": False,
             "cleared_count": 0,
+            "cleared_entries": 0,
             "error": str(e)
         }
 
@@ -1360,6 +1362,7 @@ async def clear_tool_cache_endpoint(
         return {
             "success": True,
             "cleared_count": cleared,
+            "cleared_entries": cleared,
             "pattern": request.pattern or "*",
             "message": "Tool cache cleared successfully"
         }
@@ -1367,6 +1370,7 @@ async def clear_tool_cache_endpoint(
         return {
             "success": False,
             "cleared_count": 0,
+            "cleared_entries": 0,
             "error": str(e)
         }
 

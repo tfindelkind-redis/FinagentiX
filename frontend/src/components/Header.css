@@ -1,3 +1,21 @@
+/* Demo Disclaimer Banner */
+.demo-disclaimer {
+  background: linear-gradient(90deg, #ff9800 0%, #f57c00 100%);
+  color: #000;
+  text-align: center;
+  padding: 6px 16px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.demo-disclaimer svg {
+  flex-shrink: 0;
+}
+
 .header {
   background-color: var(--color-bg-secondary);
   border-bottom: 1px solid var(--color-border);

@@ -37,3 +37,6 @@ Thumbs.db
 *.temp
 .env
 .env.*
+
+# Personal/Marketing files
+docs/LINKEDIN_POST.md

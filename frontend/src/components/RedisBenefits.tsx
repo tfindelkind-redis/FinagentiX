@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo } from 'react'
-import { Play, Zap, DollarSign, Clock, TrendingUp, BarChart3, Gauge, Loader2, AlertCircle, CheckCircle, Info, ExternalLink, Settings, Users, Cpu, HardDrive, ChevronDown, ChevronUp } from 'lucide-react'
+import { Play, Zap, DollarSign, Clock, TrendingUp, BarChart3, Gauge, Loader2, AlertCircle, CheckCircle, Info, ExternalLink, Settings, Users, Cpu, HardDrive, ChevronDown, ChevronUp, Calculator } from 'lucide-react'
 import './RedisBenefits.css'
 import pricingData from '../data/pricing.json'
 
@@ -294,6 +294,8 @@ export default function RedisBenefits() {
   const [selectedEmbedding, setSelectedEmbedding] = useState<string>('text-embedding-3-large')
   const [showModelComparison, setShowModelComparison] = useState(false)
   const [showSkuGuidance, setShowSkuGuidance] = useState(false)
+  const [simulationMode, setSimulationMode] = useState(false)
+  const [simulatedHitRate, setSimulatedHitRate] = useState(62)
   const [userScenario, setUserScenario] = useState({
     users: 10000,
     queriesPerUserPerDay: 10,
@@ -306,6 +308,80 @@ export default function RedisBenefits() {
     calculateEstimatedHitRate(config.numRequests, config.warmupRounds),
     [config.numRequests, config.warmupRounds]
   )
+
+  // Generate simulated stats when in simulation mode
+  const simulatedStats = useMemo((): SimulationStats | null => {
+    if (!simulationMode) return null
+    
+    // Create realistic-looking simulated stats based on the slider value
+    const hitRate = simulatedHitRate
+    const totalRequests = 100 // Simulated request count
+    const cacheHits = Math.round(totalRequests * hitRate / 100)
+    const cacheMisses = totalRequests - cacheHits
+    
+    // Estimated costs (using GPT-4o pricing as baseline)
+    const costPerLLMCall = 0.00694 // $0.00694 per request
+    const costPerCacheHit = 0.000013 // embedding cost only
+    const totalCost = (cacheMisses * costPerLLMCall) + (cacheHits * costPerCacheHit)
+    const estimatedCostWithoutCache = totalRequests * costPerLLMCall
+    const costSavings = estimatedCostWithoutCache - totalCost
+    const costSavingsPercent = (costSavings / estimatedCostWithoutCache) * 100
+    
+    // Distribute hits across layers (semantic gets most)
+    const semanticHits = Math.round(cacheHits * 0.85)
+    const routerHits = Math.round(cacheHits * 0.10)
+    const toolHits = Math.round(cacheHits * 0.05)
+    
+    return {
+      totalRequests,
+      completedRequests: totalRequests,
+      cacheHits,
+      cacheMisses,
+      hitRate,
+      avgLatency: 800,
+      avgLatencyWithCache: 150,
+      avgLatencyWithoutCache: 2500,
+      totalCost,
+      estimatedCostWithoutCache,
+      costSavings,
+      costSavingsPercent,
+      costSavingsByLayer: {
+        'semantic_cache': semanticHits * costPerLLMCall,
+        'router_cache': routerHits * 0.002,
+        'tool_cache': toolHits * 0.003,
+      },
+      errorCount: 0,
+      p50Latency: 200,
+      p95Latency: 2800,
+      p99Latency: 3500,
+      cacheLayerStats: {
+        'semantic_cache': { 
+          hits: semanticHits, 
+          checks: totalRequests, 
+          hitRate: (semanticHits / totalRequests) * 100,
+          costSaved: semanticHits * costPerLLMCall,
+          avgSimilarity: 0.92
+        },
+        'router_cache': { 
+          hits: routerHits, 
+          checks: totalRequests, 
+          hitRate: (routerHits / totalRequests) * 100,
+          costSaved: routerHits * 0.002,
+          avgSimilarity: 0
+        },
+        'tool_cache': { 
+          hits: toolHits, 
+          checks: totalRequests, 
+          hitRate: (toolHits / totalRequests) * 100,
+          costSaved: toolHits * 0.003,
+          avgSimilarity: 0
+        },
+      }
+    }
+  }, [simulationMode, simulatedHitRate])
+
+  // Use simulated stats or real stats
+  const displayStats = simulationMode ? simulatedStats : stats
 
   // Calculate realistic production hit rates (benchmark rates can be artificially high due to warmup)
   const getRealisticHitRate = useCallback((cacheType: string, benchmarkRate: number) => {
@@ -381,6 +457,75 @@ export default function RedisBenefits() {
       savingsPercent: ((withoutCache - withCache) / withoutCache) * 100,
     }
   }, [getModelPricing, getEmbeddingPricing])
+
+  // Calculate recommended Redis SKU based on scenario
+  const getRecommendedRedisSku = useCallback((users: number, queriesPerDay: number, concurrent: number) => {
+    const dailyQueries = users * queriesPerDay
+    
+    // Estimate cache entries needed (unique queries, ~30% of daily volume for semantic cache)
+    const estimatedUniqueQueries = Math.min(dailyQueries * 0.3, 500000) // Cap at 500k unique
+    
+    // Realistic cache entry size calculation:
+    // - Embedding vector: 3072 dims × 4 bytes (float32) = 12.3 KB
+    // - HNSW index overhead: ~1.5x vector = adds ~6 KB
+    // - Query text: ~0.2 KB
+    // - Cached response: ~3 KB average
+    // - Metadata + Redis overhead: ~1 KB
+    // Total: ~22 KB per entry
+    const cacheEntrySize = 22 * 1024 // 22KB per entry
+    const estimatedCacheMemoryGB = (estimatedUniqueQueries * cacheEntrySize) / (1024 * 1024 * 1024)
+    
+    // Add 20% headroom for Redis best practices (keep 20% free)
+    const requiredMemoryGB = Math.ceil(estimatedCacheMemoryGB / 0.8)
+    
+    // Check if exceeds 128GB limit
+    if (requiredMemoryGB > 128) {
+      return {
+        sku: 'Beyond scope',
+        tier: 'flash',
+        memory: `${requiredMemoryGB} GB needed`,
+        price: 0,
+        reason: 'Scale exceeds 128GB - consider Flash tier or sharding',
+        exceedsLimit: true
+      }
+    }
+    
+    // SKU selection based on memory AND concurrent connections
+    // B-series (Balanced) recommended for vector search
+    // Prices include HA (High Availability) - 2x single-node, Germany West region
+    const skuOptions = [
+      { sku: 'B5', memory: 5, price: 270, connections: 4000 },
+      { sku: 'B10', memory: 10, price: 540, connections: 10000 },
+      { sku: 'B20', memory: 20, price: 1080, connections: 12000 },
+      { sku: 'B50', memory: 50, price: 2700, connections: 16000 },
+      { sku: 'B100', memory: 100, price: 5400, connections: 20000 },
+    ]
+    
+    // Find smallest SKU that meets both memory and connection requirements
+    const suitable = skuOptions.find(s => 
+      s.memory >= requiredMemoryGB && s.connections >= concurrent * 10 // 10x headroom for connections
+    )
+    
+    if (!suitable) {
+      return {
+        sku: 'B100+',
+        tier: 'balanced',
+        memory: '100+ GB',
+        price: 4380,
+        reason: `High concurrency (${concurrent}) or memory (${requiredMemoryGB}GB) - consider clustering`,
+        exceedsLimit: false
+      }
+    }
+    
+    return {
+      sku: suitable.sku,
+      tier: 'balanced',
+      memory: `${suitable.memory} GB`,
+      price: suitable.price,
+      reason: `${requiredMemoryGB}GB cache + ${concurrent * 10} connections headroom`,
+      exceedsLimit: false
+    }
+  }, [])
 
   const makeRequest = useCallback(async (question: string, signal: AbortSignal): Promise<RequestResult> => {
     const startTime = performance.now()
@@ -728,6 +873,31 @@ export default function RedisBenefits() {
             Run Benchmark
           </button>
         )}
+        
+        <div className="simulate-controls">
+          <button 
+            className={`simulate-button ${simulationMode ? 'active' : ''}`}
+            onClick={() => setSimulationMode(!simulationMode)}
+            disabled={isRunning}
+          >
+            <Calculator size={18} />
+            {simulationMode ? 'Exit Simulation' : 'Simulate'}
+          </button>
+          {simulationMode && (
+            <div className="simulate-slider">
+              <label>
+                Hit Rate: <strong>{simulatedHitRate}%</strong>
+              </label>
+              <input 
+                type="range" 
+                min="10" 
+                max="90" 
+                value={simulatedHitRate}
+                onChange={(e) => setSimulatedHitRate(Number(e.target.value))}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="rate-limit-info">
@@ -873,18 +1043,23 @@ export default function RedisBenefits() {
         </div>
       )}
 
-      {stats && (
+      {displayStats && (
         <>
           <div className="results-summary">
-            <h3>📊 Benchmark Results</h3>
+            <h3>{simulationMode ? '🧮 Simulation Results' : '📊 Benchmark Results'}</h3>
+            {simulationMode && (
+              <p className="simulation-note">
+                <Info size={14} /> These are projected costs based on {simulatedHitRate}% cache hit rate
+              </p>
+            )}
             
             <div className="stats-grid">
               <div className="stat-card stat-card-primary">
                 <Gauge size={24} />
                 <div className="stat-content">
                   <span className="stat-title">Cache Hit Rate</span>
-                  <span className="stat-value-large">{stats.hitRate.toFixed(1)}%</span>
-                  <span className="stat-detail">{stats.cacheHits} hits / {stats.cacheMisses} misses</span>
+                  <span className="stat-value-large">{displayStats.hitRate.toFixed(1)}%</span>
+                  <span className="stat-detail">{displayStats.cacheHits} hits / {displayStats.cacheMisses} misses</span>
                 </div>
               </div>
 
@@ -895,15 +1070,15 @@ export default function RedisBenefits() {
                   <div className="stat-comparison">
                     <div className="comparison-row">
                       <span className="label">Cache Hit:</span>
-                      <span className="value good">{stats.avgLatencyWithCache.toFixed(0)}ms</span>
+                      <span className="value good">{displayStats.avgLatencyWithCache.toFixed(0)}ms</span>
                     </div>
                     <div className="comparison-row">
                       <span className="label">Cache Miss:</span>
-                      <span className="value bad">{stats.avgLatencyWithoutCache.toFixed(0)}ms</span>
+                      <span className="value bad">{displayStats.avgLatencyWithoutCache.toFixed(0)}ms</span>
                     </div>
                     <div className="comparison-row highlight">
                       <span className="label">Speedup:</span>
-                      <span className="value">{(stats.avgLatencyWithoutCache / (stats.avgLatencyWithCache || 1)).toFixed(1)}x faster</span>
+                      <span className="value">{(displayStats.avgLatencyWithoutCache / (displayStats.avgLatencyWithCache || 1)).toFixed(1)}x faster</span>
                     </div>
                   </div>
                 </div>
@@ -916,15 +1091,15 @@ export default function RedisBenefits() {
                   <div className="stat-comparison">
                     <div className="comparison-row">
                       <span className="label">With Cache:</span>
-                      <span className="value good">${stats.totalCost.toFixed(4)}</span>
+                      <span className="value good">${displayStats.totalCost.toFixed(4)}</span>
                     </div>
                     <div className="comparison-row">
                       <span className="label">Without Cache:</span>
-                      <span className="value bad">${stats.estimatedCostWithoutCache.toFixed(4)}</span>
+                      <span className="value bad">${displayStats.estimatedCostWithoutCache.toFixed(4)}</span>
                     </div>
                     <div className="comparison-row highlight">
                       <span className="label">Saved:</span>
-                      <span className="value">${stats.costSavings.toFixed(4)} ({stats.costSavingsPercent.toFixed(0)}%)</span>
+                      <span className="value">${displayStats.costSavings.toFixed(4)} ({displayStats.costSavingsPercent.toFixed(0)}%)</span>
                     </div>
                   </div>
                 </div>
@@ -937,15 +1112,15 @@ export default function RedisBenefits() {
                   <div className="stat-comparison">
                     <div className="comparison-row">
                       <span className="label">P50:</span>
-                      <span className="value">{stats.p50Latency.toFixed(0)}ms</span>
+                      <span className="value">{displayStats.p50Latency.toFixed(0)}ms</span>
                     </div>
                     <div className="comparison-row">
                       <span className="label">P95:</span>
-                      <span className="value">{stats.p95Latency.toFixed(0)}ms</span>
+                      <span className="value">{displayStats.p95Latency.toFixed(0)}ms</span>
                     </div>
                     <div className="comparison-row">
                       <span className="label">P99:</span>
-                      <span className="value">{stats.p99Latency.toFixed(0)}ms</span>
+                      <span className="value">{displayStats.p99Latency.toFixed(0)}ms</span>
                     </div>
                   </div>
                 </div>
@@ -960,7 +1135,7 @@ export default function RedisBenefits() {
               </p>
               <div className="cache-layer-grid">
                 {/* Semantic Cache */}
-                <div className={`cache-layer-card ${stats.cacheLayerStats['semantic_cache']?.hits > 0 ? 'has-hits' : ''}`}>
+                <div className={`cache-layer-card ${displayStats.cacheLayerStats['semantic_cache']?.hits > 0 ? 'has-hits' : ''}`}>
                   <div className="layer-header">
                     <span className="layer-icon">🎯</span>
                     <span className="layer-name">Semantic Cache</span>
@@ -968,23 +1143,23 @@ export default function RedisBenefits() {
                   <div className="layer-stats">
                     <div className="layer-stat-row">
                       <span className="stat-label">Hit Rate:</span>
-                      <span className="stat-value">{stats.cacheLayerStats['semantic_cache']?.hitRate.toFixed(1) || 0}%</span>
+                      <span className="stat-value">{displayStats.cacheLayerStats['semantic_cache']?.hitRate.toFixed(1) || 0}%</span>
                     </div>
                     <div className="layer-stat-row">
                       <span className="stat-label">Hits / Checks:</span>
                       <span className="stat-value">
-                        {stats.cacheLayerStats['semantic_cache']?.hits || 0} / {stats.cacheLayerStats['semantic_cache']?.checks || 0}
+                        {displayStats.cacheLayerStats['semantic_cache']?.hits || 0} / {displayStats.cacheLayerStats['semantic_cache']?.checks || 0}
                       </span>
                     </div>
-                    {stats.cacheLayerStats['semantic_cache']?.avgSimilarity > 0 && (
+                    {displayStats.cacheLayerStats['semantic_cache']?.avgSimilarity > 0 && (
                       <div className="layer-stat-row">
                         <span className="stat-label">Avg Similarity:</span>
-                        <span className="stat-value">{(stats.cacheLayerStats['semantic_cache']?.avgSimilarity * 100).toFixed(1)}%</span>
+                        <span className="stat-value">{(displayStats.cacheLayerStats['semantic_cache']?.avgSimilarity * 100).toFixed(1)}%</span>
                       </div>
                     )}
                     <div className="layer-stat-row highlight">
                       <span className="stat-label">Cost Saved:</span>
-                      <span className="stat-value good">${stats.cacheLayerStats['semantic_cache']?.costSaved.toFixed(4) || '0.0000'}</span>
+                      <span className="stat-value good">${displayStats.cacheLayerStats['semantic_cache']?.costSaved.toFixed(4) || '0.0000'}</span>
                     </div>
                   </div>
                   <div className="layer-description">
@@ -993,7 +1168,7 @@ export default function RedisBenefits() {
                 </div>
 
                 {/* Router Cache */}
-                <div className={`cache-layer-card ${stats.cacheLayerStats['router_cache']?.hits > 0 ? 'has-hits' : ''}`}>
+                <div className={`cache-layer-card ${displayStats.cacheLayerStats['router_cache']?.hits > 0 ? 'has-hits' : ''}`}>
                   <div className="layer-header">
                     <span className="layer-icon">🧭</span>
                     <span className="layer-name">Router Cache</span>
@@ -1001,17 +1176,17 @@ export default function RedisBenefits() {
                   <div className="layer-stats">
                     <div className="layer-stat-row">
                       <span className="stat-label">Hit Rate:</span>
-                      <span className="stat-value">{stats.cacheLayerStats['router_cache']?.hitRate.toFixed(1) || 0}%</span>
+                      <span className="stat-value">{displayStats.cacheLayerStats['router_cache']?.hitRate.toFixed(1) || 0}%</span>
                     </div>
                     <div className="layer-stat-row">
                       <span className="stat-label">Hits / Checks:</span>
                       <span className="stat-value">
-                        {stats.cacheLayerStats['router_cache']?.hits || 0} / {stats.cacheLayerStats['router_cache']?.checks || 0}
+                        {displayStats.cacheLayerStats['router_cache']?.hits || 0} / {displayStats.cacheLayerStats['router_cache']?.checks || 0}
                       </span>
                     </div>
                     <div className="layer-stat-row highlight">
                       <span className="stat-label">Cost Saved:</span>
-                      <span className="stat-value good">${stats.cacheLayerStats['router_cache']?.costSaved.toFixed(4) || '0.0000'}</span>
+                      <span className="stat-value good">${displayStats.cacheLayerStats['router_cache']?.costSaved.toFixed(4) || '0.0000'}</span>
                     </div>
                   </div>
                   <div className="layer-description">
@@ -1020,7 +1195,7 @@ export default function RedisBenefits() {
                 </div>
 
                 {/* Tool Cache */}
-                <div className={`cache-layer-card ${stats.cacheLayerStats['tool_cache']?.hits > 0 ? 'has-hits' : ''}`}>
+                <div className={`cache-layer-card ${displayStats.cacheLayerStats['tool_cache']?.hits > 0 ? 'has-hits' : ''}`}>
                   <div className="layer-header">
                     <span className="layer-icon">🔧</span>
                     <span className="layer-name">Tool Cache</span>
@@ -1028,17 +1203,17 @@ export default function RedisBenefits() {
                   <div className="layer-stats">
                     <div className="layer-stat-row">
                       <span className="stat-label">Hit Rate:</span>
-                      <span className="stat-value">{stats.cacheLayerStats['tool_cache']?.hitRate.toFixed(1) || 0}%</span>
+                      <span className="stat-value">{displayStats.cacheLayerStats['tool_cache']?.hitRate.toFixed(1) || 0}%</span>
                     </div>
                     <div className="layer-stat-row">
                       <span className="stat-label">Hits / Checks:</span>
                       <span className="stat-value">
-                        {stats.cacheLayerStats['tool_cache']?.hits || 0} / {stats.cacheLayerStats['tool_cache']?.checks || 0}
+                        {displayStats.cacheLayerStats['tool_cache']?.hits || 0} / {displayStats.cacheLayerStats['tool_cache']?.checks || 0}
                       </span>
                     </div>
                     <div className="layer-stat-row highlight">
                       <span className="stat-label">Cost Saved:</span>
-                      <span className="stat-value good">${stats.cacheLayerStats['tool_cache']?.costSaved.toFixed(4) || '0.0000'}</span>
+                      <span className="stat-value good">${displayStats.cacheLayerStats['tool_cache']?.costSaved.toFixed(4) || '0.0000'}</span>
                     </div>
                   </div>
                   <div className="layer-description">
@@ -1051,11 +1226,11 @@ export default function RedisBenefits() {
               <div className="layer-savings-summary">
                 <h5>💰 Cost Savings Attribution</h5>
                 <div className="savings-bar">
-                  {Object.entries(stats.cacheLayerStats)
+                  {Object.entries(displayStats.cacheLayerStats)
                     .filter(([layer]) => ['semantic_cache', 'router_cache', 'tool_cache'].includes(layer))
                     .map(([layer, layerStats]) => {
                     const relevantLayers = ['semantic_cache', 'router_cache', 'tool_cache']
-                    const totalSavings = Object.entries(stats.cacheLayerStats)
+                    const totalSavings = Object.entries(displayStats.cacheLayerStats)
                       .filter(([l]) => relevantLayers.includes(l))
                       .reduce((sum, [, s]) => sum + s.costSaved, 0)
                     const percentage = totalSavings > 0 ? (layerStats.costSaved / totalSavings) * 100 : 0
@@ -1218,20 +1393,20 @@ export default function RedisBenefits() {
               <div className="projection-grid">
                 <div className="projection-card">
                   <span className="projection-label">Hit Rate</span>
-                  <span className="projection-value good">{stats.cacheLayerStats['semantic_cache']?.hitRate.toFixed(1) || 0}%</span>
+                  <span className="projection-value good">{displayStats.cacheLayerStats['semantic_cache']?.hitRate.toFixed(1) || 0}%</span>
                   <span className="projection-detail">Full response cache</span>
                 </div>
                 <div className="projection-card">
                   <span className="projection-label">Queries Saved</span>
                   <span className="projection-value">
-                    {(3000000 * (stats.cacheLayerStats['semantic_cache']?.hitRate || 0) / 100).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    {(3000000 * (displayStats.cacheLayerStats['semantic_cache']?.hitRate || 0) / 100).toLocaleString(undefined, {maximumFractionDigits: 0})}
                   </span>
                   <span className="projection-detail">LLM calls avoided</span>
                 </div>
                 <div className="projection-card projection-card-highlight">
                   <span className="projection-label">Monthly Savings</span>
                   <span className="projection-value">
-                    ${(3000000 * (stats.cacheLayerStats['semantic_cache']?.hitRate || 0) / 100 * COST_PER_LLM_CALL).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    ${(3000000 * (displayStats.cacheLayerStats['semantic_cache']?.hitRate || 0) / 100 * COST_PER_LLM_CALL).toLocaleString(undefined, {maximumFractionDigits: 0})}
                   </span>
                   <span className="projection-detail">@ ${COST_PER_LLM_CALL.toFixed(4)}/call</span>
                 </div>
@@ -1244,25 +1419,25 @@ export default function RedisBenefits() {
                 <div className="projection-card">
                   <span className="projection-label">Hit Rate</span>
                   <span className="projection-value good">
-                    {getRealisticHitRate('router_cache', stats.cacheLayerStats['router_cache']?.hitRate || 0).toFixed(1)}%
+                    {getRealisticHitRate('router_cache', displayStats.cacheLayerStats['router_cache']?.hitRate || 0).toFixed(1)}%
                   </span>
                   <span className="projection-detail">
-                    {(stats.cacheLayerStats['router_cache']?.hitRate || 0) > 80 
-                      ? `Benchmark: ${stats.cacheLayerStats['router_cache']?.hitRate.toFixed(0)}% → Realistic: ≤80%` 
+                    {(displayStats.cacheLayerStats['router_cache']?.hitRate || 0) > 80 
+                      ? `Benchmark: ${displayStats.cacheLayerStats['router_cache']?.hitRate.toFixed(0)}% → Realistic: ≤80%` 
                       : 'Routing decisions cached'}
                   </span>
                 </div>
                 <div className="projection-card">
                   <span className="projection-label">Router Calls Saved</span>
                   <span className="projection-value">
-                    {(3000000 * getRealisticHitRate('router_cache', stats.cacheLayerStats['router_cache']?.hitRate || 0) / 100).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    {(3000000 * getRealisticHitRate('router_cache', displayStats.cacheLayerStats['router_cache']?.hitRate || 0) / 100).toLocaleString(undefined, {maximumFractionDigits: 0})}
                   </span>
                   <span className="projection-detail">LLM routing calls avoided</span>
                 </div>
                 <div className="projection-card projection-card-highlight">
                   <span className="projection-label">Monthly Savings</span>
                   <span className="projection-value">
-                    ${(3000000 * getRealisticHitRate('router_cache', stats.cacheLayerStats['router_cache']?.hitRate || 0) / 100 * 0.002).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    ${(3000000 * getRealisticHitRate('router_cache', displayStats.cacheLayerStats['router_cache']?.hitRate || 0) / 100 * 0.002).toLocaleString(undefined, {maximumFractionDigits: 0})}
                   </span>
                   <span className="projection-detail">@ $0.002/routing call</span>
                 </div>
@@ -1275,25 +1450,25 @@ export default function RedisBenefits() {
                 <div className="projection-card">
                   <span className="projection-label">Hit Rate</span>
                   <span className="projection-value good">
-                    {getRealisticHitRate('tool_cache', stats.cacheLayerStats['tool_cache']?.hitRate || 0).toFixed(1)}%
+                    {getRealisticHitRate('tool_cache', displayStats.cacheLayerStats['tool_cache']?.hitRate || 0).toFixed(1)}%
                   </span>
                   <span className="projection-detail">
-                    {(stats.cacheLayerStats['tool_cache']?.hitRate || 0) > 45 
-                      ? `Benchmark: ${stats.cacheLayerStats['tool_cache']?.hitRate.toFixed(0)}% → Realistic: ≤45%` 
+                    {(displayStats.cacheLayerStats['tool_cache']?.hitRate || 0) > 45 
+                      ? `Benchmark: ${displayStats.cacheLayerStats['tool_cache']?.hitRate.toFixed(0)}% → Realistic: ≤45%` 
                       : 'API results cached (TTL-based)'}
                   </span>
                 </div>
                 <div className="projection-card">
                   <span className="projection-label">API Calls Saved</span>
                   <span className="projection-value">
-                    {(3000000 * getRealisticHitRate('tool_cache', stats.cacheLayerStats['tool_cache']?.hitRate || 0) / 100).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    {(3000000 * getRealisticHitRate('tool_cache', displayStats.cacheLayerStats['tool_cache']?.hitRate || 0) / 100).toLocaleString(undefined, {maximumFractionDigits: 0})}
                   </span>
                   <span className="projection-detail">External API calls avoided</span>
                 </div>
                 <div className="projection-card projection-card-highlight">
                   <span className="projection-label">Monthly Savings</span>
                   <span className="projection-value">
-                    ${(3000000 * getRealisticHitRate('tool_cache', stats.cacheLayerStats['tool_cache']?.hitRate || 0) / 100 * 0.003).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    ${(3000000 * getRealisticHitRate('tool_cache', displayStats.cacheLayerStats['tool_cache']?.hitRate || 0) / 100 * 0.003).toLocaleString(undefined, {maximumFractionDigits: 0})}
                   </span>
                   <span className="projection-detail">@ $0.003/API call</span>
                 </div>
@@ -1307,31 +1482,31 @@ export default function RedisBenefits() {
                 <div className="projection-card">
                   <span className="projection-label">Semantic Cache</span>
                   <span className="projection-value">
-                    ${(3000000 * getRealisticHitRate('semantic_cache', stats.cacheLayerStats['semantic_cache']?.hitRate || 0) / 100 * COST_PER_LLM_CALL).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    ${(3000000 * getRealisticHitRate('semantic_cache', displayStats.cacheLayerStats['semantic_cache']?.hitRate || 0) / 100 * COST_PER_LLM_CALL).toLocaleString(undefined, {maximumFractionDigits: 0})}
                   </span>
-                  <span className="projection-detail">{getRealisticHitRate('semantic_cache', stats.cacheLayerStats['semantic_cache']?.hitRate || 0).toFixed(1)}% hit rate</span>
+                  <span className="projection-detail">{getRealisticHitRate('semantic_cache', displayStats.cacheLayerStats['semantic_cache']?.hitRate || 0).toFixed(1)}% hit rate</span>
                 </div>
                 <div className="projection-card">
                   <span className="projection-label">Router Cache</span>
                   <span className="projection-value">
-                    ${(3000000 * getRealisticHitRate('router_cache', stats.cacheLayerStats['router_cache']?.hitRate || 0) / 100 * 0.002).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    ${(3000000 * getRealisticHitRate('router_cache', displayStats.cacheLayerStats['router_cache']?.hitRate || 0) / 100 * 0.002).toLocaleString(undefined, {maximumFractionDigits: 0})}
                   </span>
-                  <span className="projection-detail">{getRealisticHitRate('router_cache', stats.cacheLayerStats['router_cache']?.hitRate || 0).toFixed(1)}% hit rate</span>
+                  <span className="projection-detail">{getRealisticHitRate('router_cache', displayStats.cacheLayerStats['router_cache']?.hitRate || 0).toFixed(1)}% hit rate</span>
                 </div>
                 <div className="projection-card">
                   <span className="projection-label">Tool Cache</span>
                   <span className="projection-value">
-                    ${(3000000 * getRealisticHitRate('tool_cache', stats.cacheLayerStats['tool_cache']?.hitRate || 0) / 100 * 0.003).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    ${(3000000 * getRealisticHitRate('tool_cache', displayStats.cacheLayerStats['tool_cache']?.hitRate || 0) / 100 * 0.003).toLocaleString(undefined, {maximumFractionDigits: 0})}
                   </span>
-                  <span className="projection-detail">{getRealisticHitRate('tool_cache', stats.cacheLayerStats['tool_cache']?.hitRate || 0).toFixed(1)}% hit rate</span>
+                  <span className="projection-detail">{getRealisticHitRate('tool_cache', displayStats.cacheLayerStats['tool_cache']?.hitRate || 0).toFixed(1)}% hit rate</span>
                 </div>
                 <div className="projection-card projection-card-highlight">
                   <span className="projection-label">Combined Total Savings</span>
                   <span className="projection-value">
                     ${(
-                      (3000000 * getRealisticHitRate('semantic_cache', stats.cacheLayerStats['semantic_cache']?.hitRate || 0) / 100 * COST_PER_LLM_CALL) +
-                      (3000000 * getRealisticHitRate('router_cache', stats.cacheLayerStats['router_cache']?.hitRate || 0) / 100 * 0.002) +
-                      (3000000 * getRealisticHitRate('tool_cache', stats.cacheLayerStats['tool_cache']?.hitRate || 0) / 100 * 0.003)
+                      (3000000 * getRealisticHitRate('semantic_cache', displayStats.cacheLayerStats['semantic_cache']?.hitRate || 0) / 100 * COST_PER_LLM_CALL) +
+                      (3000000 * getRealisticHitRate('router_cache', displayStats.cacheLayerStats['router_cache']?.hitRate || 0) / 100 * 0.002) +
+                      (3000000 * getRealisticHitRate('tool_cache', displayStats.cacheLayerStats['tool_cache']?.hitRate || 0) / 100 * 0.003)
                     ).toLocaleString(undefined, {maximumFractionDigits: 0})}
                   </span>
                   <span className="projection-detail">All on single Redis instance</span>
@@ -1353,7 +1528,7 @@ export default function RedisBenefits() {
                 <div className="projection-card">
                   <span className="projection-label">With Redis Cache</span>
                   <span className="projection-value good">
-                    ${(((3000000 * (1 - stats.hitRate / 100) * COST_PER_LLM_CALL) + (3000000 * (stats.hitRate / 100) * COST_PER_CACHE_HIT)) / 10000).toFixed(2)}
+                    ${(((3000000 * (1 - displayStats.hitRate / 100) * COST_PER_LLM_CALL) + (3000000 * (displayStats.hitRate / 100) * COST_PER_CACHE_HIT)) / 10000).toFixed(2)}
                   </span>
                   <span className="projection-detail">per user/month</span>
                 </div>
@@ -1362,7 +1537,7 @@ export default function RedisBenefits() {
                   <span className="projection-value">
                     ${(
                       ((3000000 * COST_PER_LLM_CALL) / 10000) - 
-                      (((3000000 * (1 - stats.hitRate / 100) * COST_PER_LLM_CALL) + (3000000 * (stats.hitRate / 100) * COST_PER_CACHE_HIT)) / 10000)
+                      (((3000000 * (1 - displayStats.hitRate / 100) * COST_PER_LLM_CALL) + (3000000 * (displayStats.hitRate / 100) * COST_PER_CACHE_HIT)) / 10000)
                     ).toFixed(2)}
                   </span>
                   <span className="projection-detail">per user/month</span>
@@ -1384,7 +1559,7 @@ export default function RedisBenefits() {
             {showModelComparison && (
               <div className="comparison-content">
                 <p className="comparison-intro">
-                  Use your actual benchmark hit rate of <strong>{stats.hitRate.toFixed(1)}%</strong> to compare costs across different Azure OpenAI models.
+                  Use your actual benchmark hit rate of <strong>{displayStats.hitRate.toFixed(1)}%</strong> to compare costs across different Azure OpenAI models.
                 </p>
                 
                 {/* Scenario Configuration */}
@@ -1442,23 +1617,54 @@ export default function RedisBenefits() {
                 {/* Model Comparison Table */}
                 <div className="model-comparison-table">
                   <h4>💰 Cost Comparison by Model (January 2026 Pricing)</h4>
+                  <div className="calculation-info">
+                    <Info size={14} />
+                    <span>
+                      <strong>How costs are calculated:</strong> Cost/Request = ({PRICING_CONFIG.avgTokensPerQuery.input} input + {PRICING_CONFIG.avgTokensPerQuery.output} output tokens) × model pricing. 
+                      "With Cache" = (miss rate × LLM cost) + (all queries × embedding cost of ${(PRICING_CONFIG.avgTokensPerQuery.embedding / 1_000_000 * 0.13).toFixed(6)}/query).
+                      <em> Latency Need affects model recommendations, not pricing.</em>
+                    </span>
+                  </div>
+                  {(() => {
+                    const redisSku = getRecommendedRedisSku(
+                      userScenario.users, 
+                      userScenario.queriesPerUserPerDay, 
+                      userScenario.concurrentUsers
+                    )
+                    return (
+                      <div className="redis-cost-banner">
+                        <HardDrive size={16} />
+                        <span>
+                          <strong>Redis Cost:</strong> AMR {redisSku.sku} ({redisSku.memory}) = <strong>${redisSku.price.toLocaleString()}/mo</strong>
+                          {redisSku.exceedsLimit && <em className="warning"> ⚠️ {redisSku.reason}</em>}
+                        </span>
+                      </div>
+                    )
+                  })()}
                   <table>
                     <thead>
                       <tr>
                         <th>Model</th>
                         <th>Cost/Request</th>
                         <th>Without Cache</th>
-                        <th>With Cache ({stats.hitRate.toFixed(0)}%)</th>
-                        <th>Monthly Savings</th>
-                        <th>Best For</th>
+                        <th>With Cache ({displayStats.hitRate.toFixed(0)}%)</th>
+                        <th>+ Redis</th>
+                        <th>Total Monthly</th>
+                        <th>Net Savings</th>
                       </tr>
                     </thead>
                     <tbody>
                       {['gpt-5', 'gpt-5-mini', 'gpt-4.1', 'gpt-4.1-mini', 'o3-mini', 'o4-mini', 'gpt-4o', 'gpt-4o-mini'].map(modelId => {
                         const monthlyQueries = userScenario.users * userScenario.queriesPerUserPerDay * 30
-                        const costs = calculateModelCosts(modelId, selectedEmbedding, stats.hitRate, monthlyQueries)
+                        const costs = calculateModelCosts(modelId, selectedEmbedding, displayStats.hitRate, monthlyQueries)
                         if (!costs) return null
-                        const model = (pricingData.models as any)[modelId]
+                        const redisSku = getRecommendedRedisSku(
+                          userScenario.users, 
+                          userScenario.queriesPerUserPerDay, 
+                          userScenario.concurrentUsers
+                        )
+                        const totalWithRedis = costs.withCache + redisSku.price
+                        const netSavings = costs.withoutCache - totalWithRedis
                         
                         return (
                           <tr key={modelId} className={selectedModel === modelId ? 'selected' : ''}>
@@ -1473,11 +1679,12 @@ export default function RedisBenefits() {
                             <td>${costs.costPerLLMCall.toFixed(4)}</td>
                             <td className="cost-bad">${costs.withoutCache.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
                             <td className="cost-good">${costs.withCache.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-                            <td className="cost-savings">
-                              ${costs.savings.toLocaleString(undefined, {maximumFractionDigits: 0})}
-                              <span className="savings-percent">({costs.savingsPercent.toFixed(0)}%)</span>
+                            <td className="cost-redis">${redisSku.price.toLocaleString()}</td>
+                            <td className="cost-total">${totalWithRedis.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                            <td className={`cost-savings ${netSavings > 0 ? '' : 'negative'}`}>
+                              ${netSavings.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                              <span className="savings-percent">({((netSavings / costs.withoutCache) * 100).toFixed(0)}%)</span>
                             </td>
-                            <td className="best-for">{model?.bestFor?.slice(0, 2).join(', ')}</td>
                           </tr>
                         )
                       })}
@@ -1654,28 +1861,67 @@ export default function RedisBenefits() {
                          userScenario.latencyRequirement === 'batch' ? 'GPT-4o Mini' : 'GPT-4o'}
                       </span>
                     </div>
-                    <div className="rec-item highlight">
-                      <span className="rec-label">Recommended Redis:</span>
-                      <span className="rec-value">
-                        AMR {
-                          userScenario.users <= 1000 ? 'B5 (~$219/mo)' :
-                          userScenario.users <= 10000 ? 'M20 (~$876/mo)' :
-                          userScenario.users <= 50000 ? 'M50 (~$2,190/mo)' :
-                          'M100+ (~$4,380+/mo)'
-                        }
-                      </span>
-                    </div>
+                    {(() => {
+                      const redisSku = getRecommendedRedisSku(
+                        userScenario.users, 
+                        userScenario.queriesPerUserPerDay, 
+                        userScenario.concurrentUsers
+                      )
+                      return redisSku.exceedsLimit ? (
+                        <div className="rec-item highlight warning">
+                          <span className="rec-label">⚠️ Scale Exceeds 128GB Limit:</span>
+                          <span className="rec-value">
+                            {redisSku.memory} - Consider AMR Flash tier or cluster sharding
+                          </span>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="rec-item highlight">
+                            <span className="rec-label">Recommended Redis:</span>
+                            <span className="rec-value">
+                              AMR {redisSku.sku} Balanced ({redisSku.memory}, ~${redisSku.price.toLocaleString()}/mo)
+                            </span>
+                          </div>
+                          <div className="rec-item info">
+                            <span className="rec-label">Sizing Logic:</span>
+                            <span className="rec-value">
+                              {redisSku.reason}. B-series optimized for vector search.
+                            </span>
+                          </div>
+                        </>
+                      )
+                    })()}
                     <div className="rec-item highlight">
                       <span className="rec-label">Estimated Monthly LLM Cost:</span>
                       <span className="rec-value">
                         ${(() => {
                           const monthlyQueries = userScenario.users * userScenario.queriesPerUserPerDay * 30
-                          const costs = calculateModelCosts(selectedModel, selectedEmbedding, stats.hitRate, monthlyQueries)
+                          const costs = calculateModelCosts(selectedModel, selectedEmbedding, displayStats.hitRate, monthlyQueries)
                           return costs?.withCache.toLocaleString(undefined, {maximumFractionDigits: 0}) || 'N/A'
                         })()}
-                        <span className="rec-note">(with {stats.hitRate.toFixed(0)}% cache hit rate)</span>
+                        <span className="rec-note">(with {displayStats.hitRate.toFixed(0)}% cache hit rate)</span>
                       </span>
                     </div>
+                    {(() => {
+                      const redisSku = getRecommendedRedisSku(
+                        userScenario.users, 
+                        userScenario.queriesPerUserPerDay, 
+                        userScenario.concurrentUsers
+                      )
+                      if (redisSku.exceedsLimit) return null
+                      const monthlyQueries = userScenario.users * userScenario.queriesPerUserPerDay * 30
+                      const costs = calculateModelCosts(selectedModel, selectedEmbedding, displayStats.hitRate, monthlyQueries)
+                      const llmCost = costs?.withCache || 0
+                      return (
+                        <div className="rec-item highlight total">
+                          <span className="rec-label">Estimated Total Monthly Cost:</span>
+                          <span className="rec-value">
+                            ${(llmCost + redisSku.price).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                            <span className="rec-note">(LLM ${llmCost.toLocaleString(undefined, {maximumFractionDigits: 0})} + Redis ${redisSku.price.toLocaleString()})</span>
+                          </span>
+                        </div>
+                      )
+                    })()}
                   </div>
                 </div>
               </div>
@@ -1706,11 +1952,11 @@ export default function RedisBenefits() {
         </>
       )}
 
-      {!stats && !isRunning && (
+      {!displayStats && !isRunning && (
         <div className="empty-state">
           <Zap size={48} />
           <h3>Ready to Benchmark</h3>
-          <p>Click "Run Benchmark" to send real requests to your API and measure cache performance.</p>
+          <p>Click "Run Benchmark" to send real requests, or use "Simulate" to project costs with a custom hit rate.</p>
           <ul className="feature-list">
             <li>✅ Real API requests with actual latency</li>
             <li>✅ Zipf distribution mimics real traffic</li>

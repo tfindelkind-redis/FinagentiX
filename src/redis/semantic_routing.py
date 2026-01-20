@@ -495,6 +495,15 @@ class SemanticRouter:
                 if example_keys:
                     cleared += self.redis.delete(*example_keys)
             
+            # Clear main route definitions (route:investment_analysis, etc.)
+            route_keys = list(self.redis.scan_iter(f"{self.prefix}*", count=200))
+            # Filter out usage: and pattern: keys (handled separately) to get only main route keys
+            main_route_keys = [k for k in route_keys if b":usage:" not in k and b":pattern:" not in k]
+            if pattern:
+                main_route_keys = [k for k in main_route_keys if matches_pattern(k, pattern)]
+            if main_route_keys:
+                cleared += self.redis.delete(*main_route_keys)
+            
             # Clear usage counters
             usage_keys = list(self.redis.scan_iter(f"{self.prefix}usage:*", count=200))
             if pattern:
@@ -507,9 +516,8 @@ class SemanticRouter:
             if pattern_keys:
                 cleared += self.redis.delete(*pattern_keys)
             
-            # Re-initialize default routes (restores them after clearing)
+            # Clear in-memory route cache (will be re-populated on next route() call)
             self._route_cache.clear()
-            self._init_default_routes()
             
             print(f"✅ Cleared {cleared} router cache entries")
             return cleared

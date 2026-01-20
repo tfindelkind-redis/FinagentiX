@@ -445,16 +445,16 @@
         },
         "balanced": {
           "name": "Balanced (Compute + Memory)",
-          "description": "Best for complex queries, vector search, analytics",
+          "description": "Best for complex queries, vector search, analytics. Prices include HA (High Availability). Based on Germany West region.",
           "skus": {
-            "B0": { "memory": "0.5 GB", "monthlyPrice": 22, "vCPUs": 1, "connections": 256, "bestFor": "Prototyping" },
-            "B1": { "memory": "1 GB", "monthlyPrice": 44, "vCPUs": 1, "connections": 1000, "bestFor": "Dev/Test" },
-            "B3": { "memory": "3 GB", "monthlyPrice": 131, "vCPUs": 2, "connections": 2000, "bestFor": "Small apps" },
-            "B5": { "memory": "5 GB", "monthlyPrice": 219, "vCPUs": 2, "connections": 4000, "bestFor": "Small production" },
-            "B10": { "memory": "10 GB", "monthlyPrice": 438, "vCPUs": 4, "connections": 10000, "bestFor": "Vector search" },
-            "B20": { "memory": "20 GB", "monthlyPrice": 876, "vCPUs": 4, "connections": 12000, "bestFor": "RAG applications" },
-            "B50": { "memory": "50 GB", "monthlyPrice": 2190, "vCPUs": 8, "connections": 16000, "bestFor": "Large RAG" },
-            "B100": { "memory": "100 GB", "monthlyPrice": 4380, "vCPUs": 16, "connections": 20000, "bestFor": "Enterprise search" }
+            "B0": { "memory": "0.5 GB", "monthlyPrice": 27, "vCPUs": 1, "connections": 256, "bestFor": "Prototyping" },
+            "B1": { "memory": "1 GB", "monthlyPrice": 54, "vCPUs": 1, "connections": 1000, "bestFor": "Dev/Test" },
+            "B3": { "memory": "3 GB", "monthlyPrice": 162, "vCPUs": 2, "connections": 2000, "bestFor": "Small apps" },
+            "B5": { "memory": "5 GB", "monthlyPrice": 270, "vCPUs": 2, "connections": 4000, "bestFor": "Small production" },
+            "B10": { "memory": "10 GB", "monthlyPrice": 540, "vCPUs": 4, "connections": 10000, "bestFor": "Vector search" },
+            "B20": { "memory": "20 GB", "monthlyPrice": 1080, "vCPUs": 4, "connections": 12000, "bestFor": "RAG applications" },
+            "B50": { "memory": "50 GB", "monthlyPrice": 2700, "vCPUs": 8, "connections": 16000, "bestFor": "Large RAG" },
+            "B100": { "memory": "100 GB", "monthlyPrice": 5400, "vCPUs": 16, "connections": 20000, "bestFor": "Enterprise search" }
           }
         },
         "compute-optimized": {

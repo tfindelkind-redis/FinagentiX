@@ -105,6 +105,7 @@ class PipelineStats:
     news_articles_created: int = 0
     embeddings_generated: int = 0
     api_calls: int = 0
+    sentiment_calls: int = 0
     start_time: float = field(default_factory=time.time)
     errors: List[str] = field(default_factory=list)
     
@@ -127,6 +128,7 @@ class PipelineStats:
             f"  📰 News articles: {self.news_articles_created}",
             f"  🧮 Total embeddings: {self.embeddings_generated}",
             f"  🔌 API calls: {self.api_calls}",
+            f"  🎭 Sentiment calls: {self.sentiment_calls}",
         ]
         
         if self.errors:
@@ -176,6 +178,7 @@ class Config:
     storage_account_key: str
     # Optional parameters with defaults
     embedding_deployment: str = 'text-embedding-3-large'
+    chat_deployment: str = 'gpt-4o'  # For sentiment classification
     api_version: str = '2024-08-01-preview'
     embedding_dim: int = 3072
     max_chunk_tokens: int = 6000  # Reduced from 8000 for safety margin
@@ -398,6 +401,45 @@ class EmbeddingPipeline:
         self.redis_client.ft(index_name).create_index(fields=schema, definition=definition)
         print(f"✅ Created index: {index_name}")
     
+    def classify_sentiment(self, title: str, content: str) -> str:
+        """Classify sentiment of news article using LLM.
+        
+        Returns: 'positive', 'negative', or 'neutral'
+        """
+        time.sleep(self.config.rate_limit_delay)
+        
+        prompt = f"""Analyze the sentiment of this financial news article.
+Respond with ONLY one word: positive, negative, or neutral.
+
+Title: {title[:200]}
+Content: {content[:500]}
+
+Sentiment:"""
+        
+        try:
+            self.stats.sentiment_calls += 1
+            self.stats.api_calls += 1
+            
+            response = self.openai_client.chat.completions.create(
+                model=self.config.chat_deployment,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=10,
+                temperature=0
+            )
+            
+            sentiment = response.choices[0].message.content.strip().lower()
+            
+            # Normalize response
+            if 'positive' in sentiment:
+                return 'positive'
+            elif 'negative' in sentiment:
+                return 'negative'
+            else:
+                return 'neutral'
+        except Exception as e:
+            # Default to neutral on error
+            return 'neutral'
+    
     def generate_embedding(self, text: str) -> List[float]:
         """Generate embedding for text"""
         time.sleep(self.config.rate_limit_delay)
@@ -547,8 +589,16 @@ class EmbeddingPipeline:
         *,
         resume: bool = False,
         refresh: bool = False,
+        classify_sentiment: bool = True,
     ) -> int:
-        """Process news articles for a ticker."""
+        """Process news articles for a ticker.
+        
+        Args:
+            ticker: Stock ticker symbol
+            resume: Skip if already processed
+            refresh: Clear existing and reprocess
+            classify_sentiment: Use LLM to classify article sentiment
+        """
         status_key = self._status_key_news(ticker)
 
         if refresh:
@@ -571,7 +621,13 @@ class EmbeddingPipeline:
             if len(full_text.strip()) < 50:
                 continue
             
+            # Generate embedding
             embedding = self.generate_embedding(full_text)
+            
+            # Classify sentiment using LLM
+            sentiment = 'neutral'
+            if classify_sentiment:
+                sentiment = self.classify_sentiment(title, content)
             
             article_id = hashlib.md5(full_text.encode()).hexdigest()[:16]
             doc_id = f"news:{ticker}:{article_id}"
@@ -581,6 +637,7 @@ class EmbeddingPipeline:
                 "ticker_tag": ticker,
                 "title": title,
                 "content": content[:2000],
+                "sentiment": sentiment,
                 "embedding": embedding,
                 "processed_at": datetime.utcnow().isoformat()
             }
@@ -602,8 +659,19 @@ class EmbeddingPipeline:
         refresh: bool = False,
         skip_sec: bool = False,
         skip_news: bool = False,
+        classify_sentiment: bool = True,
     ) -> PipelineStats:
-        """Process SEC filings and news articles for the requested tickers."""
+        """Process SEC filings and news articles for the requested tickers.
+        
+        Args:
+            tickers: List of ticker symbols to process
+            limit_tickers: Maximum number of tickers to process
+            resume: Skip if already processed
+            refresh: Clear existing and reprocess
+            skip_sec: Skip SEC filing processing
+            skip_news: Skip news article processing
+            classify_sentiment: Use LLM to classify news sentiment
+        """
         if tickers is None:
             tickers = self.storage.list_tickers('sec-filings')
         
@@ -612,6 +680,8 @@ class EmbeddingPipeline:
         
         print(f"\n📊 Processing {len(tickers)} ticker(s)...")
         print(f"   Options: resume={resume}, refresh={refresh}, skip_sec={skip_sec}, skip_news={skip_news}")
+        if not skip_news:
+            print(f"   Sentiment classification: {'enabled' if classify_sentiment else 'disabled'}")
         
         # Calculate total work items for progress
         work_items = len(tickers) * (2 if not skip_sec else 0) + (len(tickers) if not skip_news else 0)
@@ -645,6 +715,7 @@ class EmbeddingPipeline:
                         ticker,
                         resume=resume,
                         refresh=refresh,
+                        classify_sentiment=classify_sentiment,
                     )
                     self.stats.news_articles_created += count
                     if count == 0 and resume:
@@ -722,6 +793,11 @@ Examples:
         help="Skip news article ingestion",
     )
     parser.add_argument(
+        "--no-sentiment",
+        action="store_true",
+        help="Disable sentiment classification for news articles (faster but no sentiment data)",
+    )
+    parser.add_argument(
         "--rate-limit",
         type=float,
         default=0.1,
@@ -790,6 +866,7 @@ Examples:
         refresh=args.refresh,
         skip_sec=args.skip_sec,
         skip_news=args.skip_news,
+        classify_sentiment=not args.no_sentiment,
     )
     
     # Print final summary

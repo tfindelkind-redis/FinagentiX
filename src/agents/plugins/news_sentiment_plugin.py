@@ -4,6 +4,7 @@ Provides tools for querying news articles and sentiment analysis from Redis
 """
 
 import asyncio
+import json
 from typing import Dict, Any, List, Optional
 import redis
 from datetime import datetime, timedelta
@@ -30,7 +31,36 @@ class NewsSentimentPlugin:
             redis_client: Configured Redis client with RediSearch
         """
         self.redis = redis_client
-        self.index_name = "news_idx"
+        # Use the JSON index that matches our news article data
+        self.index_name = "idx:news_articles"
+    
+    def _parse_json_doc(self, doc) -> Dict[str, Any]:
+        """Parse a JSON document from Redis search results."""
+        # For JSON documents, try 'json' attribute first (newer redis-py versions)
+        if hasattr(doc, 'json') and doc.json:
+            try:
+                return json.loads(doc.json)
+            except:
+                pass
+        
+        # Also try '$' attribute (older redis-py versions)
+        if hasattr(doc, '$'):
+            try:
+                return json.loads(getattr(doc, '$'))
+            except:
+                pass
+        
+        # Otherwise try to parse individual fields
+        return {
+            "id": doc.id,
+            "title": getattr(doc, 'title', None) or "No title",
+            "content": getattr(doc, 'content', None) or "",
+            "ticker": getattr(doc, 'ticker', None) or "N/A",
+            "ticker_tag": getattr(doc, 'ticker_tag', None) or getattr(doc, 'ticker', None) or "N/A",
+            "date": getattr(doc, 'date', None) or getattr(doc, 'published_date', None) or "Unknown",
+            "sentiment": getattr(doc, 'sentiment', None) or "neutral",
+            "source": getattr(doc, 'source', None) or "Unknown"
+        }
     
     @kernel_function(
         name="search_news",
@@ -58,30 +88,29 @@ class NewsSentimentPlugin:
             }
         """
         try:
-            # Note: In production, you'd generate embeddings for the query
-            # For now, we'll use text search as a fallback
             from redis.commands.search.query import Query
             
-            # Search query - looking for text matches
-            search_query = Query(f"@content:{query}").paging(0, limit)
+            # Search query - looking for text matches in content
+            search_query = Query(f"@content:{query}").paging(0, limit).return_fields("$")
             
             try:
                 results = self.redis.ft(self.index_name).search(search_query)
             except Exception as e:
-                # Fallback: try simpler query if vector search fails
-                search_query = Query(query).paging(0, limit)
+                # Fallback: try simpler query if specific field search fails
+                search_query = Query(query).paging(0, limit).return_fields("$")
                 results = self.redis.ft(self.index_name).search(search_query)
             
             articles = []
             for doc in results.docs:
+                parsed = self._parse_json_doc(doc)
                 article = {
                     "id": doc.id,
-                    "title": getattr(doc, "title", "No title"),
-                    "content": getattr(doc, "content", "")[:500],  # Truncate content
-                    "ticker": getattr(doc, "ticker", "N/A"),
-                    "date": getattr(doc, "date", "Unknown"),
-                    "sentiment": getattr(doc, "sentiment", "neutral"),
-                    "source": getattr(doc, "source", "Unknown")
+                    "title": parsed.get("title", "No title"),
+                    "content": (parsed.get("content") or "")[:500],  # Truncate content
+                    "ticker": parsed.get("ticker_tag") or parsed.get("ticker", "N/A"),
+                    "date": parsed.get("published_date") or parsed.get("date", "Unknown"),
+                    "sentiment": parsed.get("sentiment", "neutral"),
+                    "source": parsed.get("source", "Unknown")
                 }
                 articles.append(article)
             
@@ -124,27 +153,28 @@ class NewsSentimentPlugin:
         try:
             from redis.commands.search.query import Query
             
-            # Search for ticker-specific news
+            # Search for ticker-specific news using ticker_tag (TAG field)
             ticker_upper = ticker.upper()
-            search_query = Query(f"@ticker:{{{ticker_upper}}}").paging(0, limit)
+            search_query = Query(f"@ticker_tag:{{{ticker_upper}}}").paging(0, limit).return_fields("$")
             
             try:
                 results = self.redis.ft(self.index_name).search(search_query)
             except Exception:
-                # Fallback to content search
-                search_query = Query(ticker_upper).paging(0, limit)
+                # Fallback to text search on ticker field
+                search_query = Query(f"@ticker:{ticker_upper}").paging(0, limit).return_fields("$")
                 results = self.redis.ft(self.index_name).search(search_query)
             
             articles = []
             for doc in results.docs:
+                parsed = self._parse_json_doc(doc)
                 article = {
                     "id": doc.id,
-                    "title": getattr(doc, "title", "No title"),
-                    "content": getattr(doc, "content", "")[:500],
-                    "ticker": getattr(doc, "ticker", ticker_upper),
-                    "date": getattr(doc, "date", "Unknown"),
-                    "sentiment": getattr(doc, "sentiment", "neutral"),
-                    "source": getattr(doc, "source", "Unknown")
+                    "title": parsed.get("title", "No title"),
+                    "content": (parsed.get("content") or "")[:500],
+                    "ticker": parsed.get("ticker_tag") or parsed.get("ticker", ticker_upper),
+                    "date": parsed.get("published_date") or parsed.get("date", "Unknown"),
+                    "sentiment": parsed.get("sentiment", "neutral"),
+                    "source": parsed.get("source", "Unknown")
                 }
                 articles.append(article)
             
@@ -194,20 +224,21 @@ class NewsSentimentPlugin:
             from redis.commands.search.query import Query
             
             # Search for all news, sorted by date (if available)
-            search_query = Query("*").paging(0, limit)
+            search_query = Query("*").paging(0, limit).return_fields("$")
             
             results = self.redis.ft(self.index_name).search(search_query)
             
             articles = []
             for doc in results.docs:
+                parsed = self._parse_json_doc(doc)
                 article = {
                     "id": doc.id,
-                    "title": getattr(doc, "title", "No title"),
-                    "content": getattr(doc, "content", "")[:300],
-                    "ticker": getattr(doc, "ticker", "N/A"),
-                    "date": getattr(doc, "date", "Unknown"),
-                    "sentiment": getattr(doc, "sentiment", "neutral"),
-                    "source": getattr(doc, "source", "Unknown")
+                    "title": parsed.get("title", "No title"),
+                    "content": (parsed.get("content") or "")[:300],
+                    "ticker": parsed.get("ticker_tag") or parsed.get("ticker", "N/A"),
+                    "date": parsed.get("published_date") or parsed.get("date", "Unknown"),
+                    "sentiment": parsed.get("sentiment", "neutral"),
+                    "source": parsed.get("source", "Unknown")
                 }
                 articles.append(article)
             
@@ -251,10 +282,16 @@ class NewsSentimentPlugin:
             Dictionary with sentiment analysis
         """
         try:
-            # Get news for the topic
-            news_result = await self.search_news(topic, limit=20)
+            # Check if topic looks like a ticker (1-5 uppercase letters)
+            is_ticker = topic.upper() == topic and len(topic) <= 5 and topic.isalpha()
             
-            if not news_result.get("success") or news_result["count"] == 0:
+            # Use ticker-specific search if it looks like a ticker
+            if is_ticker:
+                news_result = await self.get_ticker_news(topic, limit=20)
+            else:
+                news_result = await self.search_news(topic, limit=20)
+            
+            if not news_result.get("success") or news_result.get("count", 0) == 0:
                 return {
                     "topic": topic,
                     "success": False,
@@ -262,7 +299,7 @@ class NewsSentimentPlugin:
                     "message": f"No news found for '{topic}'"
                 }
             
-            articles = news_result["results"]
+            articles = news_result.get("results", [])
             
             # Analyze sentiment distribution
             sentiments = [a.get("sentiment", "neutral") for a in articles]

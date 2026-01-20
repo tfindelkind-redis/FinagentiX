@@ -150,19 +150,39 @@ class NewsSentimentPlugin:
         Returns:
             Dictionary with ticker-specific news
         """
+        import logging
+        logger = logging.getLogger(__name__)
+        
         try:
             from redis.commands.search.query import Query
             
             # Search for ticker-specific news using ticker_tag (TAG field)
             ticker_upper = ticker.upper()
+            
+            # Debug: Check if index exists and has documents
+            debug_info = {}
+            try:
+                index_info = self.redis.ft(self.index_name).info()
+                debug_info["index_num_docs"] = index_info.get("num_docs", 0)
+                logger.info(f"News index has {debug_info['index_num_docs']} documents")
+            except Exception as idx_err:
+                debug_info["index_error"] = str(idx_err)
+                logger.error(f"Failed to get index info: {idx_err}")
+            
             search_query = Query(f"@ticker_tag:{{{ticker_upper}}}").paging(0, limit).return_fields("$")
             
             try:
                 results = self.redis.ft(self.index_name).search(search_query)
-            except Exception:
+                debug_info["search_total"] = results.total if hasattr(results, 'total') else len(results.docs)
+                debug_info["search_docs_count"] = len(results.docs)
+                logger.info(f"Search for {ticker_upper}: total={debug_info['search_total']}, docs={debug_info['search_docs_count']}")
+            except Exception as search_err:
                 # Fallback to text search on ticker field
+                debug_info["primary_search_error"] = str(search_err)
+                logger.warning(f"Primary search failed: {search_err}, trying fallback")
                 search_query = Query(f"@ticker:{ticker_upper}").paging(0, limit).return_fields("$")
                 results = self.redis.ft(self.index_name).search(search_query)
+                debug_info["fallback_search_total"] = results.total if hasattr(results, 'total') else len(results.docs)
             
             articles = []
             for doc in results.docs:
@@ -192,10 +212,12 @@ class NewsSentimentPlugin:
                 "count": len(articles),
                 "sentiment_distribution": sentiment_counts,
                 "success": True,
-                "message": f"Found {len(articles)} articles for {ticker_upper}"
+                "message": f"Found {len(articles)} articles for {ticker_upper}",
+                "debug": debug_info
             }
             
         except Exception as e:
+            logger.exception(f"Error fetching news for {ticker}: {e}")
             return {
                 "ticker": ticker.upper(),
                 "success": False,

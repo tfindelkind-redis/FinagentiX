@@ -1187,6 +1187,94 @@ async def get_stats(
     }
 
 
+@app.get("/api/debug/news-sentiment/{ticker}")
+async def debug_news_sentiment(ticker: str) -> Dict[str, Any]:
+    """Debug endpoint to test news sentiment plugin directly"""
+    try:
+        from ..redis.client import get_redis_client
+        from ..agents.plugins.news_sentiment_plugin import NewsSentimentPlugin
+        
+        redis_client = get_redis_client()
+        
+        # Also get index info directly
+        index_info = {}
+        try:
+            info = redis_client.ft("idx:news_articles").info()
+            index_info = {
+                "num_docs": info.get("num_docs", 0),
+                "num_terms": info.get("num_terms", 0),
+                "index_name": "idx:news_articles"
+            }
+        except Exception as idx_err:
+            index_info = {"error": str(idx_err)}
+        
+        plugin = NewsSentimentPlugin(redis_client)
+        
+        ticker_news = await plugin.get_ticker_news(ticker.upper(), limit=5)
+        sentiment = await plugin.get_news_sentiment(ticker.upper(), days=7)
+        
+        return {
+            "ticker": ticker.upper(),
+            "ticker_news": ticker_news,
+            "sentiment": sentiment,
+            "index_info": index_info,
+            "debug_info": {
+                "news_count": ticker_news.get("count", 0),
+                "news_success": ticker_news.get("success", False),
+                "news_debug": ticker_news.get("debug", {}),
+                "sentiment_overall": sentiment.get("overall_sentiment"),
+                "sentiment_percentages": sentiment.get("sentiment_percentages"),
+                "articles_analyzed": sentiment.get("articles_analyzed", 0),
+            }
+        }
+    except Exception as e:
+        import traceback
+        return {
+            "ticker": ticker.upper(),
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+
+@app.get("/api/debug/redis-indexes")
+async def debug_redis_indexes() -> Dict[str, Any]:
+    """Debug endpoint to list all Redis FT indexes and their document counts"""
+    try:
+        from ..redis.client import get_redis_client
+        import os
+        
+        redis_client = get_redis_client()
+        
+        # List all indexes
+        indexes = redis_client.execute_command("FT._LIST")
+        
+        # Get info for each index
+        index_details = {}
+        for idx in indexes:
+            try:
+                info = redis_client.ft(idx).info()
+                index_details[idx] = {
+                    "num_docs": info.get("num_docs", 0),
+                    "num_terms": info.get("num_terms", 0),
+                }
+            except Exception as e:
+                index_details[idx] = {"error": str(e)}
+        
+        return {
+            "success": True,
+            "indexes": index_details,
+            "redis_host": os.getenv("REDIS_HOST", "unknown"),
+            "total_indexes": len(indexes)
+        }
+    except Exception as e:
+        import traceback
+        return {
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+
 # ==================== Metrics Endpoints ====================
 
 @app.get("/api/metrics/pricing")

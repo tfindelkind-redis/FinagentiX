@@ -38,18 +38,36 @@ See [System Architecture](docs/architecture/ARCHITECTURE.md) for complete detail
 export AZURE_ENV_NAME=dev
 export AZURE_LOCATION=westus3
 
-# Full deployment (includes prompts for Featureform definitions)
+# Full deployment (all 8 steps)
 ./infra/scripts/deploy-full.sh
+
+# Or clean deploy (delete existing and redeploy)
+./infra/scripts/deploy-full.sh --clean
 ```
 
-The deployment will:
-1. Create resource group and foundation (VNet, DNS, Monitoring)
-2. Deploy Storage Account with private endpoint
-3. Deploy Redis Enterprise (takes ~7 minutes)
-4. Deploy Azure OpenAI
-5. Deploy Featureform Container App
-6. Deploy Debug VM with public IP
-7. **Prompt to apply Featureform definitions automatically**
+The deployment includes **8 automated steps**:
+1. **Infrastructure** - VNet, Redis Enterprise, Azure OpenAI, Storage, ACR, API, Frontend
+2. **Featureform** - Feature store Container App
+3. **Debug VM** - VM with VNet access (waits for SSH ready)
+4. **Data Upload** - Upload local data to Azure Storage
+5. **Featureform Definitions** - Apply feature definitions
+6. **Embeddings** - Generate embeddings for news & SEC filings
+7. **Market Data** - Load stock prices to Redis TimeSeries
+8. **Verification** - Health checks for API and Frontend
+
+### Selective Deployment
+
+```bash
+# Run specific step only
+./infra/scripts/deploy-full.sh --step 6   # Regenerate embeddings
+./infra/scripts/deploy-full.sh --step 7   # Reload market data
+
+# Run from step N onwards
+./infra/scripts/deploy-full.sh --from 4   # Run steps 4-8
+
+# Run steps N through M
+./infra/scripts/deploy-full.sh --from 3 --to 5
+```
 
 ### Manual Deployment Steps
 
@@ -66,6 +84,12 @@ export AZURE_ENV_NAME=dev
 
 # 4. Apply Featureform definitions (automated)
 ./infra/scripts/connect-and-apply.sh
+
+# 5. Generate embeddings
+./infra/scripts/generate-embeddings.sh --resume
+
+# 6. Load market data
+./infra/scripts/load-market-data.sh all
 ```
 
 ### Cleanup
@@ -152,5 +176,5 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed phase breakdown.
 
 ---
 
-**Status:** Phase 1 - Foundation Planning  
-**Last Updated:** December 5, 2025
+**Status:** Production Ready  
+**Last Updated:** January 20, 2026

@@ -13,7 +13,7 @@ interface LearnModeProps {
 }
 
 export default function LearnMode({ onSelectQuestion, isDisabled }: LearnModeProps) {
-  const [isExpanded, setIsExpanded] = useState(true)
+  const [isExpanded, setIsExpanded] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null)
 

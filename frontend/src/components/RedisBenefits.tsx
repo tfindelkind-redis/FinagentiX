@@ -190,25 +190,49 @@ function zipfWeight(rank: number): number {
   return 1 / Math.pow(rank + 1, 0.8) // Zipf-like distribution
 }
 
-// Generate weighted question pool
+// Generate weighted question pool with guaranteed tool cache opportunities
+// Strategy: For each ticker, we include 2 different question templates consecutively
+// This ensures tool cache can hit: Q1 for AAPL (miss) → Q2 for AAPL (hit!)
 function generateQuestionPool(): string[] {
   const pool: string[] = []
   
+  // First, add pairs of different questions for the same ticker
+  // This guarantees tool cache hit opportunities even in small benchmarks
+  TICKERS.forEach((ticker, tickerRank) => {
+    // Add first two question templates for this ticker back-to-back
+    // First question: cache miss, Second question: tool cache HIT
+    const q1 = BASE_QUESTIONS[0].replace('{TICKER}', ticker) // "What's the current price of AAPL?"
+    const q2 = BASE_QUESTIONS[2].replace('{TICKER}', ticker) // "Should I invest in AAPL?"
+    
+    // Weight popular tickers more (AAPL, MSFT get more pairs)
+    const pairWeight = Math.ceil(zipfWeight(tickerRank) * 3)
+    for (let i = 0; i < pairWeight; i++) {
+      pool.push(q1)
+      pool.push(q2)
+    }
+  })
+  
+  // Then add remaining questions with Zipf distribution
   BASE_QUESTIONS.forEach((template, questionRank) => {
     TICKERS.forEach((ticker, tickerRank) => {
       const question = template.replace('{TICKER}', ticker)
       // Weight by both question popularity and ticker popularity
-      const weight = Math.ceil(zipfWeight(questionRank) * zipfWeight(tickerRank) * 10)
+      const weight = Math.ceil(zipfWeight(questionRank) * zipfWeight(tickerRank) * 5)
       for (let i = 0; i < weight; i++) {
         pool.push(question)
       }
     })
   })
   
-  // Shuffle the pool
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]]
+  // Shuffle the pool BUT keep ticker pairs together for tool cache hits
+  // We do a partial shuffle: shuffle within groups of 4 to maintain some locality
+  const groupSize = 4
+  for (let g = 0; g < pool.length; g += groupSize) {
+    const end = Math.min(g + groupSize, pool.length)
+    for (let i = end - 1; i > g; i--) {
+      const j = g + Math.floor(Math.random() * (i - g + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]]
+    }
   }
   
   return pool

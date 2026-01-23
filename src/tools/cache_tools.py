@@ -29,17 +29,17 @@ def _get_redis_client() -> redis.Redis:
 
 def check_semantic_cache(
     query: str,
-    similarity_threshold: float = 0.92
+    similarity_threshold: float = 0.70
 ) -> Optional[Dict[str, Any]]:
     """
     Check if a similar query exists in semantic cache.
     
     This implements full response caching - if a very similar question
-    was asked before (>92% similarity), return the cached response.
+    was asked before (>70% similarity), return the cached response.
     
     Args:
         query: User's query text
-        similarity_threshold: Minimum similarity for cache hit (0.92 = 92%)
+        similarity_threshold: Minimum similarity for cache hit (0.70 = 70%)
         
     Returns:
         Cached response dict if found with comprehensive metrics, None otherwise:

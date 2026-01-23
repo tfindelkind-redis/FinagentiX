@@ -39,7 +39,7 @@ class SemanticCache:
         redis_client: Optional[Redis] = None,
         index_name: str = "idx:semantic_cache",
         prefix: str = "cache:",
-        similarity_threshold: float = 0.92,
+        similarity_threshold: float = 0.70,
         ttl_seconds: int = 3600,  # 1 hour - sufficient for demos and workshops
     ):
         """

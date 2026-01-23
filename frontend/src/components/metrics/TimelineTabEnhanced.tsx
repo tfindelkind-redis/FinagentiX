@@ -276,6 +276,12 @@ export default function TimelineTabEnhanced({ response }: TimelineTabEnhancedPro
                        event.status === 'success' ? '✓' : event.status.toUpperCase()}
                     </span>
                   )}
+                  {/* Show similarity for cache_check events */}
+                  {event.type === 'cache_check' && event.metadata?.similarity !== undefined && event.metadata.similarity > 0 && (
+                    <span className="event-similarity-badge">
+                      {(event.metadata.similarity * 100).toFixed(1)}% similar
+                    </span>
+                  )}
                   <span className="event-time">
                     {event.start_time_ms.toFixed(0)}ms
                   </span>

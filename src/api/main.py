@@ -192,14 +192,19 @@ async def query_enhanced(
         # Typical query: ~750 input tokens, ~500 output tokens
         # Saved cost = (750 * 2.50 / 1_000_000) + (500 * 10.00 / 1_000_000) = ~$0.0069
         semantic_cache_cost_saved = 0.0069 if cache_hit else 0.0
+        similarity = cached_response.get("similarity", 0.0) if cached_response else 0.0
         metrics.record_cache_check(
             layer_name="semantic_cache",
             hit=cache_hit,
-            similarity=cached_response.get("similarity", 0.0) if cached_response else 0.0,
+            similarity=similarity,
             query_time_ms=cached_response.get("query_time_ms", 0) if cached_response else 0,
             cost_saved=semantic_cache_cost_saved
         )
-        metrics.end_event(cache_event_id, status="hit" if cache_hit else "miss")
+        metrics.end_event(
+            cache_event_id, 
+            status="hit" if cache_hit else "miss",
+            metadata={"similarity": similarity}
+        )
         
         if cache_hit:
             # Cache hit! Build response from cached data - FAST PATH
@@ -1351,7 +1356,7 @@ async def get_cache_metrics(
             "estimated_cost_savings_usd": round(estimated_savings, 4),
         },
         "cache_config": {
-            "similarity_threshold": stats.get("similarity_threshold", 0.92),
+            "similarity_threshold": stats.get("similarity_threshold", 0.70),
             "index_name": stats.get("index_name", "idx:semantic_cache"),
         },
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())

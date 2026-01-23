@@ -39,10 +39,11 @@ echo "🔨 Building Docker image (with layer cache)..."
 BUILD_START=$(date +%s)
 
 # Pull the latest image to use as cache
-docker pull "$ACR_NAME.azurecr.io/$IMAGE_NAME:latest" 2>/dev/null || true
+docker pull --platform linux/amd64 "$ACR_NAME.azurecr.io/$IMAGE_NAME:latest" 2>/dev/null || true
 
-# Build with cache-from
+# Build with cache-from (always target linux/amd64 for Azure Container Apps)
 docker build \
+    --platform linux/amd64 \
     -f docker/api.Dockerfile \
     --cache-from "$ACR_NAME.azurecr.io/$IMAGE_NAME:latest" \
     -t "$ACR_NAME.azurecr.io/$IMAGE_NAME:latest" \

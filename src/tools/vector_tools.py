@@ -261,7 +261,7 @@ def search_news(
 def search_similar_queries(
     query: str,
     top_k: int = 3,
-    similarity_threshold: float = 0.92
+    similarity_threshold: float = 0.70
 ) -> List[Dict[str, Any]]:
     """
     Search for similar previous queries in semantic cache.
@@ -272,7 +272,7 @@ def search_similar_queries(
     Args:
         query: User's current query
         top_k: Number of similar queries to find
-        similarity_threshold: High threshold (0.92+) for cache hit
+        similarity_threshold: Threshold (0.70+) for cache hit
         
     Returns:
         List of dicts with keys:
@@ -286,7 +286,7 @@ def search_similar_queries(
         cached = search_similar_queries(
             query="Should I buy AAPL stock?",
             top_k=1,
-            similarity_threshold=0.92
+            similarity_threshold=0.70
         )
         if cached:
             return cached[0]["response"]  # Cache hit!

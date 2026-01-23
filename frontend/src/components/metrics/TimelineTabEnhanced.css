@@ -323,6 +323,19 @@
   color: var(--color-success);
 }
 
+/* Similarity Badge for cache_check events */
+.event-similarity-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.625rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15));
+  color: var(--color-primary);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
 /* Update timeline header to accommodate status badge */
 .timeline-event.enhanced .timeline-header {
   display: flex;

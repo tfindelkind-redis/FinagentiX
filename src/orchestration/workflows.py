@@ -536,7 +536,7 @@ class InvestmentAnalysisWorkflow(BaseWorkflow):
                 normalized["cache_hit"] = True
                 if "status" not in cached or "summary" not in cached or "cache_hit" in cached:
                     stored_payload = {k: v for k, v in normalized.items() if k != "cache_hit"}
-                    self.tool_cache.set("market_data", stored_payload, ticker=ticker, ttl_seconds=60)
+                    self.tool_cache.set("market_data", stored_payload, ticker=ticker, ttl_seconds=300)
                 self._record_tool_metrics(
                     tool_name="market_data",
                     parameters={"ticker": ticker},
@@ -559,7 +559,7 @@ class InvestmentAnalysisWorkflow(BaseWorkflow):
             result["cache_hit"] = False
 
             stored_payload = {k: v for k, v in result.items() if k != "cache_hit"}
-            self.tool_cache.set("market_data", stored_payload, ticker=ticker, ttl_seconds=60)
+            self.tool_cache.set("market_data", stored_payload, ticker=ticker, ttl_seconds=300)
             self.debugger.log_step("market_data_fetched", f"ticker={ticker}")
             self._record_tool_metrics(
                 tool_name="market_data",
@@ -661,7 +661,7 @@ class InvestmentAnalysisWorkflow(BaseWorkflow):
                 normalized["cache_hit"] = True
                 if "status" not in cached or "summary" not in cached or "cache_hit" in cached:
                     stored_payload = {k: v for k, v in normalized.items() if k != "cache_hit"}
-                    self.tool_cache.set("risk_analysis", stored_payload, ticker=ticker, ttl_seconds=600)
+                    self.tool_cache.set("risk_analysis", stored_payload, ticker=ticker, ttl_seconds=3000)
                 self._record_tool_metrics(
                     tool_name="risk_analysis",
                     parameters={"ticker": ticker},
@@ -687,7 +687,7 @@ class InvestmentAnalysisWorkflow(BaseWorkflow):
             result["cache_hit"] = False
 
             stored_payload = {k: v for k, v in result.items() if k != "cache_hit"}
-            self.tool_cache.set("risk_analysis", stored_payload, ticker=ticker, ttl_seconds=600)
+            self.tool_cache.set("risk_analysis", stored_payload, ticker=ticker, ttl_seconds=3000)
             self.debugger.log_step("risk_analysis_fetched", f"ticker={ticker}")
             self._record_tool_metrics(
                 tool_name="risk_analysis",
@@ -1171,23 +1171,44 @@ class QuickQuoteWorkflow(BaseWorkflow):
         """Execute quick quote"""
         self.debugger.log_step("start_quick_quote", f"ticker={ticker}")
         
-        # Get current price only
         price_start = time.perf_counter()
-        price_data = await self.market_data.get_stock_price(ticker)
-        self._record_tool_metrics(
-            tool_name="quick_quote_price",
-            parameters={"ticker": ticker},
-            result={"price_data": price_data},
-            start_time=price_start,
-            cache_hit=False,
-        )
+        cache_hit = False
+        
+        # Check tool cache first
+        cached = self.tool_cache.get("quick_quote", ticker=ticker)
+        if cached:
+            self.debugger.log_cache_hit(f"quick_quote:{ticker}")
+            price_data = cached.get("price_data", cached)
+            cache_hit = True
+            self._record_tool_metrics(
+                tool_name="quick_quote_price",
+                parameters={"ticker": ticker},
+                result={"price_data": price_data},
+                start_time=price_start,
+                cache_hit=True,
+                cache_checked=True,
+            )
+        else:
+            self.debugger.log_cache_miss(f"quick_quote:{ticker}")
+            # Get current price
+            price_data = await self.market_data.get_stock_price(ticker)
+            # Cache the result
+            self.tool_cache.set("quick_quote", {"price_data": price_data}, ticker=ticker, ttl_seconds=300)
+            self._record_tool_metrics(
+                tool_name="quick_quote_price",
+                parameters={"ticker": ticker},
+                result={"price_data": price_data},
+                start_time=price_start,
+                cache_hit=False,
+                cache_checked=True,
+            )
 
         market_result = self._structure_market_result(
             ticker,
             {
                 "current_price": price_data,
                 "historical": {},
-                "cache_hit": False,
+                "cache_hit": cache_hit,
             },
         )
         

@@ -141,6 +141,8 @@ class SemanticRouter:
                     "stock price",
                     "quote for",
                     "how much is",
+                    "price of",
+                    " price",  # Matches "MSFT price", "AAPL price", etc.
                 ],
                 "workflow": "QuickQuoteWorkflow",
                 "agents": ["market_data"],
@@ -151,11 +153,15 @@ class SemanticRouter:
             "technical_analysis": {
                 "patterns": [
                     "technical analysis",
+                    "technical indicators",
                     "chart patterns",
                     "support and resistance",
                     "moving averages",
                     "rsi",
                     "macd",
+                    "bollinger",
+                    "bullish or bearish",
+                    "bearish or bullish",
                 ],
                 "workflow": "TechnicalAnalysisWorkflow",
                 "agents": ["market_data", "technical_analysis"],
@@ -283,15 +289,20 @@ class SemanticRouter:
         query_embedding: Optional[List[float]] = None,
         top_k: int = 3,
     ) -> Optional[Dict[str, Any]]:
-        """Find matching route for query using semantic search with pattern fallback"""
+        """Find matching route for query using pattern matching first, then semantic search fallback"""
 
-        semantic_match = None
+        # Check pattern matching FIRST - explicit patterns should win over fuzzy semantic matches
+        pattern_match = self._find_route_by_pattern(query=query)
+        if pattern_match:
+            return pattern_match
+
+        # Fall back to semantic search if no pattern match
         if self.vector_enabled and query_embedding is not None:
             semantic_match = self._find_route_by_vector(query_embedding=query_embedding, top_k=top_k)
             if semantic_match:
                 return semantic_match
 
-        return self._find_route_by_pattern(query=query)
+        return None
     
     def _find_route_by_vector(
         self,
@@ -516,10 +527,13 @@ class SemanticRouter:
             if pattern_keys:
                 cleared += self.redis.delete(*pattern_keys)
             
-            # Clear in-memory route cache (will be re-populated on next route() call)
+            # Clear in-memory route cache
             self._route_cache.clear()
             
-            print(f"✅ Cleared {cleared} router cache entries")
+            # Re-initialize default routes so pattern matching continues to work
+            self._init_default_routes()
+            
+            print(f"✅ Cleared {cleared} router cache entries (default routes re-initialized)")
             return cleared
             
         except Exception as e:

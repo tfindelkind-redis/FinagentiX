@@ -40,15 +40,19 @@ class ToolCache:
         
         # Default TTL values for different tool types
         self.ttl_config = {
-            "stock_price": 60,  # 1 minute
-            "moving_average": 300,  # 5 minutes
-            "rsi": 300,  # 5 minutes
-            "volatility": 600,  # 10 minutes
+            "stock_price": 300,  # 5 minutes (was 1 min)
+            "moving_average": 600,  # 10 minutes
+            "rsi": 600,  # 10 minutes
+            "volatility": 900,  # 15 minutes
             "news": 1800,  # 30 minutes
             "sentiment": 1800,  # 30 minutes
             "sec_filing": 86400,  # 24 hours
-            "portfolio": 60,  # 1 minute
-            "default": 300,  # 5 minutes
+            "portfolio": 300,  # 5 minutes (was 1 min)
+            "market_data": 300,  # 5 minutes - used by workflows
+            "technical_analysis": 600,  # 10 minutes
+            "risk_analysis": 900,  # 15 minutes
+            "news_sentiment": 1800,  # 30 minutes
+            "default": 600,  # 10 minutes (was 5 min)
         }
     
     def _generate_key(self, tool_name: str, **params) -> str:

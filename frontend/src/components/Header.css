@@ -130,3 +130,40 @@
 .nav-tab-active svg {
   color: var(--color-info);
 }
+
+/* User Menu */
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-left: var(--spacing-md);
+  padding-left: var(--spacing-md);
+  border-left: 1px solid var(--color-border);
+}
+
+.user-name {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.logout-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xs);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logout-button:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
+  background-color: rgba(239, 68, 68, 0.1);
+}

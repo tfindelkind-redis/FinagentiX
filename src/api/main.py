@@ -21,6 +21,15 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from .config import settings
+from .auth import (
+    LoginRequest,
+    LoginResponse,
+    User,
+    get_current_user,
+    get_optional_user,
+    login as auth_login,
+    decode_token,
+)
 from .models import (
     EnhancedQueryResponse,
     QueryResponse as LegacyQueryResponse,
@@ -116,11 +125,54 @@ class HealthResponse(BaseModel):
     services: Dict[str, str]
 
 
+# ==================== Authentication Endpoints ====================
+
+@app.post("/api/auth/login", response_model=LoginResponse)
+async def login_endpoint(request: LoginRequest) -> LoginResponse:
+    """
+    Authenticate user and return JWT token
+    
+    - No auth required (public endpoint)
+    - Returns JWT token valid for 24 hours by default
+    """
+    return auth_login(request.username, request.password)
+
+
+@app.get("/api/auth/verify")
+async def verify_token(current_user: User = Depends(get_current_user)) -> Dict[str, Any]:
+    """
+    Verify if current JWT token is valid
+    
+    - Requires valid JWT token
+    - Returns user info if valid
+    """
+    return {
+        "valid": True,
+        "username": current_user.username,
+    }
+
+
+@app.post("/api/auth/logout")
+async def logout(current_user: User = Depends(get_current_user)) -> Dict[str, str]:
+    """
+    Logout endpoint (client should discard token)
+    
+    Note: JWT tokens are stateless, so we can't invalidate them server-side
+    without additional infrastructure (e.g., token blacklist in Redis)
+    For this demo, client is responsible for discarding the token
+    """
+    return {
+        "message": "Logged out successfully",
+        "username": current_user.username,
+    }
+
+
 # ==================== Main Query Endpoint ====================
 
 @app.post("/api/query/enhanced", response_model=EnhancedQueryResponse)
 async def query_enhanced(
     request: QueryRequest,
+    current_user: User = Depends(get_current_user),
     semantic_cache: SemanticCache = Depends(get_semantic_cache),
     contextual_memory: ContextualMemory = Depends(get_contextual_memory),
     semantic_router: SemanticRouter = Depends(get_semantic_router),
@@ -566,6 +618,7 @@ async def query_enhanced(
 @app.post("/api/query", response_model=QueryResponse)
 async def query(
     request: QueryRequest,
+    current_user: User = Depends(get_current_user),
     semantic_cache: SemanticCache = Depends(get_semantic_cache),
     contextual_memory: ContextualMemory = Depends(get_contextual_memory),
     semantic_router: SemanticRouter = Depends(get_semantic_router),
@@ -1180,6 +1233,7 @@ async def health_check() -> HealthResponse:
 
 @app.get("/api/stats")
 async def get_stats(
+    current_user: User = Depends(get_current_user),
     semantic_cache: SemanticCache = Depends(get_semantic_cache),
     semantic_router: SemanticRouter = Depends(get_semantic_router),
 ) -> Dict[str, Any]:
@@ -1193,7 +1247,7 @@ async def get_stats(
 
 
 @app.get("/api/debug/news-sentiment/{ticker}")
-async def debug_news_sentiment(ticker: str) -> Dict[str, Any]:
+async def debug_news_sentiment(ticker: str, current_user: User = Depends(get_current_user)) -> Dict[str, Any]:
     """Debug endpoint to test news sentiment plugin directly"""
     try:
         from ..redis.client import get_redis_client
@@ -1242,7 +1296,7 @@ async def debug_news_sentiment(ticker: str) -> Dict[str, Any]:
 
 
 @app.get("/api/debug/redis-indexes")
-async def debug_redis_indexes() -> Dict[str, Any]:
+async def debug_redis_indexes(current_user: User = Depends(get_current_user)) -> Dict[str, Any]:
     """Debug endpoint to list all Redis FT indexes and their document counts"""
     try:
         from ..redis.client import get_redis_client
@@ -1283,7 +1337,7 @@ async def debug_redis_indexes() -> Dict[str, Any]:
 # ==================== Metrics Endpoints ====================
 
 @app.get("/api/metrics/pricing")
-async def get_pricing_info() -> Dict[str, Any]:
+async def get_pricing_info(current_user: User = Depends(get_current_user)) -> Dict[str, Any]:
     """
     Get current Azure OpenAI pricing information
     
@@ -1324,6 +1378,7 @@ async def get_pricing_info() -> Dict[str, Any]:
 
 @app.get("/api/metrics/cache")
 async def get_cache_metrics(
+    current_user: User = Depends(get_current_user),
     semantic_cache: SemanticCache = Depends(get_semantic_cache),
 ) -> Dict[str, Any]:
     """
@@ -1371,6 +1426,7 @@ class CacheClearRequest(BaseModel):
 @app.post("/api/cache/semantic/clear")
 async def clear_semantic_cache_endpoint(
     request: CacheClearRequest = CacheClearRequest(),
+    current_user: User = Depends(get_current_user),
     semantic_cache: SemanticCache = Depends(get_semantic_cache),
 ) -> Dict[str, Any]:
     """
@@ -1403,6 +1459,7 @@ async def clear_semantic_cache_endpoint(
 @app.post("/api/cache/router/clear")
 async def clear_router_cache_endpoint(
     request: CacheClearRequest = CacheClearRequest(),
+    current_user: User = Depends(get_current_user),
     semantic_router: SemanticRouter = Depends(get_semantic_router),
 ) -> Dict[str, Any]:
     """
@@ -1435,6 +1492,7 @@ async def clear_router_cache_endpoint(
 @app.post("/api/cache/tool/clear")
 async def clear_tool_cache_endpoint(
     request: CacheClearRequest = CacheClearRequest(),
+    current_user: User = Depends(get_current_user),
     tool_cache: ToolCache = Depends(get_tool_cache),
 ) -> Dict[str, Any]:
     """
@@ -1469,7 +1527,7 @@ async def clear_tool_cache_endpoint(
 
 
 @app.get("/api/metrics/performance")
-async def get_performance_metrics() -> Dict[str, Any]:
+async def get_performance_metrics(current_user: User = Depends(get_current_user)) -> Dict[str, Any]:
     """
     Get system performance metrics
     
@@ -1511,6 +1569,7 @@ async def get_performance_metrics() -> Dict[str, Any]:
 
 @app.get("/api/metrics/summary")
 async def get_metrics_summary(
+    current_user: User = Depends(get_current_user),
     semantic_cache: SemanticCache = Depends(get_semantic_cache),
 ) -> Dict[str, Any]:
     """
@@ -1553,6 +1612,7 @@ async def get_metrics_summary(
 
 @app.get("/api/routes")
 async def list_routes(
+    current_user: User = Depends(get_current_user),
     semantic_router: SemanticRouter = Depends(get_semantic_router),
 ) -> Dict[str, Any]:
     """List available workflow routes"""
@@ -1600,6 +1660,7 @@ class RAGQueryRequest(BaseModel):
 @app.post("/api/documents/ingest")
 async def ingest_document(
     request: DocumentIngestRequest,
+    current_user: User = Depends(get_current_user),
     document_store: DocumentStore = Depends(get_document_store),
 ) -> Dict[str, Any]:
     """
@@ -1640,6 +1701,7 @@ async def ingest_document(
 @app.post("/api/documents/search")
 async def search_documents(
     request: DocumentSearchRequest,
+    current_user: User = Depends(get_current_user),
     document_store: DocumentStore = Depends(get_document_store),
 ) -> Dict[str, Any]:
     """
@@ -1674,6 +1736,7 @@ async def search_documents(
 @app.post("/api/documents/ask")
 async def ask_documents(
     request: RAGQueryRequest,
+    current_user: User = Depends(get_current_user),
     rag_retriever: RAGRetriever = Depends(get_rag_retriever),
 ) -> Dict[str, Any]:
     """
@@ -1706,6 +1769,7 @@ async def ask_documents(
 
 @app.get("/api/documents/stats")
 async def get_document_stats(
+    current_user: User = Depends(get_current_user),
     document_store: DocumentStore = Depends(get_document_store),
 ) -> Dict[str, Any]:
     """Get document store statistics"""
@@ -1715,6 +1779,7 @@ async def get_document_stats(
 @app.delete("/api/documents/{ticker}")
 async def delete_documents_by_ticker(
     ticker: str,
+    current_user: User = Depends(get_current_user),
     document_store: DocumentStore = Depends(get_document_store),
 ) -> Dict[str, Any]:
     """Delete all documents for a specific ticker"""

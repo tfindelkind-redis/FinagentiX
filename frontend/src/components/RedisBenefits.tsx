@@ -106,14 +106,41 @@ const ESTIMATED_COST_PER_REQUEST = COST_PER_LLM_CALL
 // - "What's the risk assessment for {TICKER}?" - RiskAssessmentWorkflow returns "Unable to process query"
 // - "{TICKER}'s stock price today" - NLP misparses possessive format
 // - "What is the stock price of {TICKER}" - NLP misparses as ticker "WHATS"
-const BASE_QUESTIONS = [
+
+// IMPORTANT: Questions are grouped by semantic intent category
+// Questions in DIFFERENT categories for the same ticker should:
+// - MISS semantic cache (< 70% similar - different intent)
+// - HIT tool cache (same ticker data already fetched)
+const PRICE_QUESTIONS = [
   "What's the current price of {TICKER}?",
   "{TICKER} stock price today",
-  "Should I invest in {TICKER}?",
+]
+
+const ANALYSIS_QUESTIONS = [
   "Give me a technical analysis of {TICKER}",
+  "Analyze {TICKER} chart patterns and indicators",
+]
+
+const SENTIMENT_QUESTIONS = [
   "What's the market sentiment for {TICKER}?",
+  "Show me news and sentiment about {TICKER}",
+]
+
+const INVESTMENT_QUESTIONS = [
+  "Should I invest in {TICKER}?",
   "Is {TICKER} a good investment?",
 ]
+
+// All question categories - pairs from different categories = semantic miss + tool hit
+const QUESTION_CATEGORIES = [
+  PRICE_QUESTIONS,
+  ANALYSIS_QUESTIONS, 
+  SENTIMENT_QUESTIONS,
+  INVESTMENT_QUESTIONS,
+]
+
+// Flat list for backward compatibility
+const BASE_QUESTIONS = QUESTION_CATEGORIES.flat()
 
 // Tickers to rotate through (only tickers with data in Redis TimeSeries)
 // AMD excluded - no TimeSeries data loaded
@@ -191,24 +218,34 @@ function zipfWeight(rank: number): number {
 }
 
 // Generate weighted question pool with guaranteed tool cache opportunities
-// Strategy: For each ticker, we include 2 different question templates consecutively
-// This ensures tool cache can hit: Q1 for AAPL (miss) → Q2 for AAPL (hit!)
+// Strategy: For each ticker, pair questions from DIFFERENT semantic categories
+// This ensures:
+// - Semantic cache MISS (different intent < 70% similarity)
+// - Tool cache HIT (same ticker data already fetched)
+// Example: "AAPL stock price?" → miss/miss → "Sentiment for AAPL?" → miss/HIT!
 function generateQuestionPool(): string[] {
   const pool: string[] = []
   
-  // First, add pairs of different questions for the same ticker
-  // This guarantees tool cache hit opportunities even in small benchmarks
+  // Create pairs from different categories for each ticker
+  // Category 0 (price) + Category 2 (sentiment) = very different semantically
+  // Category 1 (analysis) + Category 3 (investment) = very different semantically
   TICKERS.forEach((ticker, tickerRank) => {
-    // Add first two question templates for this ticker back-to-back
-    // First question: cache miss, Second question: tool cache HIT
-    const q1 = BASE_QUESTIONS[0].replace('{TICKER}', ticker) // "What's the current price of AAPL?"
-    const q2 = BASE_QUESTIONS[2].replace('{TICKER}', ticker) // "Should I invest in AAPL?"
+    // Pair 1: Price question → Sentiment question (semantically different!)
+    const priceQ = PRICE_QUESTIONS[0].replace('{TICKER}', ticker)
+    const sentimentQ = SENTIMENT_QUESTIONS[0].replace('{TICKER}', ticker)
+    
+    // Pair 2: Analysis question → Investment question (semantically different!)
+    const analysisQ = ANALYSIS_QUESTIONS[0].replace('{TICKER}', ticker)
+    const investQ = INVESTMENT_QUESTIONS[0].replace('{TICKER}', ticker)
     
     // Weight popular tickers more (AAPL, MSFT get more pairs)
     const pairWeight = Math.ceil(zipfWeight(tickerRank) * 3)
     for (let i = 0; i < pairWeight; i++) {
-      pool.push(q1)
-      pool.push(q2)
+      // Add pairs consecutively - this is key for tool cache hits
+      pool.push(priceQ)
+      pool.push(sentimentQ) // Same ticker, different category = tool cache HIT
+      pool.push(analysisQ)
+      pool.push(investQ)    // Same ticker, different category = tool cache HIT
     }
   })
   
@@ -224,16 +261,9 @@ function generateQuestionPool(): string[] {
     })
   })
   
-  // Shuffle the pool BUT keep ticker pairs together for tool cache hits
-  // We do a partial shuffle: shuffle within groups of 4 to maintain some locality
-  const groupSize = 4
-  for (let g = 0; g < pool.length; g += groupSize) {
-    const end = Math.min(g + groupSize, pool.length)
-    for (let i = end - 1; i > g; i--) {
-      const j = g + Math.floor(Math.random() * (i - g + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]]
-    }
-  }
+  // NO SHUFFLE - keep pairs consecutive for tool cache hits!
+  // The pairs at the start (price→sentiment, analysis→invest) must stay together
+  // Shuffling would break the tool cache hit opportunities
   
   return pool
 }
@@ -293,12 +323,22 @@ interface SimulationConfig {
   warmupRounds: number // How many times to repeat pool for cache warming
 }
 
+import { getAuthToken } from '../contexts/AuthContext'
+
 const API_BASE_URL = (() => {
   // Use runtime config (set by nginx at container startup)
   const runtimeUrl = typeof window !== 'undefined' ? (window as any).__ENV__?.PUBLIC_API_BASE_URL : undefined
   // Fallback to build-time env var, then localhost
   return runtimeUrl || import.meta.env.VITE_API_URL || 'http://localhost:8000'
 })()
+
+const getAuthHeaders = (): Record<string, string> => {
+  const token = getAuthToken()
+  if (token) {
+    return { 'Authorization': `Bearer ${token}` }
+  }
+  return {}
+}
 
 export default function RedisBenefits() {
   const [isRunning, setIsRunning] = useState(false)
@@ -561,7 +601,10 @@ export default function RedisBenefits() {
         // Use /api/query/enhanced to get per-cache-layer breakdown (semantic, router, tool)
         const response = await fetch(`${API_BASE_URL}/api/query/enhanced`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...getAuthHeaders(),
+          },
           body: JSON.stringify({
             query: question,
             user_id: 'benchmark_user',
@@ -1242,6 +1285,9 @@ export default function RedisBenefits() {
                   </div>
                   <div className="layer-description">
                     Caches external API results (stock prices, news) with TTL-based expiration.
+                    {displayStats.cacheLayerStats['tool_cache']?.checks === 0 && (
+                      <span className="layer-note"> ℹ️ Tool cache is only checked when semantic cache misses.</span>
+                    )}
                   </div>
                 </div>
               </div>

@@ -13,6 +13,7 @@ import type {
   MetricsSummary,
   CacheOperationResult,
 } from '@/types/api';
+import { getAuthToken } from '@/contexts/AuthContext';
 
 const runtimeBaseUrl =
   typeof window !== 'undefined' ? window.__ENV__?.PUBLIC_API_BASE_URL : undefined;
@@ -30,11 +31,23 @@ class APIError extends Error {
   }
 }
 
+/**
+ * Get authorization headers if token exists
+ */
+function getAuthHeaders(): Record<string, string> {
+  const token = getAuthToken();
+  if (token) {
+    return { 'Authorization': `Bearer ${token}` };
+  }
+  return {};
+}
+
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${url}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
       ...options?.headers,
     },
   });

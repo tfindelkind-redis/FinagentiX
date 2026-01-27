@@ -29,6 +29,24 @@ REDEPLOY_STAGE3=${REDEPLOY_STAGE3:-false}
 REDEPLOY_STAGE4=${REDEPLOY_STAGE4:-false}
 REDEPLOY_STAGE5=${REDEPLOY_STAGE5:-false}
 
+# Authentication configuration (REQUIRED - no defaults for security)
+AUTH_USERNAME="${AUTH_USERNAME:-admin}"
+AUTH_PASSWORD="${AUTH_PASSWORD:-}"
+JWT_SECRET="${JWT_SECRET:-$(openssl rand -hex 32 2>/dev/null || echo "")}"
+JWT_EXPIRY_HOURS="${JWT_EXPIRY_HOURS:-24}"
+
+# Validate required secrets
+if [ -z "$AUTH_PASSWORD" ]; then
+    echo "❌ AUTH_PASSWORD environment variable is required!"
+    echo "   Set it with: export AUTH_PASSWORD='your-secure-password'"
+    exit 1
+fi
+if [ -z "$JWT_SECRET" ]; then
+    echo "❌ JWT_SECRET environment variable is required!"
+    echo "   Generate with: export JWT_SECRET=$(openssl rand -hex 32)"
+    exit 1
+fi
+
 echo "=========================================="
 echo "FinagentiX Infrastructure Deployment"
 echo "=========================================="
@@ -42,6 +60,7 @@ echo "Build Frontend Image: $BUILD_FRONTEND_IMAGE"
 echo "Redeploy Stage3: $REDEPLOY_STAGE3"
 echo "Redeploy Stage4: $REDEPLOY_STAGE4"
 echo "Redeploy Stage5: $REDEPLOY_STAGE5"
+echo "Auth Username: $AUTH_USERNAME"
 echo ""
 
 # Function to check deployment status
@@ -397,6 +416,10 @@ else
             openaiGpt4Deployment="$OPENAI_GPT4_DEPLOYMENT" \
             openaiEmbeddingDeployment="$OPENAI_EMBEDDING_DEPLOYMENT" \
             openaiApiVersion="$OPENAI_API_VERSION" \
+            authUsername="$AUTH_USERNAME" \
+            authPassword="$AUTH_PASSWORD" \
+            jwtSecret="$JWT_SECRET" \
+            jwtExpiryHours="$JWT_EXPIRY_HOURS" \
         --name "$STAGE4_DEPLOYMENT_NAME" \
         --no-prompt true \
         --output table

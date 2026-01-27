@@ -1,5 +1,6 @@
-import { Activity, MessageSquare, Zap, AlertTriangle } from 'lucide-react'
+import { Activity, MessageSquare, Zap, AlertTriangle, LogOut, User } from 'lucide-react'
 import CacheControls from './CacheControls'
+import { useAuth } from '../contexts/AuthContext'
 import './Header.css'
 
 type PageView = 'chat' | 'redis-benefits'
@@ -10,6 +11,8 @@ interface HeaderProps {
 }
 
 export default function Header({ currentPage, onPageChange }: HeaderProps) {
+  const { username, logout } = useAuth()
+
   return (
     <>
       <div className="demo-disclaimer">
@@ -47,6 +50,15 @@ export default function Header({ currentPage, onPageChange }: HeaderProps) {
           </nav>
           <div className="header-right">
             <CacheControls />
+            <div className="user-menu">
+              <span className="user-name">
+                <User size={16} />
+                {username}
+              </span>
+              <button className="logout-button" onClick={logout} title="Sign out">
+                <LogOut size={16} />
+              </button>
+            </div>
           </div>
         </div>
       </header>

@@ -49,6 +49,20 @@ param openaiEmbeddingDeployment string
 @description('Azure OpenAI API version')
 param openaiApiVersion string = '2024-08-01-preview'
 
+@description('Authentication username')
+param authUsername string = 'admin'
+
+@description('Authentication password')
+@secure()
+param authPassword string
+
+@description('JWT secret for token signing')
+@secure()
+param jwtSecret string
+
+@description('JWT token expiry in hours')
+param jwtExpiryHours int = 24
+
 // Get existing Container Apps Environment (created in Stage 3)
 resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-05-01' existing = {
   name: 'cae-${resourceToken}'
@@ -96,6 +110,14 @@ resource agentApiApp 'Microsoft.App/containerApps@2023-05-01' = {
         {
           name: 'appinsights-connection-string'
           value: applicationInsightsConnectionString
+        }
+        {
+          name: 'auth-password'
+          value: authPassword
+        }
+        {
+          name: 'jwt-secret'
+          value: jwtSecret
         }
       ]
       registries: [
@@ -163,6 +185,22 @@ resource agentApiApp 'Microsoft.App/containerApps@2023-05-01' = {
             {
               name: 'ENVIRONMENT'
               value: environmentName
+            }
+            {
+              name: 'AUTH_USERNAME'
+              value: authUsername
+            }
+            {
+              name: 'AUTH_PASSWORD'
+              secretRef: 'auth-password'
+            }
+            {
+              name: 'JWT_SECRET'
+              secretRef: 'jwt-secret'
+            }
+            {
+              name: 'JWT_EXPIRY_HOURS'
+              value: string(jwtExpiryHours)
             }
           ]
         }

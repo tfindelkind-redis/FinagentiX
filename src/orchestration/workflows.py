@@ -6,10 +6,12 @@ Coordinates multiple agents to accomplish complex tasks
 import asyncio
 import functools
 import json
+import os
 import time
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 import redis
+from openai import AsyncAzureOpenAI
 from semantic_kernel import Kernel
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
 from semantic_kernel.contents import ChatHistory
@@ -34,6 +36,21 @@ class AgentTaskSpec:
     metadata: Optional[Dict[str, Any]] = None
 
 
+def _get_openai_client() -> Optional[AsyncAzureOpenAI]:
+    """Get Azure OpenAI client for LLM synthesis"""
+    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+    
+    if endpoint and api_key:
+        return AsyncAzureOpenAI(
+            azure_endpoint=endpoint,
+            api_key=api_key,
+            api_version=api_version,
+        )
+    return None
+
+
 class BaseWorkflow:
     """Base class for orchestration workflows"""
     
@@ -43,6 +60,7 @@ class BaseWorkflow:
         tool_cache: Optional[ToolCache] = None,
         redis_client: Optional[redis.Redis] = None,
         metrics_collector: Optional[MetricsCollector] = None,
+        openai_client: Optional[AsyncAzureOpenAI] = None,
     ):
         """
         Initialize workflow
@@ -50,12 +68,15 @@ class BaseWorkflow:
         Args:
             kernel: Semantic Kernel instance
             tool_cache: Tool cache for caching plugin outputs
+            openai_client: Azure OpenAI client for LLM synthesis
         """
         self.kernel = kernel
         self.tool_cache = tool_cache or ToolCache()
         self.metrics = metrics_collector
         self.debugger = WorkflowDebugger(self.__class__.__name__)
         self.redis = redis_client or get_redis_client()
+        self.openai_client = openai_client or _get_openai_client()
+        self.llm_deployment = os.getenv("AZURE_OPENAI_GPT4_DEPLOYMENT", "gpt-4o")
         
         # Initialize plugins
         self.market_data = MarketDataPlugin(self.redis)
@@ -66,7 +87,8 @@ class BaseWorkflow:
 
         self.debugger.log_config({
             "kernel_provided": kernel is not None,
-            "tool_cache_provided": tool_cache is not None
+            "tool_cache_provided": tool_cache is not None,
+            "openai_client_provided": self.openai_client is not None
         })
     
     async def execute(self, **params) -> Dict[str, Any]:
@@ -495,14 +517,33 @@ class InvestmentAnalysisWorkflow(BaseWorkflow):
         processed, errors = await self._run_agent_tasks(task_specs, pattern="concurrent")
         market_data, technical, risk, sentiment = processed
         
-        # Synthesize recommendation
-        recommendation = self._synthesize_recommendation(
+        # Synthesize recommendation using rule-based approach (fast)
+        rule_based_recommendation = self._synthesize_recommendation(
             ticker=ticker,
             market_data=market_data,
             technical=technical,
             risk=risk,
             sentiment=sentiment
         )
+        
+        # Enhance with LLM synthesis for intelligent analysis
+        llm_analysis = await self._synthesize_with_llm(
+            ticker=ticker,
+            market_data=market_data,
+            technical=technical,
+            risk=risk,
+            sentiment=sentiment,
+            rule_based_recommendation=rule_based_recommendation
+        )
+        
+        # Merge recommendation with LLM insights
+        recommendation = {
+            **rule_based_recommendation,
+            "llm_analysis": llm_analysis.get("analysis") if llm_analysis else None,
+            "llm_reasoning": llm_analysis.get("reasoning") if llm_analysis else None,
+            "key_insights": llm_analysis.get("key_insights") if llm_analysis else [],
+            "risk_considerations": llm_analysis.get("risk_considerations") if llm_analysis else [],
+        }
         
         result_payload = {
             "workflow": "InvestmentAnalysisWorkflow",
@@ -512,6 +553,7 @@ class InvestmentAnalysisWorkflow(BaseWorkflow):
             "risk_analysis": risk,
             "sentiment_analysis": sentiment,
             "recommendation": recommendation,
+            "llm_synthesis": llm_analysis,
             "timestamp": "now",
             "rag": rag_context,
         }
@@ -838,6 +880,200 @@ class InvestmentAnalysisWorkflow(BaseWorkflow):
             "signals": signals,
             "summary": f"Based on technical analysis, risk metrics, and sentiment, recommend {action} for {ticker}",
         }
+
+    async def _synthesize_with_llm(
+        self,
+        ticker: str,
+        market_data: Dict,
+        technical: Dict,
+        risk: Dict,
+        sentiment: Dict,
+        rule_based_recommendation: Dict,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Use LLM to synthesize comprehensive investment analysis.
+        
+        This method takes the raw data from all agents and uses GPT-4o to:
+        1. Correlate insights across different data sources
+        2. Provide nuanced reasoning for the recommendation
+        3. Identify key risk factors and opportunities
+        4. Generate actionable insights
+        
+        Args:
+            ticker: Stock ticker symbol
+            market_data: Market data from MarketDataPlugin
+            technical: Technical analysis from TechnicalAnalysisPlugin
+            risk: Risk metrics from RiskAnalysisPlugin
+            sentiment: Sentiment analysis from NewsSentimentPlugin
+            rule_based_recommendation: Initial recommendation from rule-based system
+            
+        Returns:
+            Dictionary with LLM-generated analysis or None if LLM unavailable
+        """
+        if not self.openai_client:
+            self.debugger.log_step("llm_synthesis_skipped", "No OpenAI client available")
+            return None
+        
+        try:
+            self.debugger.log_step("llm_synthesis_start", f"ticker={ticker}")
+            start_time = time.perf_counter()
+            
+            # Extract key metrics for the prompt
+            current_price = market_data.get("current_price", {}).get("value", "N/A")
+            price_date = market_data.get("current_price", {}).get("date", "N/A")
+            
+            historical = market_data.get("historical", {})
+            stats = historical.get("stats", {}) if isinstance(historical, dict) else {}
+            change_pct = stats.get("change_pct", "N/A")
+            
+            sma_50 = technical.get("sma_50", {}).get("sma", "N/A")
+            sma_200 = technical.get("sma_200", {}).get("sma", "N/A")
+            rsi = technical.get("rsi", {}).get("rsi", "N/A")
+            volatility = technical.get("volatility", {}).get("annualized", "N/A")
+            
+            var_pct = risk.get("var", {}).get("var_pct", "N/A")
+            beta = risk.get("beta", {}).get("beta", "N/A")
+            max_drawdown = risk.get("drawdown", {}).get("max_drawdown_pct", "N/A")
+            
+            overall_sentiment = sentiment.get("sentiment", {}).get("overall_sentiment", "N/A")
+            sentiment_pcts = sentiment.get("sentiment", {}).get("sentiment_percentages", {})
+            
+            # Get news headlines if available
+            news_articles = sentiment.get("articles", {}).get("results", [])
+            headlines = []
+            if isinstance(news_articles, list):
+                for article in news_articles[:5]:
+                    if isinstance(article, dict) and article.get("title"):
+                        headlines.append(f"- {article['title']}")
+            headlines_text = "\n".join(headlines) if headlines else "No recent news available"
+            
+            rule_action = rule_based_recommendation.get("action", "HOLD")
+            rule_signals = rule_based_recommendation.get("signals", [])
+            
+            # Build the LLM prompt
+            prompt = f"""You are a senior investment analyst providing a comprehensive analysis for {ticker}.
+
+## Current Market Data
+- **Current Price:** ${current_price} (as of {price_date})
+- **30-Day Price Change:** {change_pct}%
+
+## Technical Indicators
+- **SMA 50:** ${sma_50}
+- **SMA 200:** ${sma_200}
+- **RSI (14-day):** {rsi}
+- **Annualized Volatility:** {volatility}%
+
+## Risk Metrics
+- **Value at Risk (95%, 1-day):** {var_pct}%
+- **Beta (vs S&P 500):** {beta}
+- **Maximum Drawdown (1-year):** {max_drawdown}%
+
+## Market Sentiment
+- **Overall Sentiment:** {overall_sentiment}
+- **Sentiment Distribution:** {json.dumps(sentiment_pcts) if sentiment_pcts else 'N/A'}
+
+## Recent News Headlines
+{headlines_text}
+
+## Rule-Based Signals
+- **Initial Recommendation:** {rule_action}
+- **Detected Signals:** {', '.join(rule_signals) if rule_signals else 'None'}
+
+---
+
+Based on this data, provide a comprehensive investment analysis in the following JSON format:
+{{
+    "analysis": "A 2-3 sentence executive summary of the investment case",
+    "recommendation": "BUY, HOLD, or SELL",
+    "confidence": "high, moderate, or low",
+    "reasoning": "A detailed paragraph explaining WHY you make this recommendation, correlating the technical, risk, and sentiment data",
+    "key_insights": [
+        "First key insight about the stock",
+        "Second key insight correlating multiple data points",
+        "Third insight about opportunity or concern"
+    ],
+    "risk_considerations": [
+        "Primary risk factor to consider",
+        "Secondary risk or volatility concern",
+        "Market/sentiment risk if applicable"
+    ],
+    "price_context": "Brief context on current price relative to moving averages and recent performance"
+}}
+
+Important: 
+- Correlate the data points (e.g., "The golden cross combined with positive sentiment suggests...")
+- Be specific about numbers when making claims
+- If data is missing (N/A), acknowledge limitations
+- Provide actionable insights, not generic advice
+- Return ONLY valid JSON, no markdown code blocks"""
+
+            # Call the LLM
+            response = await self.openai_client.chat.completions.create(
+                model=self.llm_deployment,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a senior investment analyst. Provide analysis in valid JSON format only. Be concise but insightful."
+                    },
+                    {
+                        "role": "user", 
+                        "content": prompt
+                    }
+                ],
+                temperature=0.3,  # Lower temperature for more consistent analysis
+                max_tokens=1000,
+            )
+            
+            llm_response = response.choices[0].message.content.strip()
+            
+            # Parse the JSON response
+            # Handle potential markdown code blocks
+            if llm_response.startswith("```"):
+                llm_response = llm_response.split("```")[1]
+                if llm_response.startswith("json"):
+                    llm_response = llm_response[4:]
+                llm_response = llm_response.strip()
+            
+            try:
+                analysis = json.loads(llm_response)
+            except json.JSONDecodeError:
+                # If JSON parsing fails, create a structured response from raw text
+                analysis = {
+                    "analysis": llm_response[:500],
+                    "recommendation": rule_action,
+                    "confidence": "moderate",
+                    "reasoning": llm_response,
+                    "key_insights": [],
+                    "risk_considerations": [],
+                    "price_context": "",
+                    "parse_error": True
+                }
+            
+            duration_ms = (time.perf_counter() - start_time) * 1000
+            self.debugger.log_step(
+                "llm_synthesis_complete", 
+                f"ticker={ticker}; duration_ms={duration_ms:.1f}; recommendation={analysis.get('recommendation')}"
+            )
+            
+            # Record metrics if available
+            if self.metrics:
+                try:
+                    self.metrics.record_llm_call(
+                        model=self.llm_deployment,
+                        input_tokens=response.usage.prompt_tokens if response.usage else 0,
+                        output_tokens=response.usage.completion_tokens if response.usage else 0,
+                        duration_ms=duration_ms,
+                    )
+                except AttributeError:
+                    pass
+            
+            return analysis
+            
+        except Exception as exc:
+            self.debugger.log_error(exc)
+            self.debugger.log_step("llm_synthesis_error", str(exc))
+            # Return None on error - the rule-based recommendation will be used
+            return None
 
 
 class PortfolioReviewWorkflow(BaseWorkflow):

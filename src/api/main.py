@@ -1101,7 +1101,46 @@ def _format_response(result: Dict[str, Any]) -> str:
                             response += f"• {article}\n"
         response += "\n"
         
-        # Summary
+        # LLM Analysis Section (if available)
+        llm_synthesis = result.get("llm_synthesis", {})
+        llm_analysis = rec.get("llm_analysis")
+        llm_reasoning = rec.get("llm_reasoning")
+        key_insights = rec.get("key_insights", [])
+        risk_considerations = rec.get("risk_considerations", [])
+        
+        if llm_analysis or llm_reasoning or key_insights:
+            response += "---\n## 🤖 AI Analysis\n\n"
+            
+            # Executive Summary from LLM
+            if llm_analysis:
+                response += f"**Executive Summary:** {llm_analysis}\n\n"
+            
+            # Key Insights
+            if key_insights and isinstance(key_insights, list):
+                response += "**Key Insights:**\n"
+                for insight in key_insights:
+                    if isinstance(insight, str):
+                        response += f"• {insight}\n"
+                response += "\n"
+            
+            # Risk Considerations
+            if risk_considerations and isinstance(risk_considerations, list):
+                response += "**Risk Considerations:**\n"
+                for risk_item in risk_considerations:
+                    if isinstance(risk_item, str):
+                        response += f"• ⚠️ {risk_item}\n"
+                response += "\n"
+            
+            # Detailed Reasoning
+            if llm_reasoning:
+                response += f"**Analysis:** {llm_reasoning}\n\n"
+            
+            # Price Context from LLM
+            price_context = llm_synthesis.get("price_context") if isinstance(llm_synthesis, dict) else None
+            if price_context:
+                response += f"**Price Context:** {price_context}\n\n"
+        
+        # Summary (fallback or complement)
         summary = rec.get("summary", "")
         if summary:
             response += "---\n## 💡 Summary\n\n"

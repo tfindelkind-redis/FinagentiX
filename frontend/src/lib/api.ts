@@ -82,6 +82,86 @@ export async function executeQueryEnhanced(
   });
 }
 
+// Streaming query types
+export interface AgentSpec {
+  id: string;
+  name: string;
+  icon: string;
+}
+
+export interface StreamEvent {
+  type: 'status' | 'agents_init' | 'agent_start' | 'agent_done' | 'agent_data' | 'recommendation' | 'llm_start' | 'llm_chunk' | 'llm_done' | 'cache_hit' | 'error' | 'done';
+  content?: string;
+  message?: string;
+  response?: string;
+  ticker?: string | null;
+  query_id?: string;
+  agents?: AgentSpec[];
+  agent_id?: string;
+  index?: number;
+  agents_used?: string[];
+  processing_time_ms?: number;
+  confidence_score?: number;
+  recommendation?: string | null;
+  market_data?: Record<string, unknown>;
+  technical_analysis?: Record<string, unknown>;
+  risk_analysis?: Record<string, unknown>;
+  sentiment_analysis?: Record<string, unknown>;
+  data?: Record<string, unknown>;
+}
+
+export type StreamCallback = (event: StreamEvent) => void;
+
+export async function executeQueryStream(
+  request: QueryRequest,
+  onEvent: StreamCallback
+): Promise<void> {
+  const token = localStorage.getItem('auth_token');
+  
+  const response = await fetch(`${API_BASE_URL}/api/query/stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error('No response body');
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    
+    // Process complete SSE messages
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        try {
+          const data = JSON.parse(line.slice(6));
+          onEvent(data as StreamEvent);
+        } catch (e) {
+          console.error('Failed to parse SSE data:', line);
+        }
+      }
+    }
+  }
+}
+
 // ==================== Metrics Endpoints ====================
 
 export async function getPricingInfo(): Promise<PricingInfo> {

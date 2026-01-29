@@ -3,12 +3,21 @@ import { Loader2 } from 'lucide-react'
 import Message from './Message'
 import './MessageList.css'
 
+interface AgentProgress {
+  id: string
+  name: string
+  icon: string
+  status: 'pending' | 'running' | 'done'
+}
+
 interface MessageData {
   id: string
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
   metrics?: any
+  isStreaming?: boolean
+  agentProgress?: AgentProgress[]
 }
 
 interface MessageListProps {
@@ -25,6 +34,9 @@ export default function MessageList({ messages, isLoading, hiddenCount = 0 }: Me
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
   }, [messages, isLoading])
+
+  // Check if any message is actively streaming with agent progress
+  const hasActiveAgentProgress = messages.some(m => m.isStreaming && m.agentProgress)
 
   return (
     <div className="message-list" ref={scrollRef}>
@@ -46,7 +58,7 @@ export default function MessageList({ messages, isLoading, hiddenCount = 0 }: Me
         </>
       )}
 
-      {isLoading && (
+      {isLoading && !hasActiveAgentProgress && (
         <div className="loading-indicator">
           <Loader2 size={20} className="spinner" />
           <span>Thinking...</span>

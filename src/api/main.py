@@ -5,6 +5,7 @@ AI-Powered Financial Trading Assistant
 Main entry point for the application
 """
 
+import asyncio
 import os
 import time
 from typing import Dict, Any, Optional, List
@@ -17,7 +18,7 @@ load_dotenv()
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from .config import settings
@@ -54,6 +55,7 @@ from .dependencies import (
 from ..redis import SemanticCache, ContextualMemory, SemanticRouter, DocumentStore, ToolCache
 from ..redis.rag_retriever import RAGRetriever
 from ..utils.metrics_collector import MetricsCollector
+from ..utils.ticker_utils import extract_ticker as _extract_ticker
 from ..orchestration.workflows import (
     InvestmentAnalysisWorkflow,
     PortfolioReviewWorkflow,
@@ -615,6 +617,181 @@ async def query_enhanced(
         raise HTTPException(status_code=500, detail=f"Query processing failed: {str(e)}")
 
 
+# ==================== Streaming Query Endpoint ====================
+
+@app.post("/api/query/stream")
+async def query_stream(
+    request: QueryRequest,
+    current_user: User = Depends(get_current_user),
+    semantic_cache: SemanticCache = Depends(get_semantic_cache),
+    semantic_router: SemanticRouter = Depends(get_semantic_router),
+    tool_cache: ToolCache = Depends(get_tool_cache),
+    openai_client = Depends(get_azure_openai_client),
+):
+    """
+    Streaming query endpoint - streams the LLM analysis in real-time.
+    
+    Returns Server-Sent Events (SSE) with:
+    1. Initial agent data (market, technical, risk, sentiment)
+    2. Streamed LLM analysis chunks
+    """
+    import json
+    
+    async def generate_stream():
+        try:
+            # Step 1: Generate embedding
+            embedding_response = await openai_client.embeddings.create(
+                input=request.query,
+                model=settings.AZURE_OPENAI_EMBEDDING_DEPLOYMENT
+            )
+            query_embedding = embedding_response.data[0].embedding
+            
+            # Step 2: Check semantic cache first
+            cached_response = semantic_cache.get(
+                query=request.query,
+                query_embedding=query_embedding
+            )
+            
+            if cached_response and cached_response.get("cache_hit") and cached_response.get("response"):
+                # Cache hit - send cached response
+                yield f"data: {json.dumps({'type': 'cache_hit', 'response': cached_response['response']})}\n\n"
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                return
+            
+            # Step 3: Extract ticker
+            derived_ticker = request.ticker or _extract_ticker(request.query)
+            
+            if not derived_ticker:
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Please provide a stock ticker (e.g., Analyze AAPL)'})}\n\n"
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                return
+            
+            # Step 4: Run the workflow to get agent data
+            workflow = InvestmentAnalysisWorkflow(
+                tool_cache=tool_cache,
+                redis_client=getattr(tool_cache, "redis", None),
+            )
+            
+            # Send "processing" status
+            yield f"data: {json.dumps({'type': 'status', 'message': f'Analyzing {derived_ticker}...'})}\n\n"
+            
+            # Define agents with their display info
+            agent_specs = [
+                {"id": "market_data", "name": "Market Data", "icon": "📊"},
+                {"id": "technical_analysis", "name": "Technical Analysis", "icon": "📈"},
+                {"id": "risk_analysis", "name": "Risk Analysis", "icon": "⚠️"},
+                {"id": "news_sentiment", "name": "Sentiment", "icon": "📰"},
+            ]
+            
+            # Send agent list to frontend
+            yield f"data: {json.dumps({'type': 'agents_init', 'agents': agent_specs})}\n\n"
+            
+            # Start all agents
+            for idx, spec in enumerate(agent_specs):
+                yield f"data: {json.dumps({'type': 'agent_start', 'agent_id': spec['id'], 'index': idx})}\n\n"
+            
+            # Run agents in parallel
+            task_specs = [
+                ("market_data", workflow._get_market_data(derived_ticker)),
+                ("technical_analysis", workflow._get_technical_analysis(derived_ticker)),
+                ("risk_analysis", workflow._get_risk_analysis(derived_ticker)),
+                ("news_sentiment", workflow._get_news_sentiment(derived_ticker)),
+            ]
+            
+            # Execute with individual completion tracking
+            async def run_with_completion(idx, agent_id, coro):
+                try:
+                    result = await coro
+                    return (idx, agent_id, result, None)
+                except Exception as e:
+                    return (idx, agent_id, None, str(e))
+            
+            tasks = [
+                asyncio.create_task(run_with_completion(i, spec[0], spec[1]))
+                for i, spec in enumerate(task_specs)
+            ]
+            
+            results_dict = {}
+            for completed_task in asyncio.as_completed(tasks):
+                idx, agent_id, result, error = await completed_task
+                if error:
+                    results_dict[agent_id] = {"error": error}
+                else:
+                    results_dict[agent_id] = result
+                # Send completion event
+                yield f"data: {json.dumps({'type': 'agent_done', 'agent_id': agent_id, 'index': idx})}\n\n"
+            
+            market_data = results_dict.get("market_data", {"error": "Not found"})
+            technical = results_dict.get("technical_analysis", {"error": "Not found"})
+            risk = results_dict.get("risk_analysis", {"error": "Not found"})
+            sentiment = results_dict.get("news_sentiment", {"error": "Not found"})
+            
+            # Send agent data immediately
+            agent_data = {
+                "type": "agent_data",
+                "ticker": derived_ticker,
+                "market_data": market_data,
+                "technical_analysis": technical,
+                "risk_analysis": risk,
+                "sentiment_analysis": sentiment,
+            }
+            yield f"data: {json.dumps(agent_data)}\n\n"
+            
+            # Step 5: Generate rule-based recommendation
+            rule_based = workflow._synthesize_recommendation(
+                ticker=derived_ticker,
+                market_data=market_data,
+                technical=technical,
+                risk=risk,
+                sentiment=sentiment
+            )
+            
+            yield f"data: {json.dumps({'type': 'recommendation', 'data': rule_based})}\n\n"
+            
+            # Step 6: Stream LLM analysis
+            yield f"data: {json.dumps({'type': 'llm_start'})}\n\n"
+            
+            full_analysis = ""
+            async for chunk in workflow._synthesize_with_llm_streaming(
+                ticker=derived_ticker,
+                market_data=market_data,
+                technical=technical,
+                risk=risk,
+                sentiment=sentiment,
+                rule_based_recommendation=rule_based,
+            ):
+                full_analysis += chunk
+                yield f"data: {json.dumps({'type': 'llm_chunk', 'content': chunk})}\n\n"
+            
+            yield f"data: {json.dumps({'type': 'llm_done'})}\n\n"
+            
+            # Cache the full response
+            final_response = f"# Analysis for {derived_ticker}\n\n{full_analysis}"
+            semantic_cache.set(
+                query=request.query,
+                query_embedding=query_embedding,
+                response=final_response,
+                model=settings.AZURE_OPENAI_GPT4_DEPLOYMENT,
+                tokens_saved=500
+            )
+            
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+    
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+        }
+    )
+
+
 @app.post("/api/query", response_model=QueryResponse)
 async def query(
     request: QueryRequest,
@@ -783,143 +960,6 @@ async def query(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Query processing failed: {str(e)}")
-
-
-def _extract_ticker(query: str) -> Optional[str]:
-    """Extract stock ticker from query text"""
-    import re
-    
-    # Known tickers we support (expanded list)
-    KNOWN_TICKERS = {
-        "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "META", "TSLA", "NVDA",
-        "AMD", "INTC", "NFLX", "DIS", "BA", "JPM", "GS", "V", "MA",
-        "WMT", "TGT", "COST", "HD", "NKE", "SBUX", "MCD", "KO", "PEP",
-        "JNJ", "PFE", "UNH", "CVS", "ABBV", "MRK", "LLY", "BMY",
-        "XOM", "CVX", "COP", "SLB", "OXY",
-        "SPY", "QQQ", "DIA", "IWM", "VTI",
-        "IBM", "ORCL", "CRM", "SAP", "CSCO", "ADBE", "NOW", "SNOW",
-        "UBER", "LYFT", "ABNB", "DASH", "RBLX", "COIN", "SQ", "PYPL",
-        "F", "GM", "TM", "HMC", "RIVN", "LCID",
-        "T", "VZ", "TMUS", "CMCSA",
-        "BRK.A", "BRK.B", "BRKB",
-        "C", "BAC", "WFC", "USB", "PNC", "SCHW",
-    }
-    
-    # Company name to ticker mapping
-    COMPANY_TO_TICKER = {
-        "APPLE": "AAPL",
-        "APPLE'S": "AAPL",
-        "MICROSOFT": "MSFT",
-        "MICROSOFT'S": "MSFT",
-        "GOOGLE": "GOOGL",
-        "GOOGLE'S": "GOOGL",
-        "ALPHABET": "GOOGL",
-        "AMAZON": "AMZN",
-        "AMAZON'S": "AMZN",
-        "TESLA": "TSLA",
-        "TESLA'S": "TSLA",
-        "NVIDIA": "NVDA",
-        "NVIDIA'S": "NVDA",
-        "META": "META",
-        "FACEBOOK": "META",
-        "NETFLIX": "NFLX",
-        "DISNEY": "DIS",
-        "BOEING": "BA",
-        "WALMART": "WMT",
-        "TARGET": "TGT",
-        "COSTCO": "COST",
-        "NIKE": "NKE",
-        "STARBUCKS": "SBUX",
-        "MCDONALD'S": "MCD",
-        "MCDONALDS": "MCD",
-        "COCA-COLA": "KO",
-        "PEPSI": "PEP",
-        "PEPSICO": "PEP",
-        "INTEL": "INTC",
-        "ORACLE": "ORCL",
-        "SALESFORCE": "CRM",
-        "CISCO": "CSCO",
-        "ADOBE": "ADBE",
-        "UBER": "UBER",
-        "LYFT": "LYFT",
-        "AIRBNB": "ABNB",
-        "DOORDASH": "DASH",
-        "ROBLOX": "RBLX",
-        "COINBASE": "COIN",
-        "PAYPAL": "PYPL",
-        "FORD": "F",
-        "CHEVRON": "CVX",
-        "EXXON": "XOM",
-        "JPMORGAN": "JPM",
-        "JP MORGAN": "JPM",
-        "GOLDMAN": "GS",
-        "GOLDMAN SACHS": "GS",
-        "BANK OF AMERICA": "BAC",
-        "WELLS FARGO": "WFC",
-    }
-    
-    # Common non-ticker words to exclude
-    EXCLUDED_WORDS = {
-        "A", "I", "THE", "OF", "AND", "FOR", "IS", "IT", "MY", "TO", "IN", "AT",
-        "ON", "BE", "AS", "OR", "AN", "BY", "IF", "UP", "SO", "NO", "DO", "GO",
-        "HAS", "CAN", "GET", "HOW", "NEW", "NOW", "OLD", "OUR", "OUT", "OWN",
-        "SAY", "SEE", "WHAT", "WHEN", "WHO", "WHY", "WAY", "WELL", "WANT", "ME",
-        "GIVE", "TAKE", "MAKE", "GOOD", "TIME", "JUST", "KNOW", "COME", "THINK",
-        "LOOK", "USE", "FIND", "TELL", "ASK", "WORK", "SEEM", "FEEL", "TRY", "ALSO",
-        "STOCK", "PRICE", "QUOTE", "SHARE", "VALUE", "CURRENT", "TODAY", "BUY", "SELL",
-        "INDUSTRY", "SECTOR", "MARKET", "ANALYSTS", "SAYING", "ABOUT", "SHOW", "TRENDS",
-        "LONG", "TERM", "SHORT", "POTENTIAL", "INVESTMENT", "INVEST", "INVESTING",
-        "BASED", "RECENT", "NEWS", "SENTIMENT", "ANALYSIS", "ANALYZE", "TECHNICAL",
-        "INDICATORS", "PATTERNS", "BULLISH", "BEARISH", "RISK", "RISKY", "METRICS",
-        "VAR", "BETA", "VOLATILITY", "COMPARED", "ARE", "SAYING", "HAPPENING",
-        "COMPREHENSIVE", "PORTFOLIO", "REVIEW", "PERFORMANCE", "SUGGEST", "REBALANCING",
-        "RSI", "MACD", "BOLLINGER", "BANDS", "CALCULATE", "SEMICONDUCTOR", "CHIP",
-        "OPINIONS", "OPINION", "ANALYST", "PLEASE", "THANK", "THANKS", "WOULD", "COULD",
-        "VIEWS", "VIEW", "OUTLOOK", "SUMMARIZE", "SUMMARY", "DESCRIBE", "EXPLAIN",
-        "GIVE", "PROVIDE", "INFO", "INFORMATION", "DATA", "DETAILS", "TREND",
-    }
-    
-    query_upper = query.upper()
-    
-    # Normalize apostrophes (curly to straight)
-    query_normalized = query_upper.replace("'", "'").replace("'", "'")
-    
-    # First, check for company names
-    for company, ticker in COMPANY_TO_TICKER.items():
-        if company in query_normalized:
-            return ticker
-    
-    # Look for common ticker patterns
-    patterns = [
-        r'\b([A-Z]{1,5})\b(?:\s+stock|\s+shares?)',  # "AAPL stock"
-        r'(?:ticker|symbol)\s+([A-Z]{1,5})\b',  # "ticker AAPL"
-        r'\$([A-Z]{1,5})\b',  # "$AAPL"
-        r'(?:price\s+of|analyze|about)\s+([A-Z]{1,5})\b',  # "price of AAPL"
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, query_upper)
-        if match:
-            ticker = match.group(1)
-            if ticker in KNOWN_TICKERS:
-                return ticker
-    
-    # Check for standalone words that match known tickers (strip punctuation first)
-    words = query_upper.split()
-    for word in words:
-        # Strip common punctuation from word boundaries
-        clean_word = word.strip("?.,!;:'\"()[]")
-        if clean_word in KNOWN_TICKERS:
-            return clean_word
-    
-    # Last resort: look for any word that looks like a ticker
-    for word in words:
-        clean_word = word.strip("?.,!;:'\"()[]")
-        if len(clean_word) >= 1 and len(clean_word) <= 5 and clean_word.isalpha():
-            # All uppercase, reasonable length - likely a ticker
-            if clean_word.isupper() and clean_word not in EXCLUDED_WORDS:
-                return clean_word
-    
-    return None
 
 
 def _format_response(result: Dict[str, Any]) -> str:

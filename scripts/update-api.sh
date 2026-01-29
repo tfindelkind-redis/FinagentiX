@@ -118,17 +118,33 @@ echo "   Container Registry:  ${AZURE_CONTAINER_REGISTRY_NAME}"
 echo "   API App:             ${AZURE_API_APP_NAME}"
 echo ""
 
+# Get version info from git
+GIT_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+APP_VERSION="1.0.0"
+
+echo "📦 Build Info:"
+echo "   Git Commit:  ${GIT_COMMIT:0:7}"
+echo "   Git Branch:  ${GIT_BRANCH}"
+echo "   Build Time:  ${BUILD_TIME}"
+echo ""
+
 # Step 1: Build and push container image
 if [ "$SKIP_BUILD" = false ]; then
     echo -e "${BLUE}🔨 Step 1: Building API container image...${NC}"
     
     cd "$ROOT_DIR"
     
-    # Build using Azure Container Registry
+    # Build using Azure Container Registry with version info
     az acr build \
         --registry "${AZURE_CONTAINER_REGISTRY_NAME}" \
         --image finagentix/agent-api:latest \
         --file docker/api.Dockerfile \
+        --build-arg GIT_COMMIT="${GIT_COMMIT}" \
+        --build-arg GIT_BRANCH="${GIT_BRANCH}" \
+        --build-arg BUILD_TIME="${BUILD_TIME}" \
+        --build-arg APP_VERSION="${APP_VERSION}" \
         . \
         ${VERBOSE:+--verbose}
     
@@ -139,30 +155,23 @@ fi
 
 echo ""
 
-# Step 2: Restart the Container App
+# Step 2: Update Container App with new image (forces new revision)
 if [ "$SKIP_RESTART" = false ]; then
-    echo -e "${BLUE}🔄 Step 2: Restarting Container App...${NC}"
+    echo -e "${BLUE}🔄 Step 2: Updating Container App (forces fresh image pull)...${NC}"
     
-    # Get the current revision
-    CURRENT_REVISION=$(az containerapp revision list \
+    # Use 'update --image' instead of 'revision restart' to force pulling the new image
+    # This creates a new revision and ensures the latest image is used (avoids cache issues)
+    IMAGE_NAME="${AZURE_CONTAINER_REGISTRY_NAME}.azurecr.io/finagentix/agent-api:latest"
+    
+    echo "   Updating to image: $IMAGE_NAME"
+    
+    az containerapp update \
         --name "${AZURE_API_APP_NAME}" \
         --resource-group "${AZURE_RESOURCE_GROUP}" \
-        --query "[0].name" -o tsv)
+        --image "$IMAGE_NAME" \
+        --output none
     
-    if [ -z "$CURRENT_REVISION" ]; then
-        echo -e "${RED}❌ Could not find current revision${NC}"
-        exit 1
-    fi
-    
-    echo "   Current revision: $CURRENT_REVISION"
-    
-    # Restart the revision
-    az containerapp revision restart \
-        --name "${AZURE_API_APP_NAME}" \
-        --resource-group "${AZURE_RESOURCE_GROUP}" \
-        --revision "$CURRENT_REVISION"
-    
-    echo -e "${GREEN}✅ Container App restarted${NC}"
+    echo -e "${GREEN}✅ Container App updated with new revision${NC}"
 else
     echo -e "${YELLOW}⏭️  Skipping restart (--skip-restart)${NC}"
 fi

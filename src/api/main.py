@@ -1299,6 +1299,32 @@ def _format_response(result: Dict[str, Any]) -> str:
 
 # ==================== Health & Status Endpoints ====================
 
+class BuildInfo(BaseModel):
+    """Build information for version tracking"""
+    git_commit: str = Field(..., description="Git commit hash")
+    git_branch: str = Field(..., description="Git branch name")
+    build_time: str = Field(..., description="Build timestamp (UTC)")
+    version: str = Field(..., description="Application version")
+
+
+@app.get("/version", response_model=BuildInfo)
+async def get_version() -> BuildInfo:
+    """
+    Get build version information.
+    
+    This endpoint returns the git commit, branch, and build timestamp
+    to easily verify which version is deployed.
+    
+    No authentication required - useful for quick verification.
+    """
+    return BuildInfo(
+        git_commit=os.environ.get("GIT_COMMIT", "unknown"),
+        git_branch=os.environ.get("GIT_BRANCH", "unknown"),
+        build_time=os.environ.get("BUILD_TIME", "unknown"),
+        version=os.environ.get("APP_VERSION", "1.0.0"),
+    )
+
+
 @app.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
     """Health check endpoint"""

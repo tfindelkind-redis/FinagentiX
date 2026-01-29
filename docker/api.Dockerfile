@@ -24,7 +24,19 @@ COPY src ./src
 COPY config ./config
 COPY scripts ./scripts
 
-ENV PYTHONPATH=/app
+# Build info arguments (passed from deploy script)
+ARG GIT_COMMIT=unknown
+ARG GIT_BRANCH=unknown
+ARG BUILD_TIME=unknown
+ARG APP_VERSION=1.0.0
+
+# Set as environment variables so they're available at runtime
+ENV GIT_COMMIT=${GIT_COMMIT} \
+    GIT_BRANCH=${GIT_BRANCH} \
+    BUILD_TIME=${BUILD_TIME} \
+    APP_VERSION=${APP_VERSION} \
+    PYTHONPATH=/app
+
 EXPOSE 8000
 
 CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

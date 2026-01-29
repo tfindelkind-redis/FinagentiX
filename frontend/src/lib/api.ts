@@ -116,7 +116,7 @@ export async function executeQueryStream(
   request: QueryRequest,
   onEvent: StreamCallback
 ): Promise<void> {
-  const token = localStorage.getItem('auth_token');
+  const token = getAuthToken();
   
   const response = await fetch(`${API_BASE_URL}/api/query/stream`, {
     method: 'POST',
@@ -206,7 +206,7 @@ export async function clearRouterCache(pattern?: string): Promise<CacheOperation
   });
 }
 
-// ==================== Health Endpoint ====================
+// ==================== Health & Version Endpoints ====================
 
 export async function getHealth(): Promise<{
   status: string;
@@ -215,6 +215,32 @@ export async function getHealth(): Promise<{
   services: Record<string, string>;
 }> {
   return fetchJSON('/health');
+}
+
+export interface BuildInfo {
+  git_commit: string;
+  git_branch: string;
+  build_time: string;
+  version: string;
+}
+
+export async function getApiVersion(): Promise<BuildInfo> {
+  // No auth required for version endpoint
+  const response = await fetch(`${API_BASE_URL}/version`);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+// Frontend build info (injected at build time)
+export function getFrontendVersion(): BuildInfo {
+  return {
+    git_commit: import.meta.env.VITE_GIT_COMMIT || 'unknown',
+    git_branch: import.meta.env.VITE_GIT_BRANCH || 'unknown',
+    build_time: import.meta.env.VITE_BUILD_TIME || 'unknown',
+    version: import.meta.env.VITE_APP_VERSION || '1.0.0',
+  };
 }
 
 // Export API client instance
@@ -235,6 +261,10 @@ export const api = {
     clearRouter: clearRouterCache,
   },
   health: getHealth,
+  version: {
+    api: getApiVersion,
+    frontend: getFrontendVersion,
+  },
 };
 
 export default api;

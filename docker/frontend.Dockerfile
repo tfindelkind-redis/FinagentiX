@@ -8,8 +8,19 @@ RUN npm ci
 
 COPY frontend .
 
+# Build arguments for version tracking
 ARG VITE_API_URL=https://localhost:8000
-ENV VITE_API_URL=$VITE_API_URL
+ARG VITE_GIT_COMMIT=unknown
+ARG VITE_GIT_BRANCH=unknown
+ARG VITE_BUILD_TIME=unknown
+ARG VITE_APP_VERSION=1.0.0
+
+# Set as environment variables for Vite build
+ENV VITE_API_URL=$VITE_API_URL \
+    VITE_GIT_COMMIT=$VITE_GIT_COMMIT \
+    VITE_GIT_BRANCH=$VITE_GIT_BRANCH \
+    VITE_BUILD_TIME=$VITE_BUILD_TIME \
+    VITE_APP_VERSION=$VITE_APP_VERSION
 
 RUN npm run build
 

@@ -1139,6 +1139,22 @@ def _format_response(result: Dict[str, Any]) -> str:
             price_context = llm_synthesis.get("price_context") if isinstance(llm_synthesis, dict) else None
             if price_context:
                 response += f"**Price Context:** {price_context}\n\n"
+            
+            # Validation Status (show if there were issues)
+            validation_warnings = llm_synthesis.get("validation_warnings", []) if isinstance(llm_synthesis, dict) else []
+            grounding_issues = llm_synthesis.get("grounding_issues", []) if isinstance(llm_synthesis, dict) else []
+            consistency_issues = llm_synthesis.get("consistency_issues", []) if isinstance(llm_synthesis, dict) else []
+            validation_failed = llm_synthesis.get("validation_failed", False) if isinstance(llm_synthesis, dict) else False
+            
+            if validation_failed:
+                response += "⚠️ **Note:** AI analysis validation failed. Results may be less reliable.\n\n"
+            elif grounding_issues or consistency_issues:
+                response += "ℹ️ **Validation Notes:**\n"
+                for issue in grounding_issues[:2]:  # Show max 2 grounding issues
+                    response += f"• {issue}\n"
+                for issue in consistency_issues[:2]:  # Show max 2 consistency issues
+                    response += f"• {issue}\n"
+                response += "\n"
         
         # Summary (fallback or complement)
         summary = rec.get("summary", "")

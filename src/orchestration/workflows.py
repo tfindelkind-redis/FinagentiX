@@ -1049,10 +1049,52 @@ Important:
                     "parse_error": True
                 }
             
+            # === LLM OUTPUT VALIDATION (Guardrails) ===
+            # Validate the LLM output for:
+            # 1. Schema correctness (required fields, proper types)
+            # 2. Data grounding (numbers match source data)
+            # 3. Consistency (recommendation matches reasoning)
+            from .llm_validators import validate_llm_investment_analysis
+            
+            validation_result = validate_llm_investment_analysis(
+                llm_output=analysis,
+                market_data=market_data,
+                technical=technical,
+                risk=risk,
+                sentiment=sentiment,
+                rule_based_recommendation=rule_based_recommendation,
+            )
+            
+            # Log validation results
+            if validation_result.is_valid:
+                self.debugger.log_step(
+                    "llm_validation_passed",
+                    f"ticker={ticker}; warnings={len(validation_result.warnings)}"
+                )
+                # Use the validated and normalized output
+                if validation_result.validated_output:
+                    analysis = validation_result.validated_output
+            else:
+                self.debugger.log_step(
+                    "llm_validation_failed",
+                    f"ticker={ticker}; errors={validation_result.errors}"
+                )
+                # Add validation metadata to the response
+                analysis["validation_failed"] = True
+                analysis["validation_errors"] = validation_result.errors
+            
+            # Always include validation warnings for transparency
+            if validation_result.warnings:
+                analysis["validation_warnings"] = validation_result.warnings
+            if validation_result.grounding_issues:
+                analysis["grounding_issues"] = validation_result.grounding_issues
+            if validation_result.consistency_issues:
+                analysis["consistency_issues"] = validation_result.consistency_issues
+            
             duration_ms = (time.perf_counter() - start_time) * 1000
             self.debugger.log_step(
                 "llm_synthesis_complete", 
-                f"ticker={ticker}; duration_ms={duration_ms:.1f}; recommendation={analysis.get('recommendation')}"
+                f"ticker={ticker}; duration_ms={duration_ms:.1f}; recommendation={analysis.get('recommendation')}; validated={validation_result.is_valid}"
             )
             
             # Record metrics if available

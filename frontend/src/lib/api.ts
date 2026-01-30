@@ -90,7 +90,7 @@ export interface AgentSpec {
 }
 
 export interface StreamEvent {
-  type: 'status' | 'agents_init' | 'agent_start' | 'agent_done' | 'agent_data' | 'recommendation' | 'llm_start' | 'llm_chunk' | 'llm_done' | 'cache_hit' | 'error' | 'done';
+  type: 'status' | 'agents_init' | 'agent_start' | 'agent_done' | 'agent_data' | 'recommendation' | 'llm_start' | 'llm_chunk' | 'llm_done' | 'cache_hit' | 'error' | 'done' | 'metrics';
   content?: string;
   message?: string;
   response?: string;

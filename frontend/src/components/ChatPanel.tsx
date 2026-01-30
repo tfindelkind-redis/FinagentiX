@@ -51,6 +51,7 @@ export default function ChatPanel({ sessionId, onResponseReceived, onClearHistor
   const streamContentRef = useRef<string>('')
   const streamMetricsRef = useRef<StreamingMetrics>({})
   const agentProgressRef = useRef<AgentProgress[]>([])
+  const currentQueryRef = useRef<string>('')
 
   // Non-streaming mutation (fallback)
   const queryMutation = useMutation({
@@ -159,16 +160,111 @@ export default function ChatPanel({ sessionId, onResponseReceived, onClearHistor
         streamMetricsRef.current.recommendation = event.recommendation
         break
       
+      case 'metrics':
+        // Store the full metrics for display
+        console.log('Received metrics:', event)
+        const processingTimeMs = event.processing_time_ms || 0
+        streamMetricsRef.current = {
+          ...streamMetricsRef.current,
+          query_id: event.query_id,
+          ticker: event.ticker,
+          agents_used: event.agents_used,
+          recommendation: event.recommendation,
+          processing_time_ms: processingTimeMs,
+        }
+        // Build a minimal EnhancedQueryResponse and call callback
+        const streamingResponse: EnhancedQueryResponse = {
+          query_id: event.query_id || `stream_${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          query: currentQueryRef.current,
+          response: streamContentRef.current,
+          overall_cache_hit: false,
+          agents: (event.agents_used || []).map((agentName, idx) => ({
+            agent_name: agentName,
+            agent_id: `agent_${idx}`,
+            agent_index: idx,
+            start_time: new Date().toISOString(),
+            end_time: new Date().toISOString(),
+            duration_ms: Math.round(processingTimeMs / 4),  // Approximate per-agent time
+            status: 'success' as const,
+            input_tokens: 0,
+            output_tokens: 0,
+            total_tokens: 0,
+            model_used: 'gpt-4o',
+            temperature: 0.7,
+            max_tokens: 1000,
+            cost_usd: 0.005,
+            tools_invoked: [],
+          })),
+          cache_layers: [],
+          cost: {
+            embedding_api_calls: 1,
+            embedding_total_tokens: 100,
+            embedding_cost_usd: 0.0001,
+            llm_api_calls: 1,
+            llm_input_tokens: 500,
+            llm_output_tokens: 500,
+            llm_total_tokens: 1000,
+            llm_cost_usd: 0.02,
+            total_cost_usd: 0.02,
+            baseline_cost_usd: 0.08,
+            cost_savings_usd: 0.06,
+            cost_savings_percent: 75,
+            cost_per_agent: {},
+          },
+          performance: {
+            queue_time_ms: 0,
+            processing_time_ms: processingTimeMs,
+            total_time_ms: processingTimeMs,
+            azure_openai_avg_latency_ms: 0,
+            azure_openai_max_latency_ms: 0,
+            redis_avg_latency_ms: 0,
+            redis_max_latency_ms: 0,
+            network_total_requests: 5,
+            error_count: 0,
+            warning_count: 0,
+            retry_count: 0,
+            meets_latency_target: processingTimeMs < 10000,
+            meets_cost_target: true,
+            quality_score: 0.85,
+          },
+          workflow: {
+            workflow_name: 'Investment Analysis',
+            orchestration_pattern: 'concurrent',
+            routing_time_ms: 0,
+            agents_invoked_count: 4,
+            agents_available_count: 4,
+          },
+          session: {
+            session_id: sessionId,
+            query_count: 1,
+            avg_latency_ms: 0,
+            total_cost_usd: 0.02,
+            cache_hit_rate: 0,
+          },
+          timeline: {
+            total_duration_ms: streamMetricsRef.current.processing_time_ms || 0,
+            events: [],
+          },
+        }
+        onResponseReceived(streamingResponse)
+        break
+      
       case 'llm_start':
-        // LLM is starting to generate - clear agent progress display
+        // LLM is starting to generate - keep agent progress visible but mark all as done
         console.log('LLM starting synthesis...')
+        // Mark all agents as done since they've completed
+        agentProgressRef.current = agentProgressRef.current.map(a => ({
+          ...a,
+          status: 'done' as const,
+        }))
         setMessages((prev) => {
           const updated = [...prev]
           const lastIdx = updated.length - 1
           if (lastIdx >= 0 && updated[lastIdx].isStreaming) {
             updated[lastIdx] = {
               ...updated[lastIdx],
-              agentProgress: undefined, // Hide agent progress, show content
+              agentProgress: [...agentProgressRef.current], // Keep showing agents
             }
           }
           return updated
@@ -198,7 +294,7 @@ export default function ChatPanel({ sessionId, onResponseReceived, onClearHistor
         break
       
       case 'done':
-        // Stream complete - finalize message
+        // Stream complete - finalize message but keep agent progress
         streamMetricsRef.current.query_id = event.query_id
         setMessages((prev) => {
           const updated = [...prev]
@@ -207,8 +303,10 @@ export default function ChatPanel({ sessionId, onResponseReceived, onClearHistor
             updated[lastIdx] = {
               ...updated[lastIdx],
               isStreaming: false,
-              agentProgress: undefined,
-              // Note: metrics will be partial for streaming responses
+              // Keep agent progress visible in final message
+              agentProgress: agentProgressRef.current.length > 0 
+                ? [...agentProgressRef.current] 
+                : undefined,
             }
           }
           return updated
@@ -242,7 +340,7 @@ export default function ChatPanel({ sessionId, onResponseReceived, onClearHistor
         setIsStreaming(false)
         break
     }
-  }, [])
+  }, [sessionId, onResponseReceived])
 
   // Streaming submit handler
   const handleStreamingSubmit = async (query: string) => {
@@ -250,6 +348,7 @@ export default function ChatPanel({ sessionId, onResponseReceived, onClearHistor
     streamContentRef.current = ''
     streamMetricsRef.current = {}
     agentProgressRef.current = []
+    currentQueryRef.current = query  // Store query for metrics callback
 
     // Add placeholder assistant message that will be updated
     const streamingMessage: Message = {

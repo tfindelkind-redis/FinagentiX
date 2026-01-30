@@ -636,8 +636,11 @@ async def query_stream(
     2. Streamed LLM analysis chunks
     """
     import json
+    import time
     
     async def generate_stream():
+        start_time = time.time()  # Track total processing time
+        
         try:
             # Step 1: Generate embedding
             embedding_response = await openai_client.embeddings.create(
@@ -765,8 +768,24 @@ async def query_stream(
             
             yield f"data: {json.dumps({'type': 'llm_done'})}\n\n"
             
-            # Cache the full response
+            # Build final response first
             final_response = f"# Analysis for {derived_ticker}\n\n{full_analysis}"
+            
+            # Calculate and send final metrics
+            end_time = time.time()
+            processing_time_ms = int((end_time - start_time) * 1000)
+            stream_metrics = {
+                "type": "metrics",
+                "query_id": f"stream_{int(end_time * 1000)}",
+                "ticker": derived_ticker,
+                "agents_used": ["Market Data Agent", "Technical Analysis Agent", "Risk Analysis Agent", "Sentiment Agent"],
+                "response": final_response,
+                "recommendation": rule_based,
+                "processing_time_ms": processing_time_ms,
+            }
+            yield f"data: {json.dumps(stream_metrics)}\n\n"
+            
+            # Cache the full response
             semantic_cache.set(
                 query=request.query,
                 query_embedding=query_embedding,
@@ -775,7 +794,7 @@ async def query_stream(
                 tokens_saved=500
             )
             
-            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'query_id': stream_metrics['query_id']})}\n\n"
             
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"

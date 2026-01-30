@@ -120,14 +120,20 @@ echo ""
 
 # Get version info from git
 GIT_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+GIT_COMMIT_SHORT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+BUILD_TIMESTAMP=$(date -u +"%Y%m%d%H%M%S")
 APP_VERSION="1.0.0"
 
+# Create unique tag to force new revision (Azure ignores :latest if unchanged)
+IMAGE_TAG="${GIT_COMMIT_SHORT}-${BUILD_TIMESTAMP}"
+
 echo "📦 Build Info:"
-echo "   Git Commit:  ${GIT_COMMIT:0:7}"
+echo "   Git Commit:  ${GIT_COMMIT_SHORT}"
 echo "   Git Branch:  ${GIT_BRANCH}"
 echo "   Build Time:  ${BUILD_TIME}"
+echo "   Image Tag:   ${IMAGE_TAG}"
 echo ""
 
 # Step 1: Build and push container image
@@ -137,9 +143,11 @@ if [ "$SKIP_BUILD" = false ]; then
     cd "$ROOT_DIR"
     
     # Build using Azure Container Registry with version info
+    # Push both unique tag and :latest for convenience
     az acr build \
         --registry "${AZURE_CONTAINER_REGISTRY_NAME}" \
-        --image finagentix/agent-api:latest \
+        --image "finagentix/agent-api:${IMAGE_TAG}" \
+        --image "finagentix/agent-api:latest" \
         --file docker/api.Dockerfile \
         --build-arg GIT_COMMIT="${GIT_COMMIT}" \
         --build-arg GIT_BRANCH="${GIT_BRANCH}" \
@@ -159,9 +167,9 @@ echo ""
 if [ "$SKIP_RESTART" = false ]; then
     echo -e "${BLUE}🔄 Step 2: Updating Container App (forces fresh image pull)...${NC}"
     
-    # Use 'update --image' instead of 'revision restart' to force pulling the new image
-    # This creates a new revision and ensures the latest image is used (avoids cache issues)
-    IMAGE_NAME="${AZURE_CONTAINER_REGISTRY_NAME}.azurecr.io/finagentix/agent-api:latest"
+    # Use unique tag to force Azure to create new revision
+    # Using :latest doesn't trigger new revision if digest hasn't changed
+    IMAGE_NAME="${AZURE_CONTAINER_REGISTRY_NAME}.azurecr.io/finagentix/agent-api:${IMAGE_TAG}"
     
     echo "   Updating to image: $IMAGE_NAME"
     

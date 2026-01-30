@@ -1,5 +1,5 @@
 /**
- * Learn Mode Questions - Curated queries to showcase Redis AI capabilities
+ * Example Questions - Curated queries to showcase Redis AI capabilities
  * Each question demonstrates specific agents and Redis patterns
  */
 

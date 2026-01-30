@@ -77,58 +77,42 @@
   50% { opacity: 0; }
 }
 
-/* Agent Progress Display */
-.agent-progress {
-  padding: var(--spacing-md);
-  background: linear-gradient(135deg, var(--color-bg-tertiary) 0%, var(--color-bg-secondary) 100%);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-}
-
-.agent-progress-label {
-  font-size: 0.875rem;
-  color: var(--color-text-muted);
-  margin-bottom: var(--spacing-sm);
-  font-weight: 500;
-}
-
-.agent-progress-list {
+/* Agent Progress Display - Compact inline version */
+.agent-progress-inline {
   display: flex;
-  gap: var(--spacing-md);
+  gap: 4px;
   flex-wrap: wrap;
+  margin-bottom: var(--spacing-xs);
 }
 
-.agent-progress-item {
-  display: flex;
+.agent-chip {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background-color: var(--color-bg-secondary);
+  gap: 2px;
+  padding: 2px 6px;
+  background-color: var(--color-bg-tertiary);
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
-  font-size: 1.25rem;
-  transition: all 0.3s ease;
+  font-size: 0.75rem;
+  transition: all 0.2s ease;
 }
 
-.agent-progress-item.agent-status-pending {
+.agent-chip .agent-icon {
+  font-size: 0.75rem;
+}
+
+.agent-chip.agent-status-pending {
   opacity: 0.4;
 }
 
-.agent-progress-item.agent-status-running {
-  opacity: 1;
+.agent-chip.agent-status-running {
   border-color: var(--color-info);
   background-color: rgba(59, 130, 246, 0.1);
-  box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
 }
 
-.agent-progress-item.agent-status-done {
-  opacity: 1;
+.agent-chip.agent-status-done {
   border-color: var(--color-success);
-  background-color: rgba(34, 197, 94, 0.1);
-}
-
-.agent-icon {
-  font-size: 1.25rem;
+  background-color: rgba(34, 197, 94, 0.05);
 }
 
 .agent-spinner {
@@ -143,4 +127,9 @@
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+.message-loading {
+  color: var(--color-text-muted);
+  font-style: italic;
 }

@@ -41,7 +41,7 @@ export default function LearnMode({ onSelectQuestion, isDisabled }: LearnModePro
       >
         <div className="learn-mode-title">
           <Lightbulb className="learn-icon" size={20} />
-          <span>Learn Mode</span>
+          <span>Examples</span>
           <span className="learn-badge">Showcase Redis AI</span>
         </div>
         <ChevronDown className={`chevron ${isExpanded ? 'rotated' : ''}`} size={20} />
